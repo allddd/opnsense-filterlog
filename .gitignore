@@ -1,0 +1,3 @@
+*.bak
+filter_*log*
+opnsense-filterlog
