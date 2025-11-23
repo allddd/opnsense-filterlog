@@ -19,6 +19,8 @@ Main features include:
 - `tcpdump`-like filter syntax with field-specific search, logical operators and grouping.
 - No external dependencies or runtime requirements.
 
+![TUI Screenshot](./docs/demo.png)
+
 ## Installation
 
 You can download a pre-built binary from the [releases page](https://gitlab.com/allddd/opnsense-filterlog/-/releases) along with its PGP-signed SHA256 checksum ([PGP key](https://gitlab.com/allddd.gpg)).
