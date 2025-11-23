@@ -2,7 +2,7 @@
 
 BINARY_NAME := opnsense-filterlog
 LDFLAGS := -X 'main.Version=$(VERSION)'
-VERSION ?= $(shell git rev-parse --short HEAD 2>/dev/null || printf 'dev')_$(shell date --iso-8601=seconds)
+VERSION ?= $(shell git describe --tags 2>/dev/null || printf 'dev')
 
 build: ## build the binary (default)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS) -s -w -buildid=" -o ./$(BINARY_NAME) ./
