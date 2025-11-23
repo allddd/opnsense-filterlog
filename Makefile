@@ -19,10 +19,11 @@ fmt: ## format code
 	go fmt ./...
 
 help: ## display this help message
-	@printf "available targets:\n\n"
+	@printf 'available targets:\n\n'
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf " %-10s - %s\n", $$1, $$2}'
 
-release: clean fmt test build ## same as clean + fmt + test + build
+release: clean fmt test build ## build the release binary, then generate and sign its SHA256 checksum
+	sha256sum $(BINARY_NAME) | gpg --clearsign > ./$(BINARY_NAME).sha256
 
 test: ## run tests
 	go test -v ./...
