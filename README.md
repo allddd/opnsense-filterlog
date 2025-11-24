@@ -25,13 +25,15 @@ Main features include:
 
 You can download a pre-built binary from the [releases page](https://gitlab.com/allddd/opnsense-filterlog/-/releases) along with its PGP-signed SHA256 checksum ([PGP key](https://gitlab.com/allddd.gpg)).
 
-All releases are reproducible. You can verify this by building the binary locally (requires matching the Go version from the [`go.mod`](./go.mod) file of the release tag):
+All releases are reproducible, which means you can build the binary yourself and verify it matches the official release.
 
 ```sh
-git clone https://gitlab.com/allddd/opnsense-filterlog.git
+git clone https://gitlab.com/allddd/opnsense-filterlog.git -b <version_you_want_to_reproduce>
 cd ./opnsense-filterlog
-make build
+make build-release
 ```
+
+Keep in mind that you may need to use the same Go version specified in the [`go.mod`](./go.mod) file of that release to reproduce the binary.
 
 ## Usage
 
