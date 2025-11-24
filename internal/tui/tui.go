@@ -161,18 +161,22 @@ func (m model) View() string {
 
 	var b strings.Builder
 
+	viewStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("0"))
 	headerStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("11")).
 		Bold(true)
-
-	blockStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("31"))
-	passStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("15"))
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-
 	statusStyle := lipgloss.NewStyle().
 		Background(lipgloss.Color("7")).
 		Foreground(lipgloss.Color("0")).
 		Width(m.width)
+
+	blockStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("31"))
+	passStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("15"))
+	dimStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("8"))
 
 	contentHeight := m.height - 3 // -3 for the header, status, and help lines
 
@@ -289,13 +293,15 @@ func (m model) View() string {
 			if len(m.errorList) >= stream.MaxErrorsInMemory {
 				errorCount += "+"
 			}
-			errorStyle := lipgloss.NewStyle().Background(lipgloss.Color("1")).Foreground(lipgloss.Color("15"))
+			errorStyle := lipgloss.NewStyle().
+				Background(lipgloss.Color("1")).
+				Foreground(lipgloss.Color("15"))
 			helpText += " | e: " + errorStyle.Render(fmt.Sprintf("show %s parse errors", errorCount))
 		}
 	}
 	b.WriteString(helpText)
 
-	return b.String()
+	return viewStyle.Render(b.String())
 }
 
 // loadingView returns a centered loading message with an animated spinner
@@ -307,6 +313,7 @@ func (m model) loadingView() string {
 	}
 
 	style := lipgloss.NewStyle().
+		Background(lipgloss.Color("0")).
 		Width(m.width).
 		Height(m.height).
 		Align(lipgloss.Center, lipgloss.Center)
