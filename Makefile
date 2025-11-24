@@ -1,8 +1,8 @@
 .PHONY: build build-release clean deps fmt help release test
 
 BINARY_NAME := opnsense-filterlog
-LDFLAGS := -X 'main.Version=$(VERSION)'
 VERSION ?= $(shell git describe --tags 2>/dev/null || printf 'dev')
+LDFLAGS := -X 'main.Version=$(VERSION)'
 
 build: ## build development binary (default)
 	go build -ldflags "$(LDFLAGS)" -o ./$(BINARY_NAME) ./
