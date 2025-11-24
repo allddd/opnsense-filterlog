@@ -61,12 +61,12 @@ opnsense-filterlog -h
 
 Once inside the TUI, you can navigate using:
 
-- **`j`** or **`↓`** / **`d`** or **`PgDn`** - Scroll down (line / page)
 - **`k`** or **`↑`** / **`u`** or **`PgUp`** - Scroll up (line / page)
-- **`G`** or **`End`** - Jump to bottom
+- **`j`** or **`↓`** / **`d`** or **`PgDn`** - Scroll down (line / page)
 - **`g`** or **`Home`** - Jump to top
+- **`G`** or **`End`** - Jump to bottom
 - **`/`** - Enter filter/search mode
-- **`q`** or **`Ctrl+C`** - Quit
+- **`q`** - Quit
 
 ### Filter
 
