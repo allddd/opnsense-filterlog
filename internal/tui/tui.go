@@ -274,19 +274,23 @@ func (m model) View() string {
 	b.WriteString("\n")
 
 	// help line
-	helpText := ""
+	helpText := "q: quit | ↑/k ↓/j: scroll | u/pgup d/pgdn: page | g/home G/end: jump"
 	if m.errorActive {
-		helpText = "↑↓/jk: scroll | d/u: page | g/G: top/bottom | e/esc: back to log view | q: quit"
+		helpText += " | e/esc: back to log view"
 	} else if m.filterEditing {
-		helpText = "enter: apply | esc: cancel | example: iface eth0 and action block and (src 192.168.1.1 or dstport 80)"
+		helpText = "enter: apply | esc: cancel | example: iface eth0 and (src 192.168.1.1 or dstport 80)"
 	} else {
-		helpText = "↑↓/jk: scroll | d/u: page | g/G: top/bottom | /: filter | esc: clear filter | q: quit"
+		helpText += " | /: filter"
+		if m.filterActive {
+			helpText += " | esc: clear filter"
+		}
 		if len(m.errorList) > 0 {
 			errorCount := fmt.Sprintf("%d", len(m.errorList))
 			if len(m.errorList) >= stream.MaxErrorsInMemory {
 				errorCount += "+"
 			}
-			helpText += fmt.Sprintf(" | e: show %s parse errors", errorCount)
+			errorStyle := lipgloss.NewStyle().Background(lipgloss.Color("1")).Foreground(lipgloss.Color("15"))
+			helpText += " | e: " + errorStyle.Render(fmt.Sprintf("show %s parse errors", errorCount))
 		}
 	}
 	b.WriteString(helpText)
