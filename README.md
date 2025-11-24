@@ -93,8 +93,8 @@ Available fields:
 | `source` | `src` | Source IP address |
 | `destination` | `dst`, `dest` | Destination IP address |
 | `port` | - | Either source or destination port |
-| `srcport` | - | Source port |
-| `dstport` | - | Destination port |
+| `srcport` | `sport` | Source port |
+| `dstport` | `dport` | Destination port |
 | `protocol` | `proto` | Protocol (tcp, udp, icmp, etc.) |
 | `action` | - | Action (block, pass, etc.) |
 | `interface` | `iface` | Network interface |
