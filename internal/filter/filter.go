@@ -176,13 +176,13 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 
 	switch f.field {
 	case "action":
-		return strings.Contains(strings.ToLower(entry.Action), valueLower)
+		return strings.HasPrefix(strings.ToLower(entry.Action), valueLower)
 	case "dir", "direction":
-		return strings.Contains(strings.ToLower(entry.Direction), valueLower)
+		return strings.HasPrefix(strings.ToLower(entry.Direction), valueLower)
 	case "dst", "dest", "destination":
-		return strings.Contains(strings.ToLower(entry.Dst), valueLower)
+		return strings.HasPrefix(strings.ToLower(entry.Dst), valueLower)
 	case "iface", "interface":
-		return strings.Contains(strings.ToLower(entry.Interface), valueLower)
+		return strings.HasPrefix(strings.ToLower(entry.Interface), valueLower)
 	case "port":
 		// match either source or destination port
 		portStr := f.value
@@ -198,11 +198,11 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case "dport", "dstport":
 		return entry.DstPort > 0 && fmt.Sprintf("%d", entry.DstPort) == f.value
 	case "proto", "protocol":
-		return strings.Contains(strings.ToLower(entry.ProtoName), valueLower)
+		return strings.HasPrefix(strings.ToLower(entry.ProtoName), valueLower)
 	case "reason":
-		return strings.Contains(strings.ToLower(entry.Reason), valueLower)
+		return strings.HasPrefix(strings.ToLower(entry.Reason), valueLower)
 	case "src", "source":
-		return strings.Contains(strings.ToLower(entry.Src), valueLower)
+		return strings.HasPrefix(strings.ToLower(entry.Src), valueLower)
 	}
 
 	return false
