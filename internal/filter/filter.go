@@ -153,9 +153,11 @@ func (l *lexer) nextToken() token {
 		return token{typ: tokenNot, value: word}
 	case "action",
 		"dir", "direction",
-		"dst", "destination",
+		"dst", "dest", "destination",
 		"iface", "interface",
-		"port", "srcport", "dstport",
+		"port",
+		"sport", "srcport",
+		"dport", "dstport",
 		"proto", "protocol",
 		"reason",
 		"src", "source":
@@ -179,7 +181,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 		return strings.Contains(strings.ToLower(entry.Direction), valueLower)
 	case "dst", "dest", "destination":
 		return strings.Contains(strings.ToLower(entry.Dst), valueLower)
-	case "interface", "iface":
+	case "iface", "interface":
 		return strings.Contains(strings.ToLower(entry.Interface), valueLower)
 	case "port":
 		// match either source or destination port
@@ -191,9 +193,9 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 			return true
 		}
 		return false
-	case "srcport":
+	case "sport", "srcport":
 		return entry.SrcPort > 0 && fmt.Sprintf("%d", entry.SrcPort) == f.value
-	case "dstport":
+	case "dport", "dstport":
 		return entry.DstPort > 0 && fmt.Sprintf("%d", entry.DstPort) == f.value
 	case "proto", "protocol":
 		return strings.Contains(strings.ToLower(entry.ProtoName), valueLower)
