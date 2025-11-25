@@ -42,6 +42,15 @@ type model struct {
 	loading        bool          // whether the loading screen should be displayed
 	statusMsg      string        // status message to display in the status bar
 	spinner        spinner.Model // loading spinner
+	style          *styles       // styles for rendering
+}
+
+type styles struct {
+	header       lipgloss.Style
+	status       lipgloss.Style
+	statusError  lipgloss.Style
+	entryBlock   lipgloss.Style
+	entryLoading lipgloss.Style
 }
 
 // message
@@ -84,6 +93,25 @@ func truncateString(s string, max int) string {
 		return s[:max]
 	}
 	return s[:max-3] + "..."
+}
+
+func newStyles() *styles {
+	return &styles{
+		header: lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("46")),
+		status: lipgloss.NewStyle().
+			// width must be set before rendering
+			Background(lipgloss.Color("237")).
+			Foreground(lipgloss.Color("252")),
+		statusError: lipgloss.NewStyle().
+			Background(lipgloss.Color("196")).
+			Foreground(lipgloss.Color("231")),
+		entryBlock: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("202")),
+		entryLoading: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("244")),
+	}
 }
 
 // Init starts the indexing process and the loading spinner
@@ -159,49 +187,30 @@ func (m model) View() string {
 		return m.loadingView()
 	}
 
+	contentHeight := m.height - 3 // -3 for the header, status, and help lines
+	newLine := "\n"
 	var b strings.Builder
 
-	viewStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("0"))
-	headerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("11")).
-		Bold(true)
-	statusStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("7")).
-		Foreground(lipgloss.Color("0")).
-		Width(m.width)
-
-	blockStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("31"))
-	passStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("15"))
-	dimStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("8"))
-
-	contentHeight := m.height - 3 // -3 for the header, status, and help lines
-
 	if m.errorActive {
-		b.WriteString(headerStyle.Render("Error"))
-		b.WriteString("\n")
+		b.WriteString(m.style.header.Render("Error") + newLine)
 
 		visibleStart := m.errorScrollPos
 		visibleEnd := min(m.errorScrollPos+contentHeight, len(m.errorList))
 
 		for i := visibleStart; i < visibleEnd; i++ {
-			b.WriteString(m.errorList[i] + "\n")
+			b.WriteString(m.errorList[i] + newLine)
 		}
 
 		// fill remaining space
 		for i := visibleEnd - visibleStart; i < contentHeight; i++ {
-			b.WriteString("\n")
+			b.WriteString(newLine)
 		}
 	} else {
 		headerFormat := "%-16s %-10s %-10s %-5s %-40s %-7s %-40s %-7s %-10s %-20s"
 
-		b.WriteString(headerStyle.Render(
+		b.WriteString(m.style.header.Render(
 			fmt.Sprintf(headerFormat, "Time", "Action", "Interface", "Dir", "Source", "SrcPort", "Destination", "DstPort", "Proto", "Reason"),
-		))
-		b.WriteString("\n")
+		) + newLine)
 
 		visibleStart := m.scrollPos
 		visibleEnd := min(m.scrollPos+contentHeight, len(m.visibleLines))
@@ -215,19 +224,8 @@ func (m model) View() string {
 			entry := m.getEntryAtLine(lineNum)
 			if entry == nil {
 				// entry not in memory
-				b.WriteString(dimStyle.Render("loading..."))
-				b.WriteString("\n")
+				b.WriteString(m.style.entryLoading.Render("loading...") + newLine)
 				continue
-			}
-
-			var style lipgloss.Style
-			switch entry.Action {
-			case stream.ActionBlock:
-				style = blockStyle
-			case stream.ActionPass:
-				style = passStyle
-			default:
-				style = dimStyle
 			}
 
 			srcPort := ""
@@ -250,13 +248,16 @@ func (m model) View() string {
 				truncateString(dstPort, 7),
 				truncateString(entry.ProtoName, 10),
 				truncateString(entry.Reason, 20))
-			b.WriteString(style.Render(line))
-			b.WriteString("\n")
+
+			if entry.Action == stream.ActionBlock {
+				line = m.style.entryBlock.Render(line)
+			}
+			b.WriteString(line + newLine)
 		}
 
 		// fill remaining space
 		for i := visibleEnd - visibleStart; i < contentHeight; i++ {
-			b.WriteString("\n")
+			b.WriteString(newLine)
 		}
 	}
 
@@ -273,9 +274,7 @@ func (m model) View() string {
 			statusText += " | " + m.statusMsg
 		}
 	}
-
-	b.WriteString(statusStyle.Render(statusText))
-	b.WriteString("\n")
+	b.WriteString(m.style.status.Width(m.width).Render(statusText) + newLine)
 
 	// help line
 	helpText := "q: quit | ↑/k ↓/j: scroll | u/pgup d/pgdn: page | g/home G/end: jump"
@@ -293,15 +292,12 @@ func (m model) View() string {
 			if len(m.errorList) >= stream.MaxErrorsInMemory {
 				errorCount += "+"
 			}
-			errorStyle := lipgloss.NewStyle().
-				Background(lipgloss.Color("1")).
-				Foreground(lipgloss.Color("15"))
-			helpText += " | e: " + errorStyle.Render(fmt.Sprintf("show %s parse errors", errorCount))
+			helpText += " | e: " + m.style.statusError.Render(fmt.Sprintf("show %s parse errors", errorCount))
 		}
 	}
 	b.WriteString(helpText)
 
-	return viewStyle.Render(b.String())
+	return b.String()
 }
 
 // loadingView returns a centered loading message with an animated spinner
@@ -313,7 +309,6 @@ func (m model) loadingView() string {
 	}
 
 	style := lipgloss.NewStyle().
-		Background(lipgloss.Color("0")).
 		Width(m.width).
 		Height(m.height).
 		Align(lipgloss.Center, lipgloss.Center)
@@ -717,15 +712,16 @@ func Display(s *stream.Stream) error {
 	sp.Spinner = spinner.Line
 
 	m := model{
+		stream:          s,
 		entries:         make([]stream.LogEntry, 0, maxEntriesInMemory),
 		entriesFiltered: make(map[int]stream.LogEntry),
+		indexBuilt:      false,
+		visibleLines:    make([]int, 0),
 		filterActive:    false,
 		filterInput:     "",
-		indexBuilt:      false,
 		loading:         true,
 		spinner:         sp,
-		stream:          s,
-		visibleLines:    make([]int, 0),
+		style:           newStyles(),
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
