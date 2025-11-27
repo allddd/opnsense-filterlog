@@ -123,9 +123,20 @@ func (m model) Init() tea.Cmd {
 	)
 }
 
+// withLoading enables loading state and batches the command with spinner tick
+func (m *model) withLoadingView(cmd tea.Cmd) tea.Cmd {
+	m.loading = true
+	return tea.Batch(cmd, m.spinner.Tick)
+}
+
 // Update handles all messages (and is the main event loop)
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+
 	case tea.KeyMsg:
 		if m.filterEditing {
 			return m.handleFilterInput(msg)
@@ -175,20 +186,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.loadVisibleEntries()
 
 	default:
-		var cmd tea.Cmd
-		var cmds []tea.Cmd
-
-		// update spinner (spin)
-		m.spinner, cmd = m.spinner.Update(msg)
-		cmds = append(cmds, cmd)
-
 		// update cursor (blink)
 		if m.filterEditing {
+			var cmd tea.Cmd
 			m.filterInput, cmd = m.filterInput.Update(msg)
-			cmds = append(cmds, cmd)
+			return m, cmd
 		}
-
-		return m, tea.Batch(cmds...)
+		return m, nil
 	}
 }
 
@@ -509,8 +513,7 @@ func (m model) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			} else {
 				m.filterCompiled = compiled
 				m.filterError = ""
-				m.loading = true
-				return m, m.scanAndFilter()
+				return m, m.withLoadingView(m.scanAndFilter())
 			}
 		} else {
 			m.filterCompiled = nil
@@ -547,8 +550,7 @@ func (m model) handleFilteredMsg(msg filteredMsg) (tea.Model, tea.Cmd) {
 	m.entriesFiltered = make(map[int]stream.LogEntry)
 
 	if len(m.visibleLines) > 0 {
-		m.loading = true
-		return m, m.loadVisibleEntries()
+		return m, m.withLoadingView(m.loadVisibleEntries())
 	}
 
 	return m, nil
@@ -618,8 +620,7 @@ func (m *model) loadVisibleEntries() tea.Cmd {
 	}
 
 	if len(linesToLoad) > 0 {
-		m.loading = true
-		return loadFilteredEntries(m.stream, linesToLoad)
+		return m.withLoadingView(loadFilteredEntries(m.stream, linesToLoad))
 	}
 	return nil
 }
