@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"gitlab.com/allddd/opnsense-filterlog/internal/filter"
@@ -28,7 +29,7 @@ type model struct {
 	// filter
 	filterEditing  bool              // whether the user is currently typing a filter expression
 	filterActive   bool              // whether a filter is currently applied
-	filterInput    string            // filter expression text
+	filterInput    textinput.Model   // filter expression input field
 	filterCompiled filter.FilterNode // compiled filter expression
 	filterError    string            // error message from filter compilation
 
@@ -134,6 +135,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
 		m.width = msg.Width
+		m.filterInput.Width = m.width - 9 // -9 for prefix and cursor
 		return m, nil
 
 	case indexBuiltMsg:
@@ -173,10 +175,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.loadVisibleEntries()
 
 	default:
-		// update spinner
 		var cmd tea.Cmd
+		var cmds []tea.Cmd
+
+		// update spinner (spin)
 		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
+		cmds = append(cmds, cmd)
+
+		// update cursor (blink)
+		if m.filterEditing {
+			m.filterInput, cmd = m.filterInput.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+
+		return m, tea.Batch(cmds...)
 	}
 }
 
@@ -266,7 +278,7 @@ func (m model) View() string {
 	if m.errorActive {
 		statusText = fmt.Sprintf("position: %d/%d (max. %d stored)", m.errorScrollPos+1, len(m.errorList), stream.MaxErrorsInMemory)
 	} else if m.filterEditing {
-		statusText = fmt.Sprintf("filter: %s", m.filterInput)
+		statusText = m.filterInput.View()
 	} else {
 		if m.filterError != "" {
 			statusText += " | " + m.filterError
@@ -453,8 +465,7 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "/":
 		// filter mode
 		m.filterEditing = true
-		m.statusMsg = "filter: "
-		return m, nil
+		return m, m.filterInput.Focus()
 
 	case "esc":
 		// exit error view if active
@@ -464,7 +475,7 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		// clear filter
 		if m.filterActive {
-			m.filterInput = ""
+			m.filterInput.SetValue("")
 			m.filterActive = false
 			m.filterCompiled = nil
 			m.scrollPos = 0
@@ -483,12 +494,14 @@ func (m model) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
 		m.filterEditing = false
-		m.filterActive = len(m.filterInput) > 0
+		m.filterInput.Blur()
+		filterValue := m.filterInput.Value()
+		m.filterActive = len(filterValue) > 0
 		m.scrollPos = 0
 
 		// compile the filter
 		if m.filterActive {
-			compiled, err := filter.Compile(m.filterInput)
+			compiled, err := filter.Compile(filterValue)
 			if err != nil {
 				m.filterError = err.Error()
 				m.filterActive = false
@@ -512,21 +525,16 @@ func (m model) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "esc":
 		m.filterEditing = false
-		m.filterInput = ""
+		m.filterInput.Blur()
+		m.filterInput.SetValue("")
 		m.statusMsg = ""
 		return m, nil
 
-	case "backspace":
-		if len(m.filterInput) > 0 {
-			m.filterInput = m.filterInput[:len(m.filterInput)-1]
-		}
-		return m, nil
-
 	default:
-		if len(msg.String()) == 1 {
-			m.filterInput += msg.String()
-		}
-		return m, nil
+		// let textinput handle all other keys
+		var cmd tea.Cmd
+		m.filterInput, cmd = m.filterInput.Update(msg)
+		return m, cmd
 	}
 }
 
@@ -534,7 +542,7 @@ func (m model) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m model) handleFilteredMsg(msg filteredMsg) (tea.Model, tea.Cmd) {
 	m.visibleLines = msg.visibleLines
 	m.loading = false
-	m.statusMsg = fmt.Sprintf("filter: %q (%d matches)", m.filterInput, len(m.visibleLines))
+	m.statusMsg = fmt.Sprintf("filter: %q (%d matches)", m.filterInput.Value(), len(m.visibleLines))
 	m.scrollPos = 0
 	m.entriesFiltered = make(map[int]stream.LogEntry)
 
@@ -708,8 +716,16 @@ func (m *model) scanAndFilter() tea.Cmd {
 func Display(s *stream.Stream) error {
 	defer s.Close()
 
+	st := newStyles()
+
 	sp := spinner.New()
 	sp.Spinner = spinner.Line
+
+	ti := textinput.New()
+	ti.Prompt = "filter: "
+	ti.TextStyle = st.status
+	ti.Cursor.Style = st.status
+	ti.Cursor.TextStyle = st.status
 
 	m := model{
 		stream:          s,
@@ -718,10 +734,10 @@ func Display(s *stream.Stream) error {
 		indexBuilt:      false,
 		visibleLines:    make([]int, 0),
 		filterActive:    false,
-		filterInput:     "",
+		filterInput:     ti,
 		loading:         true,
 		spinner:         sp,
-		style:           newStyles(),
+		style:           st,
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
