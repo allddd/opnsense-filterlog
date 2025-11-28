@@ -745,7 +745,7 @@ func Display(s *stream.Stream) error {
 	st := newStyles()
 
 	sp := spinner.New()
-	sp.Spinner = spinner.Line
+	sp.Spinner = spinner.Dot
 
 	ti := textinput.New()
 	ti.Prompt = "filter: "
