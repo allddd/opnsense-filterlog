@@ -16,7 +16,7 @@ import (
 const (
 	maxEntriesInMemory = 1000
 
-	// log view column widths
+	// column widths (default view)
 	colWidthTime      = 16
 	colWidthAction    = 10
 	colWidthInterface = 10
@@ -28,48 +28,50 @@ const (
 	colWidthProto     = 10
 	colWidthReason    = 20
 
-	// contentWidth is the total width of the log view
+	// contentWidth is the total width of default view
 	contentWidth = colWidthTime + colWidthAction + colWidthInterface + colWidthDir + colWidthSource +
 		colWidthSrcPort + colWidthDest + colWidthDstPort + colWidthProto + colWidthReason
 )
 
 var (
-	// headerFormat is the format string for rendering the log view header
-	headerFormat = fmt.Sprintf("%%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds",
+	// headerLineFormat is the format string for rendering the log view header
+	headerLineFormat = fmt.Sprintf("%%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds",
 		colWidthTime, colWidthAction, colWidthInterface, colWidthDir, colWidthSource,
 		colWidthSrcPort, colWidthDest, colWidthDstPort, colWidthProto, colWidthReason,
 	)
 )
 
 type model struct {
-	entriesFiltered  map[int]stream.LogEntry // filtered entries
-	entriesList      []stream.LogEntry       // log entries
-	entriesListStart int                     // line number where the entries starts
-	indexBuilt       bool                    // whether the file has been indexed
-	stream           *stream.Stream          // log file stream
-	totalLines       int                     // number of valid log entries
-	visibleLines     []int                   // numbers of lines to display on screen
+	stream  *stream.Stream // log file stream
+	indexed bool           // whether file has been indexed
+
+	// entries
+	entries         []stream.LogEntry       // contiguous block of entries (default view)
+	entriesStart    int                     // number of first line in entries block
+	entriesFiltered map[int]stream.LogEntry // non-contiguous block of entries matching current filter (filter view)
+	entriesTotal    int                     // total number of valid log entries
+	entriesVisible  []int                   // line numbers of entries to display
 
 	// filter
-	filterActive   bool              // whether a filter is currently applied
+	filterApplied  bool              // whether filter is currently applied
 	filterCompiled filter.FilterNode // compiled filter expression
 	filterError    string            // error message from filter compilation
-	filterInput    textinput.Model   // filter expression input field
-	filterView     bool              // whether the user is currently typing a filter expression
+	filterInput    textinput.Model   // filter input field
+	filterView     bool              // whether the user is currently typing filter expression
 
 	// error
-	errorView bool     // whether we're viewing parse errors instead of logs
-	errorList []string // parse errors encountered while indexing the log file
+	errors     []string // parse errors
+	errorsView bool     // whether showing errors instead of logs (error view)
 
-	// view
-	width      int           // terminal width (in chars)
-	height     int           // terminal height (in lines)
-	vScrollPos int           // vertical scroll position
-	hScrollPos int           // horizontal scroll position
-	loading    bool          // whether the loading view should be displayed
-	statusMsg  string        // status message to display in the status bar
-	spinner    spinner.Model // loading spinner
-	style      *styles       // styles for rendering
+	// ui
+	uiHeight         int           // terminal height (in lines)
+	uiWidth          int           // terminal width (in chars)
+	uiLoading        bool          // whether showing loading spinner (loading view)
+	uiLoadingSpinner spinner.Model // loading spinner
+	uiScrollH        int           // horizontal scroll position
+	uiScrollV        int           // vertical scroll position
+	uiStatusMsg      string        // status bar message
+	uiStyles         *styles       // styles for rendering
 }
 
 type styles struct {
@@ -83,43 +85,43 @@ type styles struct {
 // message
 // messages are processed in the Update method and represent events that update the model
 
-// indexBuiltMsg is sent when the file has been successfully indexed
-type indexBuiltMsg struct {
-	total int // number of valid log entries found
+// indexMsg is sent when the file has been successfully indexed
+type indexMsg struct {
+	entriesTotal int // total number of valid log entries
 }
 
 // indexErrorMsg is sent when indexing fails
 type indexErrorMsg struct {
-	err error // the error that occurred
+	err error // error that occurred
 }
 
-// entriesLoadedMsg is sent when a block of entries has been loaded
-type entriesLoadedMsg struct {
-	entries []stream.LogEntry // loaded log entries
-	start   int               // line number of the first entry
+// entriesMsg is sent when contiguous block of entries has been loaded
+type entriesMsg struct {
+	entries      []stream.LogEntry // contiguous block of entries (default view)
+	entriesStart int               // number of first line in entries block
 }
 
-// entriesFilteredLoadedMsg is sent when filtered entries have been loaded
-type entriesFilteredLoadedMsg struct {
-	entries map[int]stream.LogEntry // map of line number to entry
+// entriesFilteredMsg is sent when non-contiguous block of entries matching current filter has been loaded
+type entriesFilteredMsg struct {
+	entriesFiltered map[int]stream.LogEntry // non-contiguous block of entries matching current filter (filter view)
 }
 
-// filteredMsg is sent when filtering has completed
-type filteredMsg struct {
-	visibleLines []int // line numbers of entries that matched the filter
+// filterMsg is sent when filtering has completed
+type filterMsg struct {
+	entriesVisible []int // line numbers of entries to display
 }
 
 // bubbletea
 
 // truncateString truncates a string to a maximum length
-func truncateString(s string, max int) string {
-	if len(s) <= max {
+func truncateString(s string, length int) string {
+	if len(s) <= length {
 		return s
 	}
-	if max <= 3 {
-		return s[:max]
+	if length <= 3 {
+		return s[:length]
 	}
-	return s[:max-3] + "..."
+	return s[:length-3] + "..."
 }
 
 // sliceString returns a substring starting at offset and up to width chars
@@ -152,23 +154,37 @@ func newStyles() *styles {
 	}
 }
 
-// Init starts the indexing process
-func (m model) Init() tea.Cmd {
-	return m.withLoadingView(buildIndex(m.stream))
+// loadingView returns a centered loading message with an animated spinner
+func (m model) loadingView() string {
+	s := fmt.Sprintf("loading %s", m.uiLoadingSpinner.View())
+	if m.uiWidth == 0 || m.uiHeight == 0 {
+		return s
+	}
+	style := lipgloss.NewStyle().
+		Width(m.uiWidth).
+		Height(m.uiHeight).
+		Align(lipgloss.Center, lipgloss.Center)
+	return style.Render(s)
 }
 
 // withLoadingView enables loading state and batches the command with spinner tick
 func (m *model) withLoadingView(cmd tea.Cmd) tea.Cmd {
-	m.loading = true
-	return tea.Batch(cmd, m.spinner.Tick)
+	m.uiLoading = true
+	return tea.Batch(cmd, m.uiLoadingSpinner.Tick)
+}
+
+// Init starts the indexing process
+func (m model) Init() tea.Cmd {
+	return m.withLoadingView(index(m.stream))
 }
 
 // Update handles all messages (and is the main event loop)
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+
 	case spinner.TickMsg:
 		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
+		m.uiLoadingSpinner, cmd = m.uiLoadingSpinner.Update(msg)
 		return m, cmd
 
 	case tea.KeyMsg:
@@ -178,43 +194,50 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleNormalInput(msg)
 
 	case tea.WindowSizeMsg:
-		m.height = msg.Height
-		m.width = msg.Width
-		m.filterInput.Width = m.width - len(m.filterInput.Prompt) - 1 // -1 for cursor
+		m.filterInput.Width = m.uiWidth - len(m.filterInput.Prompt) - 1 // -1 for cursor
+		m.uiHeight = msg.Height
+		m.uiWidth = msg.Width
 		return m, nil
 
-	case indexBuiltMsg:
-		m.errorList = m.stream.GetErrors()
-		m.indexBuilt = true
-		m.loading = false
-		m.totalLines = msg.total
-
-		if m.totalLines <= 0 {
-			m.statusMsg = m.style.statusError.Render("error: no valid entries found")
+	case indexMsg:
+		m.entriesTotal = msg.entriesTotal
+		m.errors = m.stream.GetErrors()
+		m.indexed = true
+		m.uiLoading = false
+		if m.entriesTotal <= 0 {
+			m.uiStatusMsg = m.uiStyles.statusError.Render("error: no valid entries found")
 			return m, nil
 		}
 		m.showAllLines()
 		return m, loadEntries(m.stream, 0, maxEntriesInMemory)
 
 	case indexErrorMsg:
-		m.loading = false
-		m.statusMsg = m.style.statusError.Render(msg.err.Error())
+		m.uiLoading = false
+		m.uiStatusMsg = m.uiStyles.statusError.Render(msg.err.Error())
 		return m, nil
 
-	case entriesLoadedMsg:
-		m.entriesList = msg.entries
-		m.entriesListStart = msg.start
+	case entriesMsg:
+		m.entries = msg.entries
+		m.entriesStart = msg.entriesStart
 		return m, nil
 
-	case filteredMsg:
-		return m.handleFilteredMsg(msg)
+	case filterMsg:
+		m.entriesFiltered = make(map[int]stream.LogEntry)
+		m.entriesVisible = msg.entriesVisible
+		m.uiLoading = false
+		m.uiScrollH = 0
+		m.uiScrollV = 0
+		m.uiStatusMsg = fmt.Sprintf("filter: %q (%d matches)", m.filterInput.Value(), len(m.entriesVisible))
+		if len(m.entriesVisible) > 0 {
+			return m, m.withLoadingView(m.checkLoadEntriesFiltered())
+		}
+		return m, nil
 
-	case entriesFilteredLoadedMsg:
-		m.loading = false
+	case entriesFilteredMsg:
+		m.uiLoading = false
 		// merge new entries into entriesFiltered map
-		maps.Copy(m.entriesFiltered, msg.entries)
-		// check if we need to load more visible entries
-		return m, m.loadVisibleEntries()
+		maps.Copy(m.entriesFiltered, msg.entriesFiltered)
+		return m, m.checkLoadEntriesFiltered()
 
 	default:
 		if m.filterView {
@@ -229,50 +252,49 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the current state of the UI (as a string)
 func (m model) View() string {
 	// show loading view during initialization or on request
-	if m.loading || m.width == 0 || m.height == 0 {
+	if m.uiLoading || m.uiWidth == 0 || m.uiHeight == 0 {
 		return m.loadingView()
 	}
 
-	contentHeight := m.height - 3 // -3 for the header, status, and help lines
-	newLine := "\n"
 	var b strings.Builder
+	contentHeight := m.uiHeight - 3 // -3 for the header, status, and help lines
+	newLine := "\n"
+	visibleStart := m.uiScrollV
 
-	if m.errorView {
-		b.WriteString(m.style.header.Render("Error") + newLine)
+	if m.errorsView {
+		visibleEnd := min(visibleStart+contentHeight, len(m.errors))
 
-		visibleStart := m.vScrollPos
-		visibleEnd := min(m.vScrollPos+contentHeight, len(m.errorList))
+		// header
+		b.WriteString(m.uiStyles.header.Render("Error") + newLine)
 
+		// main
 		for i := visibleStart; i < visibleEnd; i++ {
-			line := sliceString(m.errorList[i], m.hScrollPos, m.width)
+			line := sliceString(m.errors[i], m.uiScrollH, m.uiWidth)
 			b.WriteString(line + newLine)
 		}
-
-		// fill remaining space
 		for i := visibleEnd - visibleStart; i < contentHeight; i++ {
-			b.WriteString(newLine)
+			b.WriteString(newLine) // fill remaining space
 		}
 	} else {
-		headerLine := fmt.Sprintf(headerFormat, "Time", "Action", "Interface", "Dir", "Source", "SrcPort", "Destination", "DstPort", "Proto", "Reason")
-		headerLine = sliceString(headerLine, m.hScrollPos, m.width)
-		b.WriteString(m.style.header.Render(headerLine) + newLine)
+		visibleEnd := min(visibleStart+contentHeight, len(m.entriesVisible))
 
-		visibleStart := m.vScrollPos
-		visibleEnd := min(m.vScrollPos+contentHeight, len(m.visibleLines))
+		// header
+		headerLine := fmt.Sprintf(headerLineFormat, "Time", "Action", "Interface", "Dir", "Source", "SrcPort", "Destination", "DstPort", "Proto", "Reason")
+		headerLine = sliceString(headerLine, m.uiScrollH, m.uiWidth)
+		b.WriteString(m.uiStyles.header.Render(headerLine) + newLine)
 
+		// main
 		for i := visibleStart; i < visibleEnd; i++ {
-			if i >= len(m.visibleLines) {
+			if i >= len(m.entriesVisible) {
 				break
 			}
-
-			lineNum := m.visibleLines[i]
+			lineNum := m.entriesVisible[i]
 			entry := m.getEntryAtLine(lineNum)
 			if entry == nil {
-				// entry not in memory
-				b.WriteString(m.style.entryLoading.Render("loading...") + newLine)
+				// entry not loaded in memory
+				b.WriteString(m.uiStyles.entryLoading.Render("loading...") + newLine)
 				continue
 			}
-
 			srcPort := ""
 			if entry.SrcPort > 0 {
 				srcPort = fmt.Sprintf("%d", entry.SrcPort)
@@ -281,8 +303,7 @@ func (m model) View() string {
 			if entry.DstPort > 0 {
 				dstPort = fmt.Sprintf("%d", entry.DstPort)
 			}
-
-			line := fmt.Sprintf(headerFormat,
+			line := fmt.Sprintf(headerLineFormat,
 				truncateString(entry.Time.Format("Jan 02 15:04:05"), colWidthTime),
 				truncateString(entry.Action, colWidthAction),
 				truncateString(entry.Interface, colWidthInterface),
@@ -294,116 +315,103 @@ func (m model) View() string {
 				truncateString(entry.ProtoName, colWidthProto),
 				truncateString(entry.Reason, colWidthReason))
 
-			line = sliceString(line, m.hScrollPos, m.width)
+			line = sliceString(line, m.uiScrollH, m.uiWidth)
 			if entry.Action == stream.ActionBlock {
-				line = m.style.entryBlock.Render(line)
+				line = m.uiStyles.entryBlock.Render(line)
 			}
 			b.WriteString(line + newLine)
 		}
-
-		// fill remaining space
 		for i := visibleEnd - visibleStart; i < contentHeight; i++ {
-			b.WriteString(newLine)
+			b.WriteString(newLine) // fill remaining space
 		}
 	}
 
-	// status line
-	statusText := fmt.Sprintf("position: %d/%d", m.vScrollPos+1, len(m.visibleLines))
-	if m.errorView {
-		statusText = fmt.Sprintf("position: %d/%d (max. %d stored)", m.vScrollPos+1, len(m.errorList), stream.MaxErrorsInMemory)
+	// status
+	// TODO: replace "position ..." with something like "showing 10-20 of 3000" since we aren't highlighting any specific line
+	statusLine := fmt.Sprintf("position: %d/%d", m.uiScrollV+1, len(m.entriesVisible))
+	if m.errorsView {
+		statusLine = fmt.Sprintf("position: %d/%d (max. %d stored)", m.uiScrollV+1, len(m.errors), stream.MaxErrorsInMemory)
 	} else if m.filterView {
-		statusText = m.filterInput.View()
+		statusLine = m.filterInput.View()
 	} else {
 		if m.filterError != "" {
-			statusText += " | " + m.style.statusError.Render(m.filterError)
-		} else if m.statusMsg != "" {
-			statusText += " | " + m.statusMsg
+			statusLine += " | " + m.uiStyles.statusError.Render(m.filterError)
+		} else if m.uiStatusMsg != "" {
+			statusLine += " | " + m.uiStatusMsg
 		}
 	}
-	b.WriteString(m.style.status.Width(m.width).Render(statusText) + newLine)
+	b.WriteString(m.uiStyles.status.Width(m.uiWidth).Render(statusLine) + newLine)
 
-	// help line
-	helpText := "q: quit | k/▲ j/▼ h/◄ l/►: scroll | u/pgup d/pgdn: page | g/home G/end 0 $: jump"
-	if m.errorView {
-		helpText += " | e/esc: back to log view"
+	// help
+	helpLine := "q: quit | k/▲ j/▼ h/◄ l/►: scroll | u/pgup d/pgdn: page | g/home G/end 0 $: jump"
+	if m.errorsView {
+		helpLine += " | e/esc: back to log view"
 	} else if m.filterView {
-		helpText = "enter: apply | esc: cancel | example: iface eth0 and (src 192.168.1.1 or dstport 80)"
+		helpLine = "enter: apply | esc: cancel | example: iface eth0 and (src 192.168.1.1 or dstport 80)"
 	} else {
-		helpText += " | /: filter"
-		if m.filterActive {
-			helpText += " | esc: clear filter"
+		helpLine += " | /: filter"
+		if m.filterApplied {
+			helpLine += " | esc: clear filter"
 		}
-		if len(m.errorList) > 0 {
-			errorCount := fmt.Sprintf("%d", len(m.errorList))
-			if len(m.errorList) >= stream.MaxErrorsInMemory {
+		if len(m.errors) > 0 {
+			errorCount := fmt.Sprintf("%d", len(m.errors))
+			if len(m.errors) >= stream.MaxErrorsInMemory {
 				errorCount += "+"
 			}
-			helpText += " | e: " + m.style.statusError.Render(fmt.Sprintf("show %s errors", errorCount))
+			helpLine += " | e: " + m.uiStyles.statusError.Render(fmt.Sprintf("show %s errors", errorCount))
 		}
 	}
-	b.WriteString(helpText)
+	b.WriteString(helpLine)
 
 	return b.String()
 }
 
-// loadingView returns a centered loading message with an animated spinner
-func (m model) loadingView() string {
-	s := fmt.Sprintf("loading %s", m.spinner.View())
-	if m.width == 0 || m.height == 0 {
-		return s
-	}
-	style := lipgloss.NewStyle().
-		Width(m.width).
-		Height(m.height).
-		Align(lipgloss.Center, lipgloss.Center)
-	return style.Render(s)
-}
-
 // async
 
-// buildIndex builds the file index by scanning the entire log file
-func buildIndex(s *stream.Stream) tea.Cmd {
+// index builds the file index
+func index(s *stream.Stream) tea.Cmd {
 	return func() tea.Msg {
 		if err := s.BuildIndex(); err != nil {
 			return indexErrorMsg{err: err}
 		}
-		return indexBuiltMsg{total: s.TotalLines()}
+		return indexMsg{entriesTotal: s.TotalLines()}
 	}
 }
 
 // loadEntries loads a contiguous block of log entries starting at a specific line
 func loadEntries(s *stream.Stream, startLine int, count int) tea.Cmd {
 	return func() tea.Msg {
-		totalLines := s.TotalLines()
 		startLine = max(startLine, 0)
+		totalLines := s.TotalLines()
 		if startLine >= totalLines {
 			startLine = max(totalLines-count, 0)
 		}
-		// seek to start position
 		if err := s.SeekToLine(startLine); err != nil {
+			// TODO: handle this error with different message
 			return indexErrorMsg{err: err}
 		}
-		// load entries
 		entries := make([]stream.LogEntry, 0, count)
 		for i := 0; i < count && startLine+i < totalLines; i++ {
 			entry := s.Next()
 			if entry == nil {
+				// EOF
 				break
 			}
 			entries = append(entries, *entry)
 		}
-		return entriesLoadedMsg{
-			entries: entries,
-			start:   startLine,
+		return entriesMsg{
+			entries:      entries,
+			entriesStart: startLine,
 		}
 	}
 }
 
-// loadFilteredEntries loads specific non-contiguous lines from the log file
-func loadFilteredEntries(s *stream.Stream, lineNums []int) tea.Cmd {
+// loadEntriesFiltered loads non-contiguous block of entries matching current filter
+func loadEntriesFiltered(s *stream.Stream, lineNums []int) tea.Cmd {
 	return func() tea.Msg {
 		entries := make(map[int]stream.LogEntry)
 		for _, lineNum := range lineNums {
+			// TODO: handle this error
 			if err := s.SeekToLine(lineNum); err != nil {
 				continue
 			}
@@ -412,15 +420,15 @@ func loadFilteredEntries(s *stream.Stream, lineNums []int) tea.Cmd {
 				entries[lineNum] = *entry
 			}
 		}
-		return entriesFilteredLoadedMsg{entries: entries}
+		return entriesFilteredMsg{entriesFiltered: entries}
 	}
 }
 
 // handlers
 
-// handleNormalInput handles keyboard input when in normal viewing mode
+// handleNormalInput handles keyboard input when in default view
 func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if !m.indexBuilt {
+	if !m.indexed {
 		return m, nil
 	}
 
@@ -429,88 +437,87 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case "e":
-		// toggle error view
-		if len(m.errorList) > 0 {
-			m.errorView = !m.errorView
-			m.vScrollPos = 0
-			m.hScrollPos = 0
+		if len(m.errors) > 0 {
+			m.errorsView = !m.errorsView
+			m.uiScrollH = 0
+			m.uiScrollV = 0
 		}
 		return m, nil
 
 	case "j", "down":
 		m.scrollDown(1)
-		if m.filterActive {
-			return m, m.loadVisibleEntries()
+		if m.filterApplied {
+			return m, m.checkLoadEntriesFiltered()
 		}
-		return m, m.checkReloadEntries()
+		return m, m.checkLoadEntries()
 
 	case "k", "up":
 		m.scrollUp(1)
-		if m.filterActive {
-			return m, m.loadVisibleEntries()
+		if m.filterApplied {
+			return m, m.checkLoadEntriesFiltered()
 		}
-		return m, m.checkReloadEntries()
+		return m, m.checkLoadEntries()
 
 	case "d", "pgdown":
-		m.scrollDown(m.height / 2)
-		if m.filterActive {
-			return m, m.loadVisibleEntries()
+		m.scrollDown(m.uiHeight / 2)
+		if m.filterApplied {
+			return m, m.checkLoadEntriesFiltered()
 		}
-		return m, m.checkReloadEntries()
+		return m, m.checkLoadEntries()
 
 	case "u", "pgup":
-		m.scrollUp(m.height / 2)
-		if m.filterActive {
-			return m, m.loadVisibleEntries()
+		m.scrollUp(m.uiHeight / 2)
+		if m.filterApplied {
+			return m, m.checkLoadEntriesFiltered()
 		}
-		return m, m.checkReloadEntries()
+		return m, m.checkLoadEntries()
 
 	case "g", "home":
-		m.vScrollPos = 0
-		if m.errorView {
+		m.uiScrollV = 0
+		if m.errorsView {
 			return m, nil
 		}
-		if m.filterActive {
-			return m, m.loadVisibleEntries()
+		if m.filterApplied {
+			return m, m.checkLoadEntriesFiltered()
 		}
-		return m, m.checkReloadEntries()
+		return m, m.checkLoadEntries()
 
 	case "G", "end":
 		var lines int
-		if m.errorView {
-			lines = len(m.errorList)
+		if m.errorsView {
+			lines = len(m.errors)
 		} else {
-			lines = len(m.visibleLines)
+			lines = len(m.entriesVisible)
 		}
-		contentHeight := m.height - 3 // -3 for header, status, and help line
-		m.vScrollPos = max(lines-contentHeight, 0)
-		if m.errorView {
+		contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
+		m.uiScrollV = max(lines-contentHeight, 0)
+		if m.errorsView {
 			return m, nil
 		}
-		if m.filterActive {
-			return m, m.loadVisibleEntries()
+		if m.filterApplied {
+			return m, m.checkLoadEntriesFiltered()
 		}
-		return m, m.checkReloadEntries()
+		return m, m.checkLoadEntries()
 
 	case "h", "left":
-		if contentWidth > m.width {
-			m.hScrollPos = max(m.hScrollPos-1, 0)
+		if contentWidth > m.uiWidth {
+			m.uiScrollH = max(m.uiScrollH-1, 0)
 		}
 		return m, nil
 
 	case "l", "right":
-		if contentWidth > m.width {
-			m.hScrollPos = min(m.hScrollPos+1, contentWidth-m.width)
+		if contentWidth > m.uiWidth {
+			m.uiScrollH = min(m.uiScrollH+1, contentWidth-m.uiWidth)
 		}
 		return m, nil
 
 	case "0":
-		m.hScrollPos = 0
+		m.uiScrollH = 0
 		return m, nil
 
 	case "$":
-		if contentWidth > m.width {
-			m.hScrollPos = contentWidth - m.width
+		if contentWidth > m.uiWidth {
+			m.uiScrollH = contentWidth - m.uiWidth
 		}
 		return m, nil
 
@@ -519,21 +526,19 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.filterInput.Focus()
 
 	case "esc":
-		// exit error view
-		if m.errorView {
-			m.errorView = false
+		if m.errorsView {
+			m.errorsView = false
 			return m, nil
 		}
-		// clear filter
-		if m.filterActive {
-			m.filterInput.SetValue("")
-			m.filterActive = false
+		if m.filterApplied {
+			m.filterApplied = false
 			m.filterCompiled = nil
-			m.vScrollPos = 0
-			m.hScrollPos = 0
-			m.statusMsg = ""
+			m.filterInput.SetValue("")
+			m.uiScrollH = 0
+			m.uiScrollV = 0
+			m.uiStatusMsg = ""
 			m.showAllLines()
-			return m, m.checkReloadEntries()
+			return m, m.checkLoadEntries()
 		}
 		return m, nil
 	}
@@ -541,23 +546,22 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleFilterInput handles keyboard input when in filter input mode
+// handleFilterInput handles keyboard input when in filter view
 func (m model) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
-		m.filterView = false
-		m.filterInput.Blur()
 		filterValue := m.filterInput.Value()
-		m.filterActive = len(filterValue) > 0
-		m.vScrollPos = 0
-		m.hScrollPos = 0
-
+		m.filterApplied = len(filterValue) > 0
+		m.filterInput.Blur()
+		m.filterView = false
+		m.uiScrollH = 0
+		m.uiScrollV = 0
 		// compile the filter
-		if m.filterActive {
+		if m.filterApplied {
 			compiled, err := filter.Compile(filterValue)
 			if err != nil {
 				m.filterError = err.Error()
-				m.filterActive = false
+				m.filterApplied = false
 				m.filterCompiled = nil
 			} else {
 				m.filterCompiled = compiled
@@ -568,18 +572,17 @@ func (m model) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.filterCompiled = nil
 			m.filterError = ""
 		}
-
-		if !m.filterActive {
+		if !m.filterApplied {
+			m.uiStatusMsg = ""
 			m.showAllLines()
-			m.statusMsg = ""
 		}
-		return m, m.checkReloadEntries()
+		return m, m.checkLoadEntries()
 
 	case "esc":
-		m.filterView = false
 		m.filterInput.Blur()
 		m.filterInput.SetValue("")
-		m.statusMsg = ""
+		m.filterView = false
+		m.uiStatusMsg = ""
 		return m, nil
 
 	default:
@@ -590,148 +593,121 @@ func (m model) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-// handleFilteredMsg updates the model with the filtered results and loads visible entries
-func (m model) handleFilteredMsg(msg filteredMsg) (tea.Model, tea.Cmd) {
-	m.visibleLines = msg.visibleLines
-	m.loading = false
-	m.statusMsg = fmt.Sprintf("filter: %q (%d matches)", m.filterInput.Value(), len(m.visibleLines))
-	m.vScrollPos = 0
-	m.hScrollPos = 0
-	m.entriesFiltered = make(map[int]stream.LogEntry)
-
-	if len(m.visibleLines) > 0 {
-		return m, m.withLoadingView(m.loadVisibleEntries())
-	}
-
-	return m, nil
-}
-
 // scrolling
 
 func (m *model) scrollDown(n int) {
 	var lines int
-	if m.errorView {
-		lines = len(m.errorList)
+	if m.errorsView {
+		lines = len(m.errors)
 	} else {
-		lines = len(m.visibleLines)
+		lines = len(m.entriesVisible)
 	}
-	contentHeight := m.height - 3 // -3 for header, status, and help line
+	contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
 	maxScroll := max(lines-contentHeight, 0)
-	m.vScrollPos = min(m.vScrollPos+n, maxScroll)
+	m.uiScrollV = min(m.uiScrollV+n, maxScroll)
 }
 
 func (m *model) scrollUp(n int) {
-	m.vScrollPos = max(m.vScrollPos-n, 0)
+	m.uiScrollV = max(m.uiScrollV-n, 0)
 }
 
 // view management
 
-// loadVisibleEntries loads entries for currently visible filtered lines
-func (m model) loadVisibleEntries() tea.Cmd {
-	if !m.filterActive || len(m.visibleLines) == 0 {
+// checkLoadEntries checks if the currently loaded contiguous block needs reloading and returns a command to load it if needed
+func (m model) checkLoadEntries() tea.Cmd {
+	if !m.indexed || m.uiLoading || len(m.entriesVisible) == 0 {
 		return nil
 	}
-	contentHeight := m.height - 3 // -3 for header, status, and help line
-	visibleStart := m.vScrollPos
-	visibleEnd := min(m.vScrollPos+contentHeight, len(m.visibleLines))
-	// get line numbers we need to load
-	linesToLoad := make([]int, 0, visibleEnd-visibleStart)
-	for i := visibleStart; i < visibleEnd; i++ {
-		if i < 0 || i >= len(m.visibleLines) {
-			continue
-		}
-		lineNum := m.visibleLines[i]
-		// only load if not already in filtered entries
-		if _, exists := m.entriesFiltered[lineNum]; !exists {
-			linesToLoad = append(linesToLoad, lineNum)
-		}
-	}
-
-	if len(linesToLoad) > 0 {
-		return m.withLoadingView(loadFilteredEntries(m.stream, linesToLoad))
-	}
-	return nil
-}
-
-// checkReloadEntries checks if we need to reload a different block of entries when scrolling in normal mode
-func (m model) checkReloadEntries() tea.Cmd {
-	if !m.indexBuilt || m.loading || len(m.visibleLines) == 0 {
-		return nil
-	}
-
-	contentHeight := m.height - 3 // -3 for header, status, and help line
-	visibleStart := m.vScrollPos
-	visibleEnd := min(m.vScrollPos+contentHeight, len(m.visibleLines))
-
-	minLine := m.totalLines
+	contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
+	visibleStart := m.uiScrollV
+	visibleEnd := min(visibleStart+contentHeight, len(m.entriesVisible))
+	minLine := m.entriesTotal
 	maxLine := 0
 	for i := visibleStart; i < visibleEnd; i++ {
-		lineNum := m.visibleLines[i]
+		lineNum := m.entriesVisible[i]
 		minLine = min(minLine, lineNum)
 		maxLine = max(maxLine, lineNum)
 	}
-
-	if minLine < m.entriesListStart || maxLine >= m.entriesListStart+len(m.entriesList) {
+	if minLine < m.entriesStart || maxLine >= m.entriesStart+len(m.entries) {
 		// center around the middle of visible range
 		centerLine := (minLine + maxLine) / 2
 		newStart := max(centerLine-maxEntriesInMemory/2, 0)
 		return loadEntries(m.stream, newStart, maxEntriesInMemory)
 	}
+	return nil
+}
 
+// checkLoadEntriesFiltered checks if any visible filtered entries are missing and returns a command to load them if needed
+func (m model) checkLoadEntriesFiltered() tea.Cmd {
+	if !m.filterApplied || len(m.entriesVisible) == 0 {
+		return nil
+	}
+	contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
+	visibleStart := m.uiScrollV
+	visibleEnd := min(visibleStart+contentHeight, len(m.entriesVisible))
+	linesToLoad := make([]int, 0, visibleEnd-visibleStart)
+	for i := visibleStart; i < visibleEnd; i++ {
+		if i < 0 || i >= len(m.entriesVisible) {
+			continue
+		}
+		lineNum := m.entriesVisible[i]
+		// only load if not already in filtered entries
+		if _, exists := m.entriesFiltered[lineNum]; !exists {
+			linesToLoad = append(linesToLoad, lineNum)
+		}
+	}
+	if len(linesToLoad) > 0 {
+		return m.withLoadingView(loadEntriesFiltered(m.stream, linesToLoad))
+	}
 	return nil
 }
 
 // getEntryAtLine returns the log entry for a specific line number
 func (m model) getEntryAtLine(lineNum int) *stream.LogEntry {
-	// if filtering is active, check filtered entries first
-	if m.filterActive && len(m.entriesFiltered) > 0 {
+	if m.filterApplied && len(m.entriesFiltered) > 0 {
 		if entry, exists := m.entriesFiltered[lineNum]; exists {
 			return &entry
 		}
 		return nil
 	}
-
-	if lineNum < m.entriesListStart || lineNum >= m.entriesListStart+len(m.entriesList) {
+	if lineNum < m.entriesStart || lineNum >= m.entriesStart+len(m.entries) {
 		return nil
 	}
-	idx := lineNum - m.entriesListStart
-	if idx < 0 || idx >= len(m.entriesList) {
+	idx := lineNum - m.entriesStart
+	if idx < 0 || idx >= len(m.entries) {
 		return nil
 	}
-	return &m.entriesList[idx]
+	return &m.entries[idx]
 }
 
 // filtering
 
 // showAllLines populates visibleLines with all line numbers and is used when initializing or when clearing a filter
 func (m *model) showAllLines() {
-	m.visibleLines = m.visibleLines[:0]
-	for i := 0; i < m.totalLines; i++ {
-		m.visibleLines = append(m.visibleLines, i)
+	m.entriesVisible = m.entriesVisible[:0]
+	for i := 0; i < m.entriesTotal; i++ {
+		m.entriesVisible = append(m.entriesVisible, i)
 	}
 }
 
 // scanAndFilter scans the entire file and builds the list of matching line numbers
 func (m model) scanAndFilter() tea.Cmd {
 	return func() tea.Msg {
-		filtered := make([]int, 0)
-
+		entries := make([]int, 0)
 		if err := m.stream.SeekToLine(0); err != nil {
+			// TODO: handle this error with different message
 			return indexErrorMsg{err: err}
 		}
-
-		for i := 0; i < m.totalLines; i++ {
+		for i := 0; i < m.entriesTotal; i++ {
 			entry := m.stream.Next()
 			if entry == nil {
 				break
 			}
-
 			if m.filterCompiled.Matches(entry) {
-				filtered = append(filtered, i)
+				entries = append(entries, i)
 			}
 		}
-
-		return filteredMsg{visibleLines: filtered}
+		return filterMsg{entriesVisible: entries}
 	}
 }
 
@@ -753,16 +729,16 @@ func Display(s *stream.Stream) error {
 	ti.Cursor.TextStyle = st.status
 
 	m := model{
-		entriesFiltered: make(map[int]stream.LogEntry),
-		entriesList:     make([]stream.LogEntry, 0, maxEntriesInMemory),
-		indexBuilt:      false,
-		stream:          s,
-		visibleLines:    make([]int, 0),
-		filterActive:    false,
-		filterInput:     ti,
-		loading:         true,
-		spinner:         sp,
-		style:           st,
+		stream:           s,
+		indexed:          false,
+		entries:          make([]stream.LogEntry, 0, maxEntriesInMemory),
+		entriesFiltered:  make(map[int]stream.LogEntry),
+		entriesVisible:   make([]int, 0),
+		filterApplied:    false,
+		filterInput:      ti,
+		uiLoading:        true,
+		uiLoadingSpinner: sp,
+		uiStyles:         st,
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
