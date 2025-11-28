@@ -157,7 +157,7 @@ func (m model) Init() tea.Cmd {
 	return m.withLoadingView(buildIndex(m.stream))
 }
 
-// withLoading enables loading state and batches the command with spinner tick
+// withLoadingView enables loading state and batches the command with spinner tick
 func (m *model) withLoadingView(cmd tea.Cmd) tea.Cmd {
 	m.loading = true
 	return tea.Batch(cmd, m.spinner.Tick)
@@ -412,7 +412,6 @@ func loadFilteredEntries(s *stream.Stream, lineNums []int) tea.Cmd {
 				entries[lineNum] = *entry
 			}
 		}
-
 		return entriesFilteredLoadedMsg{entries: entries}
 	}
 }
@@ -628,7 +627,7 @@ func (m *model) scrollUp(n int) {
 // view management
 
 // loadVisibleEntries loads entries for currently visible filtered lines
-func (m *model) loadVisibleEntries() tea.Cmd {
+func (m model) loadVisibleEntries() tea.Cmd {
 	if !m.filterActive || len(m.visibleLines) == 0 {
 		return nil
 	}
@@ -655,7 +654,7 @@ func (m *model) loadVisibleEntries() tea.Cmd {
 }
 
 // checkReloadEntries checks if we need to reload a different block of entries when scrolling in normal mode
-func (m *model) checkReloadEntries() tea.Cmd {
+func (m model) checkReloadEntries() tea.Cmd {
 	if !m.indexBuilt || m.loading || len(m.visibleLines) == 0 {
 		return nil
 	}
@@ -683,7 +682,7 @@ func (m *model) checkReloadEntries() tea.Cmd {
 }
 
 // getEntryAtLine returns the log entry for a specific line number
-func (m *model) getEntryAtLine(lineNum int) *stream.LogEntry {
+func (m model) getEntryAtLine(lineNum int) *stream.LogEntry {
 	// if filtering is active, check filtered entries first
 	if m.filterActive && len(m.entriesFiltered) > 0 {
 		if entry, exists := m.entriesFiltered[lineNum]; exists {
@@ -713,7 +712,7 @@ func (m *model) showAllLines() {
 }
 
 // scanAndFilter scans the entire file and builds the list of matching line numbers
-func (m *model) scanAndFilter() tea.Cmd {
+func (m model) scanAndFilter() tea.Cmd {
 	return func() tea.Msg {
 		filtered := make([]int, 0)
 
