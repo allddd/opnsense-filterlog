@@ -257,12 +257,14 @@ func (m model) View() string {
 	}
 
 	var b strings.Builder
+	var visibleEnd int
+
 	contentHeight := m.uiHeight - 3 // -3 for the header, status, and help lines
 	newLine := "\n"
 	visibleStart := m.uiScrollV
 
 	if m.errorsView {
-		visibleEnd := min(visibleStart+contentHeight, len(m.errors))
+		visibleEnd = min(visibleStart+contentHeight, len(m.errors))
 
 		// header
 		b.WriteString(m.uiStyles.header.Render("Error") + newLine)
@@ -276,7 +278,7 @@ func (m model) View() string {
 			b.WriteString(newLine) // fill remaining space
 		}
 	} else {
-		visibleEnd := min(visibleStart+contentHeight, len(m.entriesVisible))
+		visibleEnd = min(visibleStart+contentHeight, len(m.entriesVisible))
 
 		// header
 		headerLine := fmt.Sprintf(headerLineFormat, "Time", "Action", "Interface", "Dir", "Source", "SrcPort", "Destination", "DstPort", "Proto", "Reason")
@@ -327,13 +329,13 @@ func (m model) View() string {
 	}
 
 	// status
-	// TODO: replace "position ..." with something like "showing 10-20 of 3000" since we aren't highlighting any specific line
-	statusLine := fmt.Sprintf("position: %d/%d", m.uiScrollV+1, len(m.entriesVisible))
+	statusLine := "viewing: %d-%d of %d"
 	if m.errorsView {
-		statusLine = fmt.Sprintf("position: %d/%d (max. %d stored)", m.uiScrollV+1, len(m.errors), stream.MaxErrorsInMemory)
+		statusLine = fmt.Sprintf(statusLine+" (limit: %d)", visibleStart+1, visibleEnd, len(m.errors), stream.MaxErrorsInMemory)
 	} else if m.filterView {
 		statusLine = m.filterInput.View()
 	} else {
+		statusLine = fmt.Sprintf(statusLine, visibleStart+1, visibleEnd, len(m.entriesVisible))
 		if m.filterError != "" {
 			statusLine += " | " + m.uiStyles.statusError.Render(m.filterError)
 		} else if m.uiStatusMsg != "" {
