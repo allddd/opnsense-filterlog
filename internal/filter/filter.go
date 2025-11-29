@@ -155,6 +155,7 @@ func (l *lexer) nextToken() token {
 		"dir", "direction",
 		"dst", "dest", "destination",
 		"iface", "interface",
+		"ip", "ipver", "ipversion",
 		"port",
 		"sport", "srcport",
 		"dport", "dstport",
@@ -183,6 +184,8 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 		return strings.HasPrefix(strings.ToLower(entry.Dst), valueLower)
 	case "iface", "interface":
 		return strings.HasPrefix(strings.ToLower(entry.Interface), valueLower)
+	case "ip", "ipver", "ipversion":
+		return fmt.Sprintf("%d", entry.IPVersion) == f.value
 	case "port":
 		// match either source or destination port
 		portStr := f.value

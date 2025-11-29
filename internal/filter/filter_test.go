@@ -171,6 +171,30 @@ func TestCompile_FieldFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
+			name:        "match ip version",
+			filter:      "ipversion 4",
+			entry:       stream.LogEntry{IPVersion: 4},
+			expectMatch: true,
+		},
+		{
+			name:        "match ip version alias",
+			filter:      "ipver 6",
+			entry:       stream.LogEntry{IPVersion: 6},
+			expectMatch: true,
+		},
+		{
+			name:        "match ip version alias",
+			filter:      "ip 4",
+			entry:       stream.LogEntry{IPVersion: 4},
+			expectMatch: true,
+		},
+		{
+			name:        "do not match wrong ip version",
+			filter:      "ipversion 6",
+			entry:       stream.LogEntry{IPVersion: 4},
+			expectMatch: false,
+		},
+		{
 			name:        "match direction",
 			filter:      "direction in",
 			entry:       stream.LogEntry{Direction: "in"},
