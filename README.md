@@ -61,10 +61,12 @@ opnsense-filterlog -h
 
 Once inside the TUI, you can navigate using:
 
-- **`k`** or **`↑`** / **`u`** or **`PgUp`** - Scroll up (line / page)
-- **`j`** or **`↓`** / **`d`** or **`PgDn`** - Scroll down (line / page)
-- **`g`** or **`Home`** - Jump to top
-- **`G`** or **`End`** - Jump to bottom
+- **`k`** or **`▲`** / **`g`** or **`Home`** - Scroll/jump up
+- **`j`** or **`▼`** / **`G`** or **`End`** - Scroll/jump down
+- **`h`** or **`◄`** / **`0`** - Scroll/jump left
+- **`l`** or **`►`** / **`$`** - Scroll/jump right
+- **`u`** or **`PgUp`** - Page up
+- **`d`** or **`PgDn`** - Page down
 - **`/`** - Enter filter/search mode
 - **`q`** - Quit
 
@@ -90,16 +92,17 @@ Available fields:
 
 | Field | Aliases | Description |
 |-------|---------|-------------|
-| `source` | `src` | Source IP address |
+| `action` | - | Action (block, pass, etc.) |
+| `direction` | `dir` | Direction (in, out, etc.) |
 | `destination` | `dst`, `dest` | Destination IP address |
+| `interface` | `iface` | Network interface |
+| `ipversion` | `ip`, `ipver` | IP version (4 or 6) |
 | `port` | - | Either source or destination port |
 | `srcport` | `sport` | Source port |
 | `dstport` | `dport` | Destination port |
 | `protocol` | `proto` | Protocol (tcp, udp, icmp, etc.) |
-| `action` | - | Action (block, pass, etc.) |
-| `interface` | `iface` | Network interface |
 | `reason` | - | Reason (match, fragment, etc.) |
-| `direction` | `dir` | Direction (in, out, in/out) |
+| `source` | `src` | Source IP address |
 
 Examples:
 
@@ -108,6 +111,7 @@ src 192.168.1.1
 dst 10.0.0.1
 action block
 proto tcp
+ip 4
 port 443
 iface eth0
 ```
