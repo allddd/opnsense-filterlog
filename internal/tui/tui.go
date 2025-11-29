@@ -194,7 +194,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleNormalInput(msg)
 
 	case tea.WindowSizeMsg:
-		m.filterInput.Width = m.uiWidth - len(m.filterInput.Prompt) - 1 // -1 for cursor
+		m.filterInput.Width = msg.Width - len(m.filterInput.Prompt) - 1 // -1 for cursor
 		m.uiHeight = msg.Height
 		m.uiWidth = msg.Width
 		return m, nil
