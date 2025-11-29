@@ -90,11 +90,6 @@ type indexMsg struct {
 	entriesTotal int // total number of valid log entries
 }
 
-// indexErrorMsg is sent when indexing fails
-type indexErrorMsg struct {
-	err error // error that occurred
-}
-
 // entriesMsg is sent when contiguous block of entries has been loaded
 type entriesMsg struct {
 	entries      []stream.LogEntry // contiguous block of entries (default view)
@@ -109,6 +104,11 @@ type entriesFilteredMsg struct {
 // filterMsg is sent when filtering has completed
 type filterMsg struct {
 	entriesVisible []int // line numbers of entries to display
+}
+
+// streamErrorMsg is sent when a stream operation fails (e.g. SeekToLine)
+type streamErrorMsg struct {
+	err error // error that occurred
 }
 
 // bubbletea
@@ -211,15 +211,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.showAllLines()
 		return m, loadEntries(m.stream, 0, maxEntriesInMemory)
 
-	case indexErrorMsg:
-		m.uiLoading = false
-		m.uiStatusMsg = m.uiStyles.statusError.Render(msg.err.Error())
-		return m, nil
-
 	case entriesMsg:
 		m.entries = msg.entries
 		m.entriesStart = msg.entriesStart
 		return m, nil
+
+	case entriesFilteredMsg:
+		m.uiLoading = false
+		// merge new entries into entriesFiltered map
+		maps.Copy(m.entriesFiltered, msg.entriesFiltered)
+		return m, m.checkLoadEntriesFiltered()
 
 	case filterMsg:
 		m.entriesFiltered = make(map[int]stream.LogEntry)
@@ -233,11 +234,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case entriesFilteredMsg:
+	case streamErrorMsg:
 		m.uiLoading = false
-		// merge new entries into entriesFiltered map
-		maps.Copy(m.entriesFiltered, msg.entriesFiltered)
-		return m, m.checkLoadEntriesFiltered()
+		m.uiStatusMsg = m.uiStyles.statusError.Render(msg.err.Error())
+		return m, nil
 
 	default:
 		if m.filterView {
@@ -374,7 +374,7 @@ func (m model) View() string {
 func index(s *stream.Stream) tea.Cmd {
 	return func() tea.Msg {
 		if err := s.BuildIndex(); err != nil {
-			return indexErrorMsg{err: err}
+			return streamErrorMsg{err: err}
 		}
 		return indexMsg{entriesTotal: s.TotalLines()}
 	}
@@ -389,8 +389,7 @@ func loadEntries(s *stream.Stream, startLine int, count int) tea.Cmd {
 			startLine = max(totalLines-count, 0)
 		}
 		if err := s.SeekToLine(startLine); err != nil {
-			// TODO: handle this error with different message
-			return indexErrorMsg{err: err}
+			return streamErrorMsg{err: err}
 		}
 		entries := make([]stream.LogEntry, 0, count)
 		for i := 0; i < count && startLine+i < totalLines; i++ {
@@ -697,8 +696,7 @@ func (m model) scanAndFilter() tea.Cmd {
 	return func() tea.Msg {
 		entries := make([]int, 0)
 		if err := m.stream.SeekToLine(0); err != nil {
-			// TODO: handle this error with different message
-			return indexErrorMsg{err: err}
+			return streamErrorMsg{err: err}
 		}
 		for i := 0; i < m.entriesTotal; i++ {
 			entry := m.stream.Next()
