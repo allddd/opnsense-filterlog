@@ -1,6 +1,7 @@
 .PHONY: build build-release clean deps fmt help release test
 
 BINARY_NAME := opnsense-filterlog
+VERSION != git describe --tags 2>/dev/null || printf 'dev'
 VERSION ?= $(shell git describe --tags 2>/dev/null || printf 'dev')
 LDFLAGS := -X 'main.Version=$(VERSION)'
 
