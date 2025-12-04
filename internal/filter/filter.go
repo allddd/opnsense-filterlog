@@ -7,62 +7,130 @@ import (
 	"gitlab.com/allddd/opnsense-filterlog/internal/stream"
 )
 
-type tokenType int
+const (
+	tokenAnd    tokenTyp = iota // and operator
+	tokenEOF                    // eof
+	tokenField                  // field name
+	tokenNot                    // not operator
+	tokenOr                     // or operator
+	tokenParenL                 // left parenthesis
+	tokenParenR                 // right parenthesis
+	tokenValue                  // value
+)
 
 const (
-	tokenField  tokenType = iota // field name like src, dst, action, etc.
-	tokenValue                   // a value to match against
-	tokenAnd                     // AND operator (and, &&)
-	tokenOr                      // OR operator (or, ||)
-	tokenNot                     // NOT operator (not, !)
-	tokenLParen                  // left parenthesis
-	tokenRParen                  // right parenthesis
-	tokenEOF                     // end of input
+	fieldAction      fieldTyp = iota // action taken
+	fieldDestination                 // destination ip address
+	fieldDirection                   // traffic direction
+	fieldDstPort                     // destination port
+	fieldIPVersion                   // ip version
+	fieldInterface                   // network interface
+	fieldPort                        // source or destination port
+	fieldProtocol                    // protocol
+	fieldReason                      // reason for action
+	fieldSource                      // source IP address
+	fieldSrcPort                     // source port
 )
+
+var (
+	// tokens maps string representations of tokens to token types
+	tokens = map[string]tokenTyp{
+		// and
+		"and": tokenAnd,
+		"&&":  tokenAnd,
+		// not
+		"not": tokenNot,
+		"!":   tokenNot,
+		// or
+		"or": tokenOr,
+		"||": tokenOr,
+	}
+
+	// fields maps field names (and their aliases) to field types
+	fields = map[string]fieldTyp{
+		// action
+		"action": fieldAction,
+		// direction
+		"direction": fieldDirection,
+		"dir":       fieldDirection,
+		// destination
+		"destination": fieldDestination,
+		"dest":        fieldDestination,
+		"dst":         fieldDestination,
+		// destination port
+		"dstport": fieldDstPort,
+		"dport":   fieldDstPort,
+		// ip version
+		"ipversion": fieldIPVersion,
+		"ip":        fieldIPVersion,
+		"ipver":     fieldIPVersion,
+		// interface
+		"interface": fieldInterface,
+		"iface":     fieldInterface,
+		// port
+		"port": fieldPort,
+		// protocol
+		"protocol": fieldProtocol,
+		"proto":    fieldProtocol,
+		// reason
+		"reason": fieldReason,
+		// source
+		"source": fieldSource,
+		"src":    fieldSource,
+		// source port
+		"srcport": fieldSrcPort,
+		"sport":   fieldSrcPort,
+	}
+)
+
+type tokenTyp int
 
 // token represents a single token from the filter expression
 type token struct {
-	typ   tokenType // what kind of token this is
-	value string    // the actual text value of the token
+	typ   tokenTyp // type of token
+	value string   // value of the token
 }
 
+// lexer tokenizes filter expression input into a stream of tokens
 type lexer struct {
-	input string // the full input string being lexed
+	input string // input string being lexed
 	pos   int    // current position in the input string
 }
 
-// parser parses filter expressions into a FilterNode tree
+// parser parses filter expressions into a filter node tree
 type parser struct {
-	lex     *lexer // lexer that provides tokens
-	current token  // current token being examined
+	lex     *lexer // provides tokens
+	current token  // current token being parsed
 }
 
-// FilterNode is the interface that all filter nodes implement to match log entries
+type fieldTyp int
+
+// FilterNode is the interface that all filter nodes use to match log entries
 type FilterNode interface {
 	Matches(entry *stream.LogEntry) bool
 }
 
-// fieldFilter matches a specific field against a value
-type fieldFilter struct {
-	field string // field name (src, dst, action, etc.)
-	value string // value to match against
-}
-
-// anyFilter matches any field containing the value (for simple searches)
+// anyFilter matches any field containing the value
 type anyFilter struct {
 	value string // value to search for in any field
 }
 
+// fieldFilter matches a specific field against a value
+type fieldFilter struct {
+	field fieldTyp // type of field
+	value string   // value to match against
+}
+
 // andFilter matches only if both child filters match
 type andFilter struct {
-	left  FilterNode // left side of the AND expression
-	right FilterNode // right side of the AND expression
+	left  FilterNode // left side of the and expression
+	right FilterNode // right side of the and expression
 }
 
 // orFilter matches if either child filter matches
 type orFilter struct {
-	left  FilterNode // left side of the OR expression
-	right FilterNode // right side of the OR expression
+	left  FilterNode // left side of the or expression
+	right FilterNode // right side of the or expression
 }
 
 // notFilter inverts the result of its child filter
@@ -71,8 +139,55 @@ type notFilter struct {
 }
 
 // lexer
-// lexer tokenizes a filter expression string into a sequence of tokens, e.g.:
-// src 10.0.0.1 and proto tcp -> [token{field, "src"}, token{value, "10.0.0.1"}, token{and, "and"}, ...]
+
+// readWord reads a word token (letters, numbers, etc.) until space or parenthesis
+func (l *lexer) readWord() string {
+	start := l.pos
+	for l.pos < len(l.input) {
+		if ch := l.input[l.pos]; ch == ' ' || ch == '(' || ch == ')' {
+			break
+		}
+		l.pos++
+	}
+	return l.input[start:l.pos]
+}
+
+// nextToken returns the next token
+func (l *lexer) nextToken() token {
+	// skip space(s)
+	for l.pos < len(l.input) && l.input[l.pos] == ' ' {
+		l.pos++
+	}
+	// check for eof
+	if l.pos >= len(l.input) {
+		return token{typ: tokenEOF}
+	}
+	// check for parenthesis
+	switch ch := l.input[l.pos : l.pos+1]; ch {
+	case "(":
+		l.pos++
+		return token{typ: tokenParenL, value: ch}
+	case ")":
+		l.pos++
+		return token{typ: tokenParenR, value: ch}
+	}
+	word := l.readWord()
+	// check for eof again
+	if word == "" {
+		return token{typ: tokenEOF}
+	}
+	wordLower := strings.ToLower(word)
+	// check for operators
+	if typ, ok := tokens[wordLower]; ok {
+		return token{typ: typ, value: wordLower}
+	}
+	// check for field names
+	if _, ok := fields[wordLower]; ok {
+		return token{typ: tokenField, value: wordLower}
+	}
+	// everything else is a value
+	return token{typ: tokenValue, value: word}
+}
 
 // newLexer creates a new lexer for the given input string
 func newLexer(input string) *lexer {
@@ -82,164 +197,7 @@ func newLexer(input string) *lexer {
 	}
 }
 
-// peek returns the current character without advancing the position or 0 if we're at the end of input
-func (l *lexer) peek() byte {
-	if l.pos >= len(l.input) {
-		return 0
-	}
-	return l.input[l.pos]
-}
-
-// advance advances to the next position
-func (l *lexer) advance() {
-	if l.pos < len(l.input) {
-		l.pos++
-	}
-}
-
-// skipSpace advances past space characters
-func (l *lexer) skipSpace() {
-	for l.pos < len(l.input) && l.input[l.pos] == ' ' {
-		l.pos++
-	}
-}
-
-// readWord reads a word token (letters, numbers, etc.) until space or parentheses
-func (l *lexer) readWord() string {
-	start := l.pos
-	for l.pos < len(l.input) {
-		ch := l.input[l.pos]
-		if ch == ' ' || ch == '(' || ch == ')' {
-			break
-		}
-		l.pos++
-	}
-	return l.input[start:l.pos]
-}
-
-// nextToken returns the next token from the input stream
-func (l *lexer) nextToken() token {
-	l.skipSpace()
-
-	// check for end of input
-	if l.pos >= len(l.input) {
-		return token{typ: tokenEOF}
-	}
-
-	ch := l.peek()
-
-	if ch == '(' {
-		l.advance()
-		return token{typ: tokenLParen, value: "("}
-	}
-	if ch == ')' {
-		l.advance()
-		return token{typ: tokenRParen, value: ")"}
-	}
-
-	// read a word and determine what it is
-	word := l.readWord()
-
-	if word == "" {
-		return token{typ: tokenEOF}
-	}
-
-	switch wordLower := strings.ToLower(word); wordLower {
-	case "and", "&&":
-		return token{typ: tokenAnd, value: word}
-	case "or", "||":
-		return token{typ: tokenOr, value: word}
-	case "not", "!":
-		return token{typ: tokenNot, value: word}
-	case "action",
-		"dir", "direction",
-		"dst", "dest", "destination",
-		"iface", "interface",
-		"ip", "ipver", "ipversion",
-		"port",
-		"sport", "srcport",
-		"dport", "dstport",
-		"proto", "protocol",
-		"reason",
-		"src", "source":
-		return token{typ: tokenField, value: wordLower}
-	}
-
-	// everything else is a value
-	return token{typ: tokenValue, value: word}
-}
-
-// filter nodes
-
-// Matches (fieldFilter) returns true if the log entry matches the field filter criteria
-func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
-	valueLower := strings.ToLower(f.value)
-
-	switch f.field {
-	case "action":
-		return strings.HasPrefix(strings.ToLower(entry.Action), valueLower)
-	case "dir", "direction":
-		return strings.HasPrefix(strings.ToLower(entry.Direction), valueLower)
-	case "dst", "dest", "destination":
-		return strings.HasPrefix(strings.ToLower(entry.Dst), valueLower)
-	case "iface", "interface":
-		return strings.HasPrefix(strings.ToLower(entry.Interface), valueLower)
-	case "ip", "ipver", "ipversion":
-		return fmt.Sprintf("%d", entry.IPVersion) == f.value
-	case "port":
-		// match either source or destination port
-		portStr := f.value
-		if entry.SrcPort > 0 && fmt.Sprintf("%d", entry.SrcPort) == portStr {
-			return true
-		}
-		if entry.DstPort > 0 && fmt.Sprintf("%d", entry.DstPort) == portStr {
-			return true
-		}
-		return false
-	case "sport", "srcport":
-		return entry.SrcPort > 0 && fmt.Sprintf("%d", entry.SrcPort) == f.value
-	case "dport", "dstport":
-		return entry.DstPort > 0 && fmt.Sprintf("%d", entry.DstPort) == f.value
-	case "proto", "protocol":
-		return strings.HasPrefix(strings.ToLower(entry.ProtoName), valueLower)
-	case "reason":
-		return strings.HasPrefix(strings.ToLower(entry.Reason), valueLower)
-	case "src", "source":
-		return strings.HasPrefix(strings.ToLower(entry.Src), valueLower)
-	}
-
-	return false
-}
-
-// Matches (anyFilter) returns true if any field in the log entry contains the filter value
-func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
-	valueLower := strings.ToLower(f.value)
-	return strings.Contains(strings.ToLower(entry.Action), valueLower) ||
-		strings.Contains(strings.ToLower(entry.Src), valueLower) ||
-		strings.Contains(strings.ToLower(entry.Dst), valueLower) ||
-		strings.Contains(strings.ToLower(entry.Interface), valueLower) ||
-		strings.Contains(strings.ToLower(entry.ProtoName), valueLower) ||
-		strings.Contains(strings.ToLower(entry.Reason), valueLower) ||
-		strings.Contains(strings.ToLower(entry.Direction), valueLower)
-}
-
-// Matches (andFilter) returns true only if both left and right filters match
-func (f *andFilter) Matches(entry *stream.LogEntry) bool {
-	return f.left.Matches(entry) && f.right.Matches(entry)
-}
-
-// Matches (orFilter) returns true if either left or right filter matches
-func (f *orFilter) Matches(entry *stream.LogEntry) bool {
-	return f.left.Matches(entry) || f.right.Matches(entry)
-}
-
-// Matches (notFilter) returns the opposite of what the child filter returns
-func (f *notFilter) Matches(entry *stream.LogEntry) bool {
-	return !f.child.Matches(entry)
-}
-
 // parser
-// parser takes tokens from the lexer and builds a tree of FilterNodes
 
 // newParser creates a new parser for the given input string
 func newParser(input string) *parser {
@@ -263,13 +221,12 @@ func (p *parser) parse() (FilterNode, error) {
 	return p.parseOr()
 }
 
-// parseOr handles OR expressions (lowest precedence)
+// parseOr handles or expressions (lowest precedence)
 func (p *parser) parseOr() (FilterNode, error) {
 	left, err := p.parseAnd()
 	if err != nil {
 		return nil, err
 	}
-
 	for p.current.typ == tokenOr {
 		p.advance()
 		right, err := p.parseAnd()
@@ -278,17 +235,15 @@ func (p *parser) parseOr() (FilterNode, error) {
 		}
 		left = &orFilter{left: left, right: right}
 	}
-
 	return left, nil
 }
 
-// parseAnd handles AND expressions (medium precedence)
+// parseAnd handles and expressions (medium precedence)
 func (p *parser) parseAnd() (FilterNode, error) {
 	left, err := p.parseNot()
 	if err != nil {
 		return nil, err
 	}
-
 	for p.current.typ == tokenAnd {
 		p.advance()
 		right, err := p.parseNot()
@@ -297,11 +252,10 @@ func (p *parser) parseAnd() (FilterNode, error) {
 		}
 		left = &andFilter{left: left, right: right}
 	}
-
 	return left, nil
 }
 
-// parseNot handles NOT expressions (highest precedence)
+// parseNot handles not expressions (highest precedence)
 func (p *parser) parseNot() (FilterNode, error) {
 	if p.current.typ == tokenNot {
 		p.advance()
@@ -311,49 +265,119 @@ func (p *parser) parseNot() (FilterNode, error) {
 		}
 		return &notFilter{child: child}, nil
 	}
-
 	return p.parsePrimary()
 }
 
-// parsePrimary handles parenthesized expressions, field filters, and bare values
+// parsePrimary handles parenthesis, field filters and bare values
 func (p *parser) parsePrimary() (FilterNode, error) {
-	// handle parentheses for grouping
-	if p.current.typ == tokenLParen {
+	// handle parenthesis for grouping
+	if p.current.typ == tokenParenL {
 		p.advance()
 		node, err := p.parseOr() // start from the bottom of precedence
 		if err != nil {
 			return nil, err
 		}
-		if p.current.typ != tokenRParen {
-			return nil, fmt.Errorf("error: expected ')' but got %v", p.current)
+		if p.current.typ != tokenParenR {
+			return nil, fmt.Errorf("error(filter): expected \")\" but got %q", p.current.value)
 		}
 		p.advance()
 		return node, nil
 	}
-
-	// handle field-specific filters, e.g.: src 192.168.1.1
+	// handle fields
 	if p.current.typ == tokenField {
 		field := p.current.value
 		p.advance()
 
 		if p.current.typ != tokenValue {
-			return nil, fmt.Errorf("error: expected value after field '%s' but got %v", field, p.current)
+			return nil, fmt.Errorf("error(filter): expected value after field %q but got %q", field, p.current.value)
 		}
-
 		value := p.current.value
 		p.advance()
 
-		return &fieldFilter{field: field, value: value}, nil
+		return &fieldFilter{field: fields[field], value: value}, nil
 	}
-
-	// handle bare values (search in any field)
+	// handle bare values
 	if p.current.typ == tokenValue {
 		value := p.current.value
 		p.advance()
 		return &anyFilter{value: value}, nil
 	}
+	// TODO: make this err msg more helpful
+	return nil, fmt.Errorf("error(filter): unexpected token %q", p.current.value)
+}
 
-	return nil, fmt.Errorf("error: unexpected token: %v", p.current)
+// filter nodes
+
+// Matches (anyFilter) returns true if any field in the log entry contains the filter value
+func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
+	value := strings.ToLower(f.value)
+	searchFields := []string{
+		entry.Action,
+		entry.Direction,
+		entry.Interface,
+		entry.Reason,
+		entry.Time.Format("Jan 02 15:04:05"),
+		entry.Dst,
+		entry.ProtoName,
+		entry.Src,
+	}
+	for _, field := range searchFields {
+		if strings.Contains(strings.ToLower(field), value) {
+			return true
+		}
+	}
+	return false
+}
+
+// Matches (fieldFilter) returns true if the log entry matches the field filter criteria
+func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
+	value := strings.ToLower(f.value)
+	matchInt := func(i any) bool {
+		return fmt.Sprintf("%d", i) == f.value
+	}
+	matchStr := func(s string) bool {
+		return strings.HasPrefix(strings.ToLower(s), value)
+	}
+	switch f.field {
+	case fieldAction:
+		return matchStr(entry.Action)
+	case fieldDestination:
+		return matchStr(entry.Dst)
+	case fieldDirection:
+		return matchStr(entry.Direction)
+	case fieldDstPort:
+		return matchInt(entry.DstPort)
+	case fieldIPVersion:
+		return matchInt(entry.IPVersion)
+	case fieldInterface:
+		return matchStr(entry.Interface)
+	case fieldPort:
+		return matchInt(entry.SrcPort) || matchInt(entry.DstPort)
+	case fieldProtocol:
+		return matchStr(entry.ProtoName)
+	case fieldReason:
+		return matchStr(entry.Reason)
+	case fieldSource:
+		return matchStr(entry.Src)
+	case fieldSrcPort:
+		return matchInt(entry.SrcPort)
+	}
+	return false
+}
+
+// Matches (andFilter) returns true only if both left and right filters match
+func (f *andFilter) Matches(entry *stream.LogEntry) bool {
+	return f.left.Matches(entry) && f.right.Matches(entry)
+}
+
+// Matches (orFilter) returns true if either left or right filter matches
+func (f *orFilter) Matches(entry *stream.LogEntry) bool {
+	return f.left.Matches(entry) || f.right.Matches(entry)
+}
+
+// Matches (notFilter) returns the opposite of what the child filter returns
+func (f *notFilter) Matches(entry *stream.LogEntry) bool {
+	return !f.child.Matches(entry)
 }
 
 // public
