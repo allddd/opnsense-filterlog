@@ -523,8 +523,11 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "/":
-		m.filterView = true
-		return m, m.filterInput.Focus()
+		if !m.errorsView {
+			m.filterView = true
+			return m, m.filterInput.Focus()
+		}
+		return m, nil
 
 	case "esc":
 		if m.errorsView {
