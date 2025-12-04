@@ -1,4 +1,4 @@
-.PHONY: build build-release clean deps fmt help release test
+.PHONY: build build-release clean deps fmt help modernize release test
 
 BINARY_NAME := opnsense-filterlog
 VERSION != git describe --tags 2>/dev/null || printf 'dev'
@@ -26,7 +26,10 @@ help: ## display this help message
 	@printf 'available targets:\n\n'
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf " %-15s - %s\n", $$1, $$2}'
 
-release: clean fmt test build-release ## create signed release
+modernize: ## modernize code
+	go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -diff ./...
+
+release: fmt modernize test clean build-release ## create signed release
 	sha256sum $(BINARY_NAME) | gpg --clearsign > ./$(BINARY_NAME).sha256
 
 test: ## run tests
