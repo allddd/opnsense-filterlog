@@ -316,7 +316,7 @@ func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 		entry.Direction,
 		entry.Interface,
 		entry.Reason,
-		entry.Time.Format("Jan 02 15:04:05"),
+		entry.Time,
 		entry.Dst,
 		entry.ProtoName,
 		entry.Src,

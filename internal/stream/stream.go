@@ -57,11 +57,11 @@ const (
 // LogEntry represents a parsed filter log entry
 type LogEntry struct {
 	// common
-	Action    string    // action taken
-	Direction string    // traffic direction
-	Interface string    // network interface
-	Reason    string    // reason for action
-	Time      time.Time // timestamp
+	Action    string // action taken
+	Direction string // traffic direction
+	Interface string // network interface
+	Reason    string // reason for action
+	Time      string // timestamp
 
 	// ip
 	Dst       string // destination ip address
@@ -178,7 +178,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	}
 
 	entry := LogEntry{
-		Time:      timestamp,
+		Time:      timestamp.Format("Jan 02 15:04:05"),
 		Interface: iface,
 	}
 

@@ -306,7 +306,7 @@ func (m model) View() string {
 				dstPort = fmt.Sprintf("%d", entry.DstPort)
 			}
 			line := fmt.Sprintf(headerLineFormat,
-				truncateString(entry.Time.Format("Jan 02 15:04:05"), colWidthTime),
+				truncateString(entry.Time, colWidthTime),
 				truncateString(entry.Action, colWidthAction),
 				truncateString(entry.Interface, colWidthInterface),
 				truncateString(entry.Direction, colWidthDir),
