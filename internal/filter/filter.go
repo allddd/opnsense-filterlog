@@ -140,7 +140,7 @@ type notFilter struct {
 
 // lexer
 
-// readWord reads a word token (letters, numbers, etc.) until space or parenthesis
+// readWord reads a word token (letters, numbers, etc.) until space or parentheses
 func (l *lexer) readWord() string {
 	start := l.pos
 	for l.pos < len(l.input) {
@@ -268,9 +268,9 @@ func (p *parser) parseNot() (FilterNode, error) {
 	return p.parsePrimary()
 }
 
-// parsePrimary handles parenthesis, field filters and bare values
+// parsePrimary handles parentheses, field filters and bare values
 func (p *parser) parsePrimary() (FilterNode, error) {
-	// handle parenthesis for grouping
+	// handle parentheses for grouping
 	if p.current.typ == tokenParenL {
 		p.advance()
 		node, err := p.parseOr() // start from the bottom of precedence
