@@ -2,38 +2,50 @@
 
 - [Overview](#overview)
 - [Installation](#installation)
+  - [Binary](#binary)
+  - [Source](#source)
 - [Usage](#usage)
   - [CLI](#cli)
   - [TUI](#tui)
   - [Filter](#filter)
 - [Contributing](#contributing)
+  - [Questions](#questions)
+  - [Feedback](#feedback)
+  - [Code](#code)
 - [Copyright](#copyright)
 
 ## Overview
 
-`opnsense-filterlog` is a terminal-based viewer for [OPNsense](https://opnsense.org) firewall logs. Think of it as `less` with powerful filtering capabilities specifically designed for firewall logs. It's a self-contained binary that reads logs line by line without loading the entire log into memory, allowing you to view and analyze large logs directly on low-spec devices such as your firewall appliance.
+`opnsense-filterlog` is a terminal-based viewer for [OPNsense](https://opnsense.org) firewall logs. It works similarly to a pager like `less`, but with filtering/searching capabilities built specifically for firewall logs.
 
-Main features include:
-
-- Interactive TUI with familiar pager-style navigation.
-- `tcpdump`-like filter syntax with field-specific search, logical operators and grouping.
-- No external dependencies or runtime requirements.
+Features:
+- Fast and resource-efficient, can process large log files even on low-spec devices.
+- Filter syntax (similar to `tcpdump`) with field-based filters, logical operators and grouping.
+- Self-contained binary with no external dependencies.
+- TUI with `vi`/`less`-style keybindings.
 
 ![TUI Screenshot](./docs/demo.png)
 
 ## Installation
 
-You can download a pre-built binary from the [releases page](https://gitlab.com/allddd/opnsense-filterlog/-/releases) along with its PGP-signed SHA256 checksum ([PGP key](https://gitlab.com/allddd.gpg)).
+### Binary
 
-All releases are reproducible, which means you can build the binary yourself and verify it matches the official release.
+You can download the pre-built binary along with its PGP-signed SHA256 checksum ([PGP key](https://gitlab.com/allddd.gpg)) from the [releases page](https://gitlab.com/allddd/opnsense-filterlog/-/releases/permalink/latest). All releases are reproducible, meaning you can compile the binary yourself and verify it matches the official release.
+
+### Source
+
+Clone the repository (replace `<version>` with the actual version, e.g. `v0.3.0`):
 
 ```sh
-git clone https://gitlab.com/allddd/opnsense-filterlog.git -b <version_you_want_to_reproduce>
+git clone https://gitlab.com/allddd/opnsense-filterlog.git -b <version>
+```
+
+Build the binary:
+
+```sh
 cd ./opnsense-filterlog
 make build-release
 ```
-
-Keep in mind that you may need to use the same Go version specified in the [`go.mod`](./go.mod) file of that release to reproduce the binary.
 
 ## Usage
 
@@ -45,7 +57,7 @@ You can view the default log file (`/var/log/filter/latest.log`) using:
 opnsense-filterlog
 ```
 
-Alternatively, view specific log file:
+Alternatively, view a specific log file using:
 
 ```sh
 opnsense-filterlog /path/to/filter.log
@@ -59,7 +71,7 @@ opnsense-filterlog -h
 
 ### TUI
 
-Once inside the TUI, you can navigate using:
+You can interact with the TUI using:
 
 - **`k`** or **`▲`** / **`g`** or **`Home`** - Scroll/jump up
 - **`j`** or **`▼`** / **`G`** or **`End`** - Scroll/jump down
@@ -67,16 +79,14 @@ Once inside the TUI, you can navigate using:
 - **`l`** or **`►`** / **`$`** - Scroll/jump right
 - **`u`** or **`PgUp`** - Page up
 - **`d`** or **`PgDn`** - Page down
-- **`/`** - Enter filter/search mode
+- **`/`** - Enter filter mode
 - **`q`** - Quit
 
 ### Filter
 
-You can filter by specific fields or search across all fields.
-
 #### Simple search
 
-Type a value without a field to search across all fields:
+Type a value without a field name to search across all fields:
 
 ```
 192.168
@@ -84,11 +94,21 @@ block
 tcp
 ```
 
-#### Field-specific filters
+#### Field-based filtering
 
-Filter by specific fields using `field value` syntax.
+Use the `field value` syntax to target specific fields:
 
-Available fields:
+```
+src 192.168.1.1
+dst 10.0.0.1
+action block
+proto tcp
+ip 4
+port 443
+iface eth0
+```
+
+Fields:
 
 | Field | Aliases | Description |
 |-------|---------|-------------|
@@ -103,18 +123,6 @@ Available fields:
 | `protocol` | `proto` | Protocol (tcp, udp, icmp, etc.) |
 | `reason` | - | Reason (match, fragment, etc.) |
 | `source` | `src` | Source IP address |
-
-Examples:
-
-```
-src 192.168.1.1
-dst 10.0.0.1
-action block
-proto tcp
-ip 4
-port 443
-iface eth0
-```
 
 #### Logical operators
 
@@ -141,9 +149,9 @@ not action block
 ! src 192.168.1.1
 ```
 
-#### Grouping with parentheses
+#### Grouping
 
-Use parentheses to control evaluation order:
+Use parentheses to group filters and control evaluation order:
 
 ```
 (src 192.168.1.1 or src 192.168.1.2) and action block
@@ -153,7 +161,19 @@ not (action pass and proto udp)
 
 ## Contributing
 
-Contributions are welcome! Feel free to report bugs and submit patches.
+### Questions
+
+Before asking a question, please read the [documentation](https://gitlab.com/allddd/opnsense-filterlog#opnsense-filterlog) and search for [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/issues). If those don't answer your question, [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new).
+
+### Feedback
+
+Before reporting a bug or requesting a feature, make sure you're using the [latest version](https://gitlab.com/allddd/opnsense-filterlog/-/releases/permalink/latest) and have searched [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/issues). After confirming it hasn't been reported/requested, [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new) that includes as much detail as possible (for bugs: expected versus actual behavior, steps to reproduce, environment details, error messages, anonymized log files; for features: description, use cases, etc.).
+
+### Code
+
+Before opening a merge request, please [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new) to discuss the change you want to make and search [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/issues) first to avoid duplicates. Before submitting a merge request, make sure `make test` passes, your code follows go conventions (`make fmt` and `make modernize`), new features have tests, and documentation is updated.
+
+Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification (see `git log` for examples):
 
 ## Copyright
 
