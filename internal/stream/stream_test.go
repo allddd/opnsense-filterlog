@@ -231,9 +231,9 @@ func TestParsedValues(t *testing.T) {
 	if entry.SrcPort != 63511 || entry.DstPort != 53 {
 		t.Fatalf("entry 1: expected ports 63511:53, got %d:%d", entry.SrcPort, entry.DstPort)
 	}
-	expectedTime := time.Date(2025, 10, 10, 0, 0, 0, 0, time.FixedZone("", 2*60*60)).Format("Jan 02 15:04:05")
-	if entry.Time != expectedTime {
-		t.Fatalf("entry 1: expected time %s, got %s", expectedTime, entry.Time)
+	expectedTime := time.Date(2025, 10, 10, 0, 0, 0, 0, time.FixedZone("", 2*60*60))
+	if !entry.Time.Equal(expectedTime) {
+		t.Fatalf("entry 1: expected time %v, got %v", expectedTime, entry.Time)
 	}
 	// 2nd entry
 	entry = s.Next()
