@@ -228,7 +228,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.indexed = true
 		m.uiLoading = false
 		if m.entriesTotal <= 0 {
-			m.uiStatusMsg = m.uiStyles.statusError.Render("error: no valid entries found")
+			m.uiStatusMsg = m.uiStyles.statusError.Render("error(tui): no valid entries found")
 			return m, nil
 		}
 		m.showAllLines()

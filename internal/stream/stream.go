@@ -494,7 +494,7 @@ func (s *Stream) reset() error {
 	}
 	file, err := os.Open(s.path)
 	if err != nil {
-		return fmt.Errorf("error: %w", err)
+		return fmt.Errorf("error(stream): %w", err)
 	}
 	s.file = file
 	s.scanner = bufio.NewScanner(file)
@@ -528,7 +528,7 @@ func (s *Stream) BuildIndex() error {
 		lineNum++
 	}
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error: could not build index due to scanner error: %w", err)
+		return fmt.Errorf("error(stream): could not build index due to scanner error: %w", err)
 	}
 	return s.reset()
 }
@@ -560,7 +560,7 @@ func (s Stream) GetErrors() []string {
 func NewStream(path string) (*Stream, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("error: %w", err)
+		return nil, fmt.Errorf("error(stream): %w", err)
 	}
 	return &Stream{
 		errors:  make([]string, 0),
@@ -587,22 +587,22 @@ func (s *Stream) Next() *LogEntry {
 // SeekToLine seeks to a specific line number using the index
 func (s *Stream) SeekToLine(lineNum int) error {
 	if len(s.index) <= 0 {
-		return fmt.Errorf("error: could not seek: missing index")
+		return fmt.Errorf("error(stream): could not seek: missing index")
 	}
 	if lineNum < 0 || lineNum >= len(s.index) {
-		return fmt.Errorf("error: could not seek: line %d out of range [0, %d)", lineNum, len(s.index))
+		return fmt.Errorf("error(stream): could not seek: line %d out of range [0, %d)", lineNum, len(s.index))
 	}
 	if s.file != nil {
 		s.file.Close()
 	}
 	file, err := os.Open(s.path)
 	if err != nil {
-		return fmt.Errorf("error: could not seek to line %d: %w", lineNum, err)
+		return fmt.Errorf("error(stream): could not seek to line %d: %w", lineNum, err)
 	}
 	_, err = file.Seek(s.index[lineNum].lineOffset, 0)
 	if err != nil {
 		file.Close()
-		return fmt.Errorf("error: could not seek to line %d: %w", lineNum, err)
+		return fmt.Errorf("error(stream): could not seek to line %d: %w", lineNum, err)
 	}
 	s.file = file
 	s.scanner = bufio.NewScanner(file)
