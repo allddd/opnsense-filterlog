@@ -24,8 +24,10 @@ Flags:
 `
 
 type flags struct {
-	Help    bool `name:"h" usage:"display this help message and exit"`
-	Version bool `name:"V" usage:"display version information and exit"`
+	Filter  string `name:"f" usage:"filter expression (requires -j)"`
+	Help    bool   `name:"h" usage:"display this help message and exit"`
+	Json    bool   `name:"j" usage:"display entries as JSON and exit"`
+	Version bool   `name:"V" usage:"display version information and exit"`
 }
 
 // flagsDefine defines all flags set in the struct
@@ -58,14 +60,19 @@ func Execute(v string) {
 	flag.Parse()
 	// check mutually exclusive flags
 	count := 0
-	for _, provided := range []bool{f.Help, f.Version} {
+	for _, provided := range []bool{f.Help, f.Json, f.Version} {
 		if provided {
 			if count++; count > 1 {
-				fmt.Fprintln(os.Stderr, "error: mutually exclusive flags")
+				fmt.Fprintln(os.Stderr, "error(cli): mutually exclusive flags")
 				flag.Usage()
 				os.Exit(1)
 			}
 		}
+	}
+	if !f.Json && f.Filter != "" {
+		fmt.Fprintln(os.Stderr, "error(cli): -f requires -j flag")
+		flag.Usage()
+		os.Exit(1)
 	}
 	// -h
 	if f.Help {
@@ -88,8 +95,16 @@ func Execute(v string) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	if err := tui.Display(s); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	// -j
+	if f.Json {
+		if err := displayJSON(s, f.Filter); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+	} else {
+		if err := tui.Display(s); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	}
 }

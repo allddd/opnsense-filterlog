@@ -63,6 +63,13 @@ Alternatively, view a specific log file using:
 opnsense-filterlog /path/to/filter.log
 ```
 
+You can also display entries in JSON format (with optional filtering):
+
+```sh
+opnsense-filterlog -j
+opnsense-filterlog -j -f 'proto tcp && port 443' /path/to/filter.log
+```
+
 To see all options, display help using:
 
 ```sh

@@ -58,21 +58,21 @@ const (
 // LogEntry represents a parsed filter log entry
 type LogEntry struct {
 	// common
-	Action    string    // action taken
-	Direction string    // traffic direction
-	Interface string    // network interface
-	Reason    string    // reason for action
-	Time      time.Time // timestamp
+	Action    string    `json:"action"` // action taken
+	Direction string    `json:"dir"`    // traffic direction
+	Interface string    `json:"iface"`  // network interface
+	Reason    string    `json:"reason"` // reason for action
+	Time      time.Time `json:"time"`   // timestamp
 
 	// ip
-	Dst       string // destination ip address
-	IPVersion uint8  // ip protocol version
-	ProtoName string // protocol name
-	Src       string // source ip address
+	Dst       string `json:"dst"`   // destination ip address
+	IPVersion uint8  `json:"ipver"` // ip protocol version
+	ProtoName string `json:"proto"` // protocol name
+	Src       string `json:"src"`   // source ip address
 
 	// protocol
-	DstPort uint16 // destination port
-	SrcPort uint16 // source port
+	DstPort uint16 `json:"dport,omitempty"` // destination port
+	SrcPort uint16 `json:"sport,omitempty"` // source port
 }
 
 // indexEntry represents an entry in the index
