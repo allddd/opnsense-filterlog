@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -515,6 +516,16 @@ func (s *Stream) Close() error {
 		return s.file.Close()
 	}
 	return nil
+}
+
+// GetPathAbs returns the absolute path of the log file
+func (s Stream) GetPathAbs() (string, error) {
+	return filepath.Abs(s.path)
+}
+
+// GetPathRel returns the relative path of the log file
+func (s Stream) GetPathRel() string {
+	return s.path
 }
 
 // GetErrors returns all parsing errors encountered during parsing
