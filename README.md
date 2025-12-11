@@ -178,9 +178,11 @@ Before reporting a bug or requesting a feature, make sure you're using the [late
 
 ### Code
 
-Before opening a merge request, please [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new) to discuss the change you want to make and search [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/issues) first to avoid duplicates. Before submitting a merge request, make sure `make test` passes, your code follows go conventions (`make fmt` and `make modernize`), new features have tests, and documentation is updated.
+Before opening a merge request, please [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new) to discuss the change you want to make and search [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/issues) first to avoid duplicates.
 
-Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification (see `git log` for examples):
+Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification (see `git log` for examples).
+
+Before submitting a merge request, make sure `make test` passes, your code follows go conventions (`make fmt` and `make modernize`), new features have tests, and documentation is updated.
 
 ## Copyright
 
