@@ -1,0 +1,178 @@
+.\" Copyright (c) 2025 allddd <me@allddd.onl>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions are met:
+.\"
+.\" 1. Redistributions of source code must retain the above copyright notice, this
+.\"    list of conditions and the following disclaimer.
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright notice,
+.\"    this list of conditions and the following disclaimer in the documentation
+.\"    and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd December 11, 2025
+.Dt OPNSENSE-FILTERLOG 8
+.Os
+.Sh NAME
+.Nm opnsense-filterlog
+.Nd terminal-based viewer for OPNsense firewall logs
+.Sh SYNOPSIS
+.Nm
+.Op Fl f Ar expression
+.Op Fl h
+.Op Fl j
+.Op Fl V
+.Op Ar file
+.Sh DESCRIPTION
+The
+.Nm
+utility is a terminal-based viewer for OPNsense firewall logs.
+It works similarly to a pager like
+.Xr less 1 ,
+but with filtering and searching capabilities built specifically for firewall logs.
+.Pp
+Filter syntax is similar to
+.Xr tcpdump 1
+with field-based filters, logical operators, and grouping.
+.Sh OPTIONS
+The optional
+.Ar file
+argument specifies the path to the filter log file to analyze.
+If omitted, defaults to
+.Pa /var/log/filter/latest.log .
+.Pp
+The options are as follows:
+.Bl -tag
+.It Fl f Ar expression
+Filter expression (requires
+.Fl j ) .
+.It Fl h
+Display usage information and exit.
+.It Fl j
+Display entries as JSON and exit.
+.It Fl V
+Display version information and exit.
+.El
+.Sh COMMANDS
+You can interact with the TUI using:
+.Bl -tag
+.It Ic k , Up , g , Home
+Scroll or jump up.
+.It Ic j , Down , G , End
+Scroll or jump down.
+.It Ic h , Left , 0
+Scroll or jump left.
+.It Ic l , Right , $
+Scroll or jump right.
+.It Ic u , Page Up
+Scroll one page up.
+.It Ic d , Page Down
+Scroll one page down.
+.It Ic /
+Enter filter mode.
+.It Ic q
+Quit.
+.El
+.Sh FILTER
+.Ss Simple search
+Type a value without a field name to search across all fields:
+.Bd -literal
+192.168
+block
+tcp
+.Ed
+.Ss Field-based filtering
+Use the
+.Ar field
+.Ar value
+syntax to target specific fields:
+.Pp
+.Bd -literal
+src 192.168.1.1
+dst 10.0.0.1
+action block
+proto tcp
+ip 4
+port 443
+iface eth0
+.Ed
+.Pp
+Available fields:
+.Bl -tag
+.It Cm action
+Action (block, pass, etc.).
+.It Cm direction , dir
+Direction (in, out, etc.).
+.It Cm destination , dst , dest
+Destination IP address.
+.It Cm interface , iface
+Network interface.
+.It Cm ipversion , ip , ipver
+IP version (4 or 6).
+.It Cm port
+Either source or destination port.
+.It Cm srcport , sport
+Source port.
+.It Cm dstport , dport
+Destination port.
+.It Cm protocol , proto
+Protocol (tcp, udp, icmp, etc.).
+.It Cm reason
+Reason (match, fragment, etc.).
+.It Cm source , src
+Source IP address.
+.El
+.Ss Logical operators
+Combine filters with logical operators:
+.Pp
+.Sy AND
+.Pq Cm and No or Cm &&
+\(en Both conditions must match:
+.Bd -literal
+src 192.168.1.1 and action block
+proto tcp && port 443
+.Ed
+.Pp
+.Sy OR
+.Pq Cm or No or Cm ||
+\(en Either condition must match:
+.Bd -literal
+src 192.168.1.1 or src 192.168.1.2
+port 80 || port 443
+.Ed
+.Pp
+.Sy NOT
+.Pq Cm not No or Cm \&!
+\(en Inverts the condition:
+.Bd -literal
+not action block
+! src 192.168.1.1
+.Ed
+.Ss Grouping
+Use parentheses to group filters and control evaluation order:
+.Bd -literal
+(src 192.168.1.1 or src 192.168.1.2) and action block
+proto tcp and (port 80 or port 443)
+not (action pass and proto udp)
+.Ed
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr less 1 ,
+.Xr tcpdump 1
+.Sh AUTHORS
+.An allddd Aq Mt me@allddd.onl
+.Pp
+Report bugs at:
+.Lk https://gitlab.com/allddd/opnsense-filterlog/-/issues
