@@ -21,39 +21,62 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-.PHONY: build build-release clean deps fmt help modernize release test
+.PHONY: build build-release clean deps fmt help install modernize release test uninstall
 
-BINARY_NAME := opnsense-filterlog
-VERSION != git describe --tags 2>/dev/null || printf 'dev'
-VERSION ?= $(shell git describe --tags 2>/dev/null || printf 'dev')
-LDFLAGS := -X 'main.Version=$(VERSION)'
+PROGRAM = opnsense-filterlog
+VERSION != git describe --tags 2>/dev/null || printf 'unknown'
+# needed for gmake < 4.0
+VERSION ?= $(shell git describe --tags 2>/dev/null || printf 'unknown')
+LDFLAGS = -X 'main.Version=$(VERSION)'
+
+PREFIX = /usr/local
+EXEC_PREFIX = $(PREFIX)
+SBINDIR = $(EXEC_PREFIX)/sbin
+DATAROOTDIR = $(PREFIX)/share
+MANDIR = $(DATAROOTDIR)/man
+MAN8DIR = $(MANDIR)/man8
+
+GO = go
+INSTALL = install
+INSTALL_DATA = $(INSTALL) -m 644
+INSTALL_PROGRAM = $(INSTALL)
 
 build: ## build development binary (default)
-	go build -ldflags "$(LDFLAGS)" -o ./$(BINARY_NAME) ./
+	$(GO) build -ldflags "$(LDFLAGS)" -o ./$(PROGRAM) ./
 
 build-release: ## build release binary
-	CGO_ENABLED=0 GOARCH=amd64 GOOS=freebsd go build -trimpath -ldflags "$(LDFLAGS) -s -w -buildid=" -o ./$(BINARY_NAME) ./
+	CGO_ENABLED=0 GOARCH=amd64 GOOS=freebsd $(GO) build -trimpath -ldflags "$(LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
 
 clean: ## remove build artifacts
-	rm -f ./$(BINARY_NAME)
+	rm -f ./$(PROGRAM)
 
 deps: ## update dependencies
-	go get -u ./...
-	go mod tidy
-	go mod verify
+	$(GO) get -u ./...
+	$(GO) mod tidy
+	$(GO) mod verify
 
 fmt: ## format code
-	go fmt ./...
+	$(GO) fmt ./...
 
-help: ## display this help message
+help: ## display help message
 	@printf 'available targets:\n\n'
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf " %-15s - %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*## .*$$' ./Makefile | awk -F' *## ' '{sub(/:.*/, "", $$1); printf " %-15s - %s\n", $$1, $$2}'
+
+install: build-release ## build and install files
+	$(INSTALL) -d $(DESTDIR)$(SBINDIR)
+	$(INSTALL_PROGRAM) $(PROGRAM) $(DESTDIR)$(SBINDIR)/$(PROGRAM)
+	$(INSTALL) -d $(DESTDIR)$(MAN8DIR)
+	$(INSTALL_DATA) docs/$(PROGRAM).8 $(DESTDIR)$(MAN8DIR)/$(PROGRAM).8
 
 modernize: ## modernize code
-	go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -diff ./...
+	$(GO) run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -diff ./...
 
 release: fmt modernize test clean build-release ## create signed release
-	sha256sum $(BINARY_NAME) | gpg --clearsign > ./$(BINARY_NAME).sha256
+	sha256sum $(PROGRAM) | gpg --clearsign > ./$(PROGRAM).sha256
 
 test: ## run tests
-	go test -fullpath -shuffle=on ./...
+	$(GO) test -fullpath -shuffle=on ./...
+
+uninstall: ## remove installed files
+	rm -f $(DESTDIR)$(SBINDIR)/$(PROGRAM)
+	rm -f $(DESTDIR)$(MAN8DIR)/$(PROGRAM).8
