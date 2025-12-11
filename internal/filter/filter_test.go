@@ -39,22 +39,18 @@ type test struct {
 
 func runTests(t *testing.T, tests []test) {
 	t.Helper()
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			filter, err := Compile(tc.filter)
-
 			if tc.expectError {
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
 				return
 			}
-
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-
 			if filter != nil {
 				if match := filter.Matches(&tc.entry); match != tc.expectMatch {
 					t.Fatalf("expected %v, got %v", match, tc.expectMatch)
@@ -64,7 +60,7 @@ func runTests(t *testing.T, tests []test) {
 	}
 }
 
-func TestCompile_AnyFilter(t *testing.T) {
+func TestAnyFilter(t *testing.T) {
 	tests := []test{
 		{
 			name:        "match action field",
@@ -115,11 +111,10 @@ func TestCompile_AnyFilter(t *testing.T) {
 			expectMatch: false,
 		},
 	}
-
 	runTests(t, tests)
 }
 
-func TestCompile_FieldFilter(t *testing.T) {
+func TestFieldFilter(t *testing.T) {
 	tests := []test{
 		{
 			name:        "match source ip exact",
@@ -278,11 +273,10 @@ func TestCompile_FieldFilter(t *testing.T) {
 			expectMatch: false,
 		},
 	}
-
 	runTests(t, tests)
 }
 
-func TestCompile_AndOperator(t *testing.T) {
+func TestAndOperator(t *testing.T) {
 	tests := []test{
 		{
 			name:        "match both conditions",
@@ -331,11 +325,10 @@ func TestCompile_AndOperator(t *testing.T) {
 			expectError: true,
 		},
 	}
-
 	runTests(t, tests)
 }
 
-func TestCompile_OrOperator(t *testing.T) {
+func TestOrOperator(t *testing.T) {
 	tests := []test{
 		{
 			name:        "first condition matches",
@@ -384,11 +377,10 @@ func TestCompile_OrOperator(t *testing.T) {
 			expectError: true,
 		},
 	}
-
 	runTests(t, tests)
 }
 
-func TestCompile_NotOperator(t *testing.T) {
+func TestNotOperator(t *testing.T) {
 	tests := []test{
 		{
 			name:        "invert match to no match",
@@ -437,11 +429,10 @@ func TestCompile_NotOperator(t *testing.T) {
 			expectError: true,
 		},
 	}
-
 	runTests(t, tests)
 }
 
-func TestCompile_Grouping(t *testing.T) {
+func TestGrouping(t *testing.T) {
 	tests := []test{
 		{
 			name:        "simple grouping",
@@ -501,11 +492,10 @@ func TestCompile_Grouping(t *testing.T) {
 			expectError: true,
 		},
 	}
-
 	runTests(t, tests)
 }
 
-func TestCompile_Edge(t *testing.T) {
+func TestEdge(t *testing.T) {
 	tests := []test{
 		{
 			name:        "empty filter string",
@@ -526,12 +516,11 @@ func TestCompile_Edge(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "multiple spaces in parentheses",
+			name:        "extra spaces in parentheses",
 			filter:      "(  src 192.168  )",
 			entry:       stream.LogEntry{Src: "192.168.1.1"},
 			expectMatch: true,
 		},
 	}
-
 	runTests(t, tests)
 }
