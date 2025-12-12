@@ -33,6 +33,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"gitlab.com/allddd/opnsense-filterlog/internal/filter"
+	"gitlab.com/allddd/opnsense-filterlog/internal/meta"
 	"gitlab.com/allddd/opnsense-filterlog/internal/stream"
 )
 
@@ -179,7 +180,7 @@ func newStyles() *styles {
 
 // loadingView returns a centered loading message with an animated spinner
 func (m model) loadingView() string {
-	s := fmt.Sprintf("loading %s", m.uiLoadingSpinner.View())
+	s := fmt.Sprintf("%s\n\n%s %s", m.uiLoadingSpinner.View(), meta.Name, meta.Version)
 	if m.uiWidth == 0 || m.uiHeight == 0 {
 		return s
 	}
