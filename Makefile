@@ -59,14 +59,14 @@ fmt: ## format code
 	$(GO) fmt ./...
 
 help: ## display help message
-	@printf 'available targets:\n\n'
-	@grep -E '^[a-zA-Z_-]+:.*## .*$$' ./Makefile | awk -F' *## ' '{sub(/:.*/, "", $$1); printf " %-15s - %s\n", $$1, $$2}'
+	@printf 'available targets:\n'
+	@awk -F' ## ' '/^[a-z-]+:/ {sub(/:.*/, "", $$1); printf "  %-15s - %s\n", $$1, $$2}' ./Makefile
 
 install: build-release ## build and install files
 	$(INSTALL) -d $(DESTDIR)$(SBINDIR)
-	$(INSTALL_PROGRAM) $(PROGRAM) $(DESTDIR)$(SBINDIR)/$(PROGRAM)
+	$(INSTALL_PROGRAM) ./$(PROGRAM) $(DESTDIR)$(SBINDIR)/$(PROGRAM)
 	$(INSTALL) -d $(DESTDIR)$(MAN8DIR)
-	$(INSTALL_DATA) docs/$(PROGRAM).8 $(DESTDIR)$(MAN8DIR)/$(PROGRAM).8
+	$(INSTALL_DATA) ./docs/$(PROGRAM).8 $(DESTDIR)$(MAN8DIR)/$(PROGRAM).8
 
 modernize: ## modernize code
 	$(GO) run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -diff ./...
