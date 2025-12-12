@@ -27,7 +27,8 @@ PROGRAM = opnsense-filterlog
 VERSION != git describe --tags 2>/dev/null || printf 'unknown'
 # needed for gmake < 4.0
 VERSION ?= $(shell git describe --tags 2>/dev/null || printf 'unknown')
-LDFLAGS = -X 'main.Version=$(VERSION)'
+LDFLAGS = -X 'gitlab.com/allddd/opnsense-filterlog/internal/meta.Name=$(PROGRAM)' \
+          -X 'gitlab.com/allddd/opnsense-filterlog/internal/meta.Version=$(VERSION)'
 
 PREFIX = /usr/local
 EXEC_PREFIX = $(PREFIX)

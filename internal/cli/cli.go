@@ -30,6 +30,7 @@ import (
 	"reflect"
 	"strconv"
 
+	"gitlab.com/allddd/opnsense-filterlog/internal/meta"
 	"gitlab.com/allddd/opnsense-filterlog/internal/stream"
 	"gitlab.com/allddd/opnsense-filterlog/internal/tui"
 )
@@ -38,7 +39,7 @@ const defaultLogPath = "/var/log/filter/latest.log"
 const usageText = `terminal-based viewer for OPNsense firewall logs
 
 Usage:
-  opnsense-filterlog [flag]... [path]
+  %s [flag]... [path]
 
 Arguments:
   path	filter log file to analyze, defaults to 'latest.log' if omitted
@@ -73,10 +74,10 @@ func (f *flags) flagsDefine() {
 	}
 }
 
-func Execute(v string) {
+func Execute() {
 	var f flags
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, usageText)
+		fmt.Fprintf(os.Stderr, usageText, meta.Name)
 		flag.PrintDefaults()
 	}
 	f.flagsDefine()
@@ -104,7 +105,7 @@ func Execute(v string) {
 	}
 	// -V
 	if f.Version {
-		fmt.Fprintln(os.Stdout, v)
+		fmt.Fprintln(os.Stdout, meta.Version)
 		os.Exit(0)
 	}
 	// args
