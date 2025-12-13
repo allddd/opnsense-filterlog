@@ -178,6 +178,7 @@ func newStyles() *styles {
 		entryLoading: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("244")),
 		entrySelected: lipgloss.NewStyle().
+			// width must be set before rendering
 			Reverse(true),
 	}
 }
@@ -302,7 +303,7 @@ func (m model) View() string {
 		for i := visibleStart; i < visibleEnd; i++ {
 			line := sliceString(m.errors[i], m.uiOffsetH, m.uiWidth)
 			if i == m.uiSelected {
-				line = m.uiStyles.entrySelected.Render(strings.TrimRight(line, " "))
+				line = m.uiStyles.entrySelected.Width(m.uiWidth).Render(line)
 			}
 			b.WriteString(line + newLine)
 		}
@@ -350,12 +351,10 @@ func (m model) View() string {
 				truncateString(entry.Reason, colWidthReason))
 
 			line = sliceString(line, m.uiOffsetH, m.uiWidth)
-			line = strings.TrimRight(line, " ")
-			if entry.Action == stream.ActionBlock {
-				line = m.uiStyles.entryBlock.Render(line)
-			}
 			if i == m.uiSelected {
-				line = m.uiStyles.entrySelected.Render(line)
+				line = m.uiStyles.entrySelected.Width(m.uiWidth).Render(line)
+			} else if entry.Action == stream.ActionBlock {
+				line = m.uiStyles.entryBlock.Render(line)
 			}
 			b.WriteString(line + newLine)
 		}
