@@ -82,8 +82,8 @@ You can interact with the TUI using:
 
 - **`k`** or **`▲`** / **`g`** or **`Home`** - Scroll/jump up
 - **`j`** or **`▼`** / **`G`** or **`End`** - Scroll/jump down
-- **`h`** or **`◄`** / **`0`** - Scroll/jump left
-- **`l`** or **`►`** / **`$`** - Scroll/jump right
+- **`h`** or **`◄`** - Scroll left
+- **`l`** or **`►`** - Scroll right
 - **`u`** or **`PgUp`** - Page up
 - **`d`** or **`PgDn`** - Page down
 - **`/`** - Enter filter mode
