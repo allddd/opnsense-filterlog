@@ -51,10 +51,6 @@ const (
 	colWidthDstPort   = 7
 	colWidthProto     = 10
 	colWidthReason    = 20
-
-	// contentWidth is the total width of default view
-	contentWidth = colWidthTime + colWidthAction + colWidthInterface + colWidthDir + colWidthSource +
-		colWidthSrcPort + colWidthDest + colWidthDstPort + colWidthProto + colWidthReason
 )
 
 var (
@@ -380,7 +376,7 @@ func (m model) View() string {
 	b.WriteString(m.uiStyles.status.Width(m.uiWidth).Render(statusLine) + newLine)
 
 	// help
-	helpLine := "q: quit | k/▲ j/▼ h/◄ l/►: scroll | u/pgup d/pgdn: page | g/home G/end 0 $: jump"
+	helpLine := "q: quit | k/▲ j/▼ h/◄ l/►: scroll | u/pgup d/pgdn: page | g/home G/end: jump"
 	if m.errorsView {
 		helpLine += " | e/esc: back to log view"
 	} else if m.filterView {
@@ -539,25 +535,11 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.checkLoadEntries()
 
 	case "h", "left":
-		if contentWidth > m.uiWidth {
-			m.uiOffsetH = max(m.uiOffsetH-1, 0)
-		}
+		m.uiOffsetH = max(m.uiOffsetH-10, 0)
 		return m, nil
 
 	case "l", "right":
-		if contentWidth > m.uiWidth {
-			m.uiOffsetH = min(m.uiOffsetH+1, contentWidth-m.uiWidth)
-		}
-		return m, nil
-
-	case "0":
-		m.uiOffsetH = 0
-		return m, nil
-
-	case "$":
-		if contentWidth > m.uiWidth {
-			m.uiOffsetH = contentWidth - m.uiWidth
-		}
+		m.uiOffsetH = m.uiOffsetH + 10
 		return m, nil
 
 	case "/":
