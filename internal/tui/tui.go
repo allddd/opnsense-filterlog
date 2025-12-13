@@ -92,18 +92,20 @@ type model struct {
 	uiWidth          int           // terminal width (in chars)
 	uiLoading        bool          // whether showing loading spinner (loading view)
 	uiLoadingSpinner spinner.Model // loading spinner
-	uiScrollH        int           // horizontal scroll position
-	uiScrollV        int           // vertical scroll position
+	uiOffsetH        int           // first visible column
+	uiOffsetV        int           // first visible line
+	uiSelected       int           // selected line
 	uiStatusMsg      string        // status bar message
 	uiStyles         *styles       // styles for rendering
 }
 
 type styles struct {
-	header       lipgloss.Style
-	status       lipgloss.Style
-	statusError  lipgloss.Style
-	entryBlock   lipgloss.Style
-	entryLoading lipgloss.Style
+	header        lipgloss.Style
+	status        lipgloss.Style
+	statusError   lipgloss.Style
+	entryBlock    lipgloss.Style
+	entryLoading  lipgloss.Style
+	entrySelected lipgloss.Style
 }
 
 // message
@@ -175,6 +177,8 @@ func newStyles() *styles {
 			Foreground(lipgloss.Color("202")),
 		entryLoading: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("244")),
+		entrySelected: lipgloss.NewStyle().
+			Reverse(true),
 	}
 }
 
@@ -250,8 +254,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.entriesFiltered = make(map[int]stream.LogEntry)
 		m.entriesAvailable = msg.entriesAvailable
 		m.uiLoading = false
-		m.uiScrollH = 0
-		m.uiScrollV = 0
+		m.uiOffsetH = 0
+		m.uiOffsetV = 0
+		m.uiSelected = 0
 		m.uiStatusMsg = fmt.Sprintf("filter: %q (%d matches)", m.filterInput.Value(), len(m.entriesAvailable))
 		if len(m.entriesAvailable) > 0 {
 			return m, m.withLoadingView(m.checkLoadEntriesFiltered())
@@ -283,9 +288,9 @@ func (m model) View() string {
 	var b strings.Builder
 	var visibleEnd int
 
-	contentHeight := m.uiHeight - 3 // -3 for the header, status, and help lines
+	contentHeight := m.uiHeight - 3 // -3 for header, status, and help lines
 	newLine := "\n"
-	visibleStart := m.uiScrollV
+	visibleStart := m.uiOffsetV
 
 	if m.errorsView {
 		visibleEnd = min(visibleStart+contentHeight, len(m.errors))
@@ -295,7 +300,10 @@ func (m model) View() string {
 
 		// main
 		for i := visibleStart; i < visibleEnd; i++ {
-			line := sliceString(m.errors[i], m.uiScrollH, m.uiWidth)
+			line := sliceString(m.errors[i], m.uiOffsetH, m.uiWidth)
+			if i == m.uiSelected {
+				line = m.uiStyles.entrySelected.Render(strings.TrimRight(line, " "))
+			}
 			b.WriteString(line + newLine)
 		}
 		for i := visibleEnd - visibleStart; i < contentHeight; i++ {
@@ -306,7 +314,7 @@ func (m model) View() string {
 
 		// header
 		headerLine := fmt.Sprintf(headerLineFormat, "Time", "Action", "Interface", "Dir", "Source", "SrcPort", "Destination", "DstPort", "Proto", "Reason")
-		headerLine = sliceString(headerLine, m.uiScrollH, m.uiWidth)
+		headerLine = sliceString(headerLine, m.uiOffsetH, m.uiWidth)
 		b.WriteString(m.uiStyles.header.Render(headerLine) + newLine)
 
 		// main
@@ -341,9 +349,13 @@ func (m model) View() string {
 				truncateString(entry.ProtoName, colWidthProto),
 				truncateString(entry.Reason, colWidthReason))
 
-			line = sliceString(line, m.uiScrollH, m.uiWidth)
+			line = sliceString(line, m.uiOffsetH, m.uiWidth)
+			line = strings.TrimRight(line, " ")
 			if entry.Action == stream.ActionBlock {
 				line = m.uiStyles.entryBlock.Render(line)
+			}
+			if i == m.uiSelected {
+				line = m.uiStyles.entrySelected.Render(line)
 			}
 			b.WriteString(line + newLine)
 		}
@@ -353,13 +365,13 @@ func (m model) View() string {
 	}
 
 	// status
-	statusLine := "viewing: %d-%d of %d"
+	statusLine := "position: %d/%d"
 	if m.errorsView {
-		statusLine = fmt.Sprintf(statusLine+" (limit: %d)", visibleStart+1, visibleEnd, len(m.errors), stream.MaxErrorsInMemory)
+		statusLine = fmt.Sprintf(statusLine+" (limit: %d)", m.uiSelected+1, len(m.errors), stream.MaxErrorsInMemory)
 	} else if m.filterView {
 		statusLine = m.filterInput.View()
 	} else {
-		statusLine = fmt.Sprintf(statusLine, visibleStart+1, visibleEnd, len(m.entriesAvailable))
+		statusLine = fmt.Sprintf(statusLine, m.uiSelected+1, len(m.entriesAvailable))
 		if m.filterError != "" {
 			statusLine += " | " + m.uiStyles.statusError.Render(m.filterError)
 		} else if m.uiStatusMsg != "" {
@@ -464,8 +476,9 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "e":
 		if len(m.errors) > 0 {
 			m.errorsView = !m.errorsView
-			m.uiScrollH = 0
-			m.uiScrollV = 0
+			m.uiOffsetH = 0
+			m.uiOffsetV = 0
+			m.uiSelected = 0
 		}
 		return m, nil
 
@@ -498,7 +511,8 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.checkLoadEntries()
 
 	case "g", "home":
-		m.uiScrollV = 0
+		m.uiSelected = 0
+		m.uiOffsetV = 0
 		if m.errorsView {
 			return m, nil
 		}
@@ -515,7 +529,8 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			lines = len(m.entriesAvailable)
 		}
 		contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
-		m.uiScrollV = max(lines-contentHeight, 0)
+		m.uiSelected = max(lines-1, 0)
+		m.uiOffsetV = max(lines-contentHeight, 0)
 		if m.errorsView {
 			return m, nil
 		}
@@ -526,23 +541,23 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "h", "left":
 		if contentWidth > m.uiWidth {
-			m.uiScrollH = max(m.uiScrollH-1, 0)
+			m.uiOffsetH = max(m.uiOffsetH-1, 0)
 		}
 		return m, nil
 
 	case "l", "right":
 		if contentWidth > m.uiWidth {
-			m.uiScrollH = min(m.uiScrollH+1, contentWidth-m.uiWidth)
+			m.uiOffsetH = min(m.uiOffsetH+1, contentWidth-m.uiWidth)
 		}
 		return m, nil
 
 	case "0":
-		m.uiScrollH = 0
+		m.uiOffsetH = 0
 		return m, nil
 
 	case "$":
 		if contentWidth > m.uiWidth {
-			m.uiScrollH = contentWidth - m.uiWidth
+			m.uiOffsetH = contentWidth - m.uiWidth
 		}
 		return m, nil
 
@@ -562,8 +577,9 @@ func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.filterApplied = false
 			m.filterCompiled = nil
 			m.filterInput.SetValue("")
-			m.uiScrollH = 0
-			m.uiScrollV = 0
+			m.uiOffsetH = 0
+			m.uiOffsetV = 0
+			m.uiSelected = 0
 			m.uiStatusMsg = ""
 			m.showAllLines()
 			return m, m.checkLoadEntries()
@@ -582,8 +598,9 @@ func (m model) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.filterApplied = len(filterValue) > 0
 		m.filterInput.Blur()
 		m.filterView = false
-		m.uiScrollH = 0
-		m.uiScrollV = 0
+		m.uiOffsetH = 0
+		m.uiOffsetV = 0
+		m.uiSelected = 0
 		// compile the filter
 		if m.filterApplied {
 			compiled, err := filter.Compile(filterValue)
@@ -631,12 +648,13 @@ func (m *model) scrollDown(n int) {
 		lines = len(m.entriesAvailable)
 	}
 	contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
-	maxScroll := max(lines-contentHeight, 0)
-	m.uiScrollV = min(m.uiScrollV+n, maxScroll)
+	m.uiSelected = min(m.uiSelected+n, lines-1)
+	m.uiOffsetV = max(m.uiOffsetV, m.uiSelected-contentHeight+1) // +1 to keep selected line visible at bottom
 }
 
 func (m *model) scrollUp(n int) {
-	m.uiScrollV = max(m.uiScrollV-n, 0)
+	m.uiSelected = max(m.uiSelected-n, 0)
+	m.uiOffsetV = min(m.uiOffsetV, m.uiSelected)
 }
 
 // view management
@@ -647,7 +665,7 @@ func (m model) checkLoadEntries() tea.Cmd {
 		return nil
 	}
 	contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
-	visibleStart := m.uiScrollV
+	visibleStart := m.uiOffsetV
 	visibleEnd := min(visibleStart+contentHeight, len(m.entriesAvailable))
 	minLine := m.entriesTotal
 	maxLine := 0
@@ -671,7 +689,7 @@ func (m model) checkLoadEntriesFiltered() tea.Cmd {
 		return nil
 	}
 	contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
-	visibleStart := m.uiScrollV
+	visibleStart := m.uiOffsetV
 	visibleEnd := min(visibleStart+contentHeight, len(m.entriesAvailable))
 	linesToLoad := make([]int, 0, visibleEnd-visibleStart)
 	for i := visibleStart; i < visibleEnd; i++ {
