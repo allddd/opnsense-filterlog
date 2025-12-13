@@ -376,7 +376,7 @@ func (m model) View() string {
 	b.WriteString(m.uiStyles.status.Width(m.uiWidth).Render(statusLine) + newLine)
 
 	// help
-	helpLine := "q: quit | k/▲ j/▼ h/◄ l/►: scroll | u/pgup d/pgdn: page | g/home G/end: jump"
+	helpLine := "q: quit | k/up j/dn h/lt l/rt: scroll | u/pgup d/pgdn: page | g/home G/end: jump"
 	if m.errorsView {
 		helpLine += " | e/esc: back to log view"
 	} else if m.filterView {
