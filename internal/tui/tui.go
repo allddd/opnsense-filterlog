@@ -140,10 +140,10 @@ func truncateString(s string, length int) string {
 	if len(s) <= length {
 		return s
 	}
-	if length <= 3 {
+	if length <= 1 {
 		return s[:length]
 	}
-	return s[:length-3] + "..."
+	return s[:length-1] + "+"
 }
 
 // sliceString returns a substring starting at offset and up to width chars
