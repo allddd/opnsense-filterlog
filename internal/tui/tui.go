@@ -32,45 +32,44 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"gitlab.com/allddd/opnsense-filterlog/internal/filter"
 	"gitlab.com/allddd/opnsense-filterlog/internal/meta"
 	"gitlab.com/allddd/opnsense-filterlog/internal/stream"
 )
 
 const (
+	detailsHeight = 10
+
+	formatLine = "%s %s %s %s %s%s > %s%s"
+	formatPort = " %d"
+
 	maxEntriesInMemory = 1000
 
-	// column widths (default view)
-	colWidthTime      = 16
-	colWidthAction    = 10
-	colWidthInterface = 10
-	colWidthDir       = 5
-	colWidthSource    = 40
-	colWidthSrcPort   = 7
-	colWidthDest      = 40
-	colWidthDstPort   = 7
-	colWidthProto     = 10
-	colWidthReason    = 20
-)
-
-var (
-	// headerLineFormat is the format string for rendering the log view header
-	headerLineFormat = fmt.Sprintf("%%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds %%-%ds",
-		colWidthTime, colWidthAction, colWidthInterface, colWidthDir, colWidthSource,
-		colWidthSrcPort, colWidthDest, colWidthDstPort, colWidthProto, colWidthReason,
-	)
+	widthAction    = 7
+	widthInterface = 10
+	widthProtocol  = 9
+	widthTime      = 16
 )
 
 type model struct {
 	stream  *stream.Stream // log file stream
 	indexed bool           // whether file has been indexed
 
+	// details
+	details     *stream.LogEntry // entry being displayed in detail view
+	detailsView bool             // whether showing entry details instead of logs
+
 	// entries
-	entries          []stream.LogEntry       // contiguous block of entries (default view)
+	entries          []stream.LogEntry       // contiguous block of entries
 	entriesStart     int                     // number of first line in entries block
-	entriesFiltered  map[int]stream.LogEntry // non-contiguous block of entries matching current filter (filter view)
+	entriesFiltered  map[int]stream.LogEntry // non-contiguous block of entries matching current filter
 	entriesTotal     int                     // total number of valid log entries
-	entriesAvailable []int                   // line numbers that can be displayed (all lines in default view, matching lines in filter view)
+	entriesAvailable []int                   // line numbers that can be displayed (all lines in default view, matching lines when filtering)
+
+	// error
+	errors     []string // parse errors
+	errorsView bool     // whether showing errors instead of logs
 
 	// filter
 	filterApplied  bool              // whether filter is currently applied
@@ -79,29 +78,28 @@ type model struct {
 	filterInput    textinput.Model   // filter input field
 	filterView     bool              // whether the user is currently typing filter expression
 
-	// error
-	errors     []string // parse errors
-	errorsView bool     // whether showing errors instead of logs (error view)
-
 	// ui
 	uiHeight         int           // terminal height (in lines)
 	uiWidth          int           // terminal width (in chars)
-	uiLoading        bool          // whether showing loading spinner (loading view)
+	uiLoading        bool          // whether showing loading view
 	uiLoadingSpinner spinner.Model // loading spinner
 	uiOffsetH        int           // first visible column
 	uiOffsetV        int           // first visible line
+	uiOffsetVPrev    int           // saved uiOffsetV for use with alternative views
 	uiSelected       int           // selected line
+	uiSelectedPrev   int           // saved uiSelected for use with alternative views
 	uiStatusMsg      string        // status bar message
 	uiStyles         *styles       // styles for rendering
 }
 
 type styles struct {
-	header        lipgloss.Style
-	status        lipgloss.Style
-	statusError   lipgloss.Style
-	entryBlock    lipgloss.Style
-	entryLoading  lipgloss.Style
-	entrySelected lipgloss.Style
+	alert    lipgloss.Style
+	bar      lipgloss.Style
+	barAlert lipgloss.Style
+	bold     lipgloss.Style
+	faint    lipgloss.Style
+	plain    lipgloss.Style
+	selected lipgloss.Style
 }
 
 // message
@@ -135,61 +133,52 @@ type streamErrorMsg struct {
 
 // bubbletea
 
-// truncateString truncates a string to a maximum length
-func truncateString(s string, length int) string {
-	if len(s) <= length {
-		return s
-	}
-	if length <= 1 {
-		return s[:length]
-	}
-	return s[:length-1] + "+"
-}
-
 // sliceString returns a substring starting at offset and up to width chars
 func sliceString(s string, offset int, width int) string {
-	if offset <= 0 && width >= len(s) {
+	sw := ansi.StringWidth(s)
+	if offset <= 0 && width >= sw {
 		return s
 	}
-	if offset >= len(s) {
+	if offset >= sw {
 		return ""
 	}
-	return s[offset:min(offset+width, len(s))]
+	return ansi.Cut(s, offset, offset+width)
 }
 
-func newStyles() *styles {
-	return &styles{
-		header: lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("46")),
-		status: lipgloss.NewStyle().
-			// width must be set before rendering
-			Background(lipgloss.Color("237")).
-			Foreground(lipgloss.Color("252")),
-		statusError: lipgloss.NewStyle().
-			Background(lipgloss.Color("196")).
-			Foreground(lipgloss.Color("231")),
-		entryBlock: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("202")),
-		entryLoading: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("244")),
-		entrySelected: lipgloss.NewStyle().
-			// width must be set before rendering
-			Reverse(true),
+// styleString truncates, styles, and pads a string
+func styleString(str string, width int, style ...lipgloss.Style) string {
+	if width > 0 && ansi.StringWidth(str) > width {
+		if width <= 1 {
+			str = ansi.Truncate(str, width, "")
+		} else {
+			str = ansi.Truncate(str, width-1, "+")
+		}
 	}
+	if len(style) > 0 {
+		if width > 0 {
+			return style[0].Width(width).Render(str)
+		}
+		return style[0].Render(str)
+	}
+	return str
 }
 
-// loadingView returns a centered loading message with an animated spinner
-func (m model) loadingView() string {
-	s := fmt.Sprintf("%s\n\n%s %s", m.uiLoadingSpinner.View(), meta.Name, meta.Version)
-	if m.uiWidth == 0 || m.uiHeight == 0 {
-		return s
+func (m *model) scrollDown(n int) {
+	var lines int
+	if m.detailsView {
+		lines = detailsHeight
+	} else if m.errorsView {
+		lines = len(m.errors)
+	} else {
+		lines = len(m.entriesAvailable)
 	}
-	style := lipgloss.NewStyle().
-		Width(m.uiWidth).
-		Height(m.uiHeight).
-		Align(lipgloss.Center, lipgloss.Center)
-	return style.Render(s)
+	m.uiSelected = min(m.uiSelected+n, lines-1)
+	m.uiOffsetV = max(m.uiOffsetV, m.uiSelected-m.visibleHeight()+1) // +1 to keep selected line visible at bottom
+}
+
+func (m *model) scrollUp(n int) {
+	m.uiSelected = max(m.uiSelected-n, 0)
+	m.uiOffsetV = min(m.uiOffsetV, m.uiSelected)
 }
 
 // withLoadingView enables loading state and batches the command with spinner tick
@@ -213,15 +202,210 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.KeyMsg:
-		if m.filterView {
-			return m.handleFilterInput(msg)
+		if !m.indexed {
+			return m, nil
 		}
-		return m.handleNormalInput(msg)
+
+		if m.filterView {
+			switch msg.String() {
+			case "enter":
+				filterValue := m.filterInput.Value()
+				m.filterApplied = len(filterValue) > 0
+				m.filterInput.Blur()
+				m.filterView = false
+				m.uiOffsetH = 0
+				m.uiOffsetV = 0
+				m.uiSelected = 0
+				if m.filterApplied {
+					// compile the filter
+					compiled, err := filter.Compile(filterValue)
+					if err != nil {
+						m.filterError = err.Error()
+						m.filterApplied = false
+						m.filterCompiled = nil
+					} else {
+						m.filterCompiled = compiled
+						m.filterError = ""
+						return m, m.withLoadingView(m.scanAndFilter())
+					}
+				} else {
+					m.filterCompiled = nil
+					m.filterError = ""
+				}
+				if !m.filterApplied {
+					m.uiStatusMsg = ""
+					m.showAllLines()
+				}
+				return m, m.checkLoadEntries()
+
+			case "esc":
+				m.filterInput.Blur()
+				m.filterInput.SetValue("")
+				m.filterView = false
+				m.uiStatusMsg = ""
+				return m, nil
+
+			default:
+				// let textinput handle all other keys
+				var cmd tea.Cmd
+				m.filterInput, cmd = m.filterInput.Update(msg)
+				return m, cmd
+			}
+		}
+
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+
+		case "e":
+			if !m.detailsView && !m.errorsView && len(m.errors) > 0 {
+				m.uiOffsetVPrev = m.uiOffsetV
+				m.uiSelectedPrev = m.uiSelected
+				m.uiOffsetH = 0
+				m.uiOffsetV = 0
+				m.uiSelected = 0
+				m.errorsView = true
+			}
+			return m, nil
+
+		case "j", "down":
+			m.scrollDown(1)
+			if m.detailsView || m.errorsView {
+				return m, nil
+			}
+			if m.filterApplied {
+				return m, m.checkLoadEntriesFiltered()
+			}
+			return m, m.checkLoadEntries()
+
+		case "k", "up":
+			m.scrollUp(1)
+			if m.detailsView || m.errorsView {
+				return m, nil
+			}
+			if m.filterApplied {
+				return m, m.checkLoadEntriesFiltered()
+			}
+			return m, m.checkLoadEntries()
+
+		case "d", "pgdown":
+			m.scrollDown(m.uiHeight / 2)
+			if m.detailsView || m.errorsView {
+				return m, nil
+			}
+			if m.filterApplied {
+				return m, m.checkLoadEntriesFiltered()
+			}
+			return m, m.checkLoadEntries()
+
+		case "u", "pgup":
+			m.scrollUp(m.uiHeight / 2)
+			if m.detailsView || m.errorsView {
+				return m, nil
+			}
+			if m.filterApplied {
+				return m, m.checkLoadEntriesFiltered()
+			}
+			return m, m.checkLoadEntries()
+
+		case "g", "home":
+			m.uiSelected = 0
+			m.uiOffsetV = 0
+			if m.detailsView || m.errorsView {
+				return m, nil
+			}
+			if m.filterApplied {
+				return m, m.checkLoadEntriesFiltered()
+			}
+			return m, m.checkLoadEntries()
+
+		case "G", "end":
+			var lines int
+			if m.detailsView {
+				lines = detailsHeight
+			} else if m.errorsView {
+				lines = len(m.errors)
+			} else {
+				lines = len(m.entriesAvailable)
+			}
+			m.uiSelected = max(lines-1, 0)
+			m.uiOffsetV = max(lines-m.visibleHeight(), 0)
+			if m.detailsView || m.errorsView {
+				return m, nil
+			}
+			if m.filterApplied {
+				return m, m.checkLoadEntriesFiltered()
+			}
+			return m, m.checkLoadEntries()
+
+		case "h", "left":
+			m.uiOffsetH = max(m.uiOffsetH-10, 0)
+			return m, nil
+
+		case "l", "right":
+			m.uiOffsetH = m.uiOffsetH + 10
+			return m, nil
+
+		case "enter":
+			if !m.detailsView && !m.errorsView {
+				if len(m.entriesAvailable) > 0 && m.uiSelected < len(m.entriesAvailable) {
+					entry := m.getEntryAtLine(m.entriesAvailable[m.uiSelected])
+					if entry != nil {
+						m.uiOffsetVPrev = m.uiOffsetV
+						m.uiSelectedPrev = m.uiSelected
+						m.details = entry
+						m.detailsView = true
+						m.uiOffsetH = 0
+						m.uiOffsetV = 0
+						m.uiSelected = 0
+					}
+				}
+			}
+			return m, nil
+
+		case "/":
+			if !m.detailsView && !m.errorsView {
+				m.filterView = true
+				return m, m.filterInput.Focus()
+			}
+			return m, nil
+
+		case "esc":
+			if m.detailsView {
+				m.detailsView = false
+				m.uiOffsetV = m.uiOffsetVPrev
+				m.uiSelected = m.uiSelectedPrev
+				return m, nil
+			}
+			if m.errorsView {
+				m.errorsView = false
+				m.uiOffsetV = m.uiOffsetVPrev
+				m.uiSelected = m.uiSelectedPrev
+				return m, nil
+			}
+			if m.filterApplied {
+				m.filterApplied = false
+				m.filterCompiled = nil
+				m.filterInput.SetValue("")
+				m.uiOffsetH = 0
+				m.uiOffsetV = 0
+				m.uiSelected = 0
+				m.uiStatusMsg = ""
+				m.showAllLines()
+				return m, m.checkLoadEntries()
+			}
+			return m, nil
+
+		default:
+			return m, nil
+		}
 
 	case tea.WindowSizeMsg:
 		m.filterInput.Width = msg.Width - len(m.filterInput.Prompt) - 1 // -1 for cursor
 		m.uiHeight = msg.Height
 		m.uiWidth = msg.Width
+		// keep selected line visible after resize
+		m.uiOffsetV = max(0, min(m.uiSelected, max(m.uiOffsetV, m.uiSelected-m.visibleHeight()+1))) // +1 to keep selected line visible at bottom
 		return m, nil
 
 	case indexMsg:
@@ -230,7 +414,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.indexed = true
 		m.uiLoading = false
 		if m.entriesTotal <= 0 {
-			m.uiStatusMsg = m.uiStyles.statusError.Render("error(tui): no valid entries found")
+			m.uiStatusMsg = m.uiStyles.barAlert.Render("error(tui): no valid entries found")
 			return m, nil
 		}
 		m.showAllLines()
@@ -254,7 +438,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.uiOffsetH = 0
 		m.uiOffsetV = 0
 		m.uiSelected = 0
-		m.uiStatusMsg = fmt.Sprintf("filter: %q (%d matches)", m.filterInput.Value(), len(m.entriesAvailable))
+		m.uiStatusMsg = fmt.Sprintf("filter: %q", m.filterInput.Value())
 		if len(m.entriesAvailable) > 0 {
 			return m, m.withLoadingView(m.checkLoadEntriesFiltered())
 		}
@@ -262,7 +446,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case streamErrorMsg:
 		m.uiLoading = false
-		m.uiStatusMsg = m.uiStyles.statusError.Render(msg.err.Error())
+		m.uiStatusMsg = m.uiStyles.barAlert.Render(msg.err.Error())
 		return m, nil
 
 	default:
@@ -275,123 +459,194 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
+// visibleHeight returns the number of lines available for content display
+func (m model) visibleHeight() int {
+	return m.uiHeight - 3 // -3 for header, status, and help lines
+}
+
 // View renders the current state of the UI (as a string)
 func (m model) View() string {
 	// show loading view during initialization or on request
 	if m.uiLoading || m.uiWidth == 0 || m.uiHeight == 0 {
-		return m.loadingView()
+		loading := fmt.Sprintf("%s%s%s %s", m.uiLoadingSpinner.View(), "\n\n", meta.Name, meta.Version)
+		if m.uiWidth == 0 || m.uiHeight == 0 {
+			return loading
+		}
+		return lipgloss.NewStyle().
+			Height(m.uiHeight).
+			Width(m.uiWidth).
+			Align(lipgloss.Center, lipgloss.Center).
+			Render(loading)
 	}
 
 	var b strings.Builder
 	var visibleEnd int
-
-	contentHeight := m.uiHeight - 3 // -3 for header, status, and help lines
-	newLine := "\n"
+	visibleHeight := m.visibleHeight()
 	visibleStart := m.uiOffsetV
 
-	if m.errorsView {
-		visibleEnd = min(visibleStart+contentHeight, len(m.errors))
+	if m.detailsView { // details view
+		visibleEnd = min(visibleStart+visibleHeight, detailsHeight)
 
 		// header
-		b.WriteString(m.uiStyles.header.Render("Error") + newLine)
+		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render("Details") + "\n")
+
+		// main
+		// don't forget to update the detailsHeight const when making changes here
+		details := []string{
+			fmt.Sprintf("%-18s%s", "Time:", m.details.Time.Format("Jan 02 15:04:05")),
+			fmt.Sprintf("%-18s%s", "Action:", m.details.Action),
+			fmt.Sprintf("%-18s%s", "Protocol:", m.details.ProtoName),
+			fmt.Sprintf("%-18s%s", "Interface:", m.details.Interface),
+			fmt.Sprintf("%-18s%s", "Direction:", m.details.Direction),
+			fmt.Sprintf("%-18s%s", "Source:", m.details.Src),
+			fmt.Sprintf("%-18s%d", "Source port:", m.details.SrcPort),
+			fmt.Sprintf("%-18s%s", "Destination:", m.details.Dst),
+			fmt.Sprintf("%-18s%d", "Destination port:", m.details.DstPort),
+			fmt.Sprintf("%-18s%s", "Reason:", m.details.Reason),
+		}
+		for i := visibleStart; i < visibleEnd; i++ {
+			line := sliceString(details[i], m.uiOffsetH, m.uiWidth)
+			if i == m.uiSelected {
+				line = m.uiStyles.selected.Width(m.uiWidth).Render(line)
+			}
+			b.WriteString(line + "\n")
+		}
+		for i := visibleEnd - visibleStart; i < visibleHeight; i++ {
+			b.WriteString("\n") // fill remaining space
+		}
+
+	} else if m.errorsView { // error view
+		visibleEnd = min(visibleStart+visibleHeight, len(m.errors))
+
+		// header
+		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render("Error") + "\n")
 
 		// main
 		for i := visibleStart; i < visibleEnd; i++ {
 			line := sliceString(m.errors[i], m.uiOffsetH, m.uiWidth)
 			if i == m.uiSelected {
-				line = m.uiStyles.entrySelected.Width(m.uiWidth).Render(line)
+				line = m.uiStyles.selected.Width(m.uiWidth).Render(line)
 			}
-			b.WriteString(line + newLine)
+			b.WriteString(line + "\n")
 		}
-		for i := visibleEnd - visibleStart; i < contentHeight; i++ {
-			b.WriteString(newLine) // fill remaining space
+		for i := visibleEnd - visibleStart; i < visibleHeight; i++ {
+			b.WriteString("\n") // fill remaining space
 		}
-	} else {
-		visibleEnd = min(visibleStart+contentHeight, len(m.entriesAvailable))
+
+	} else { // default view
+		visibleEnd = min(visibleStart+visibleHeight, len(m.entriesAvailable))
 
 		// header
-		headerLine := fmt.Sprintf(headerLineFormat, "Time", "Action", "Interface", "Dir", "Source", "SrcPort", "Destination", "DstPort", "Proto", "Reason")
+		headerLine := fmt.Sprintf(formatLine,
+			styleString("Time", widthTime, m.uiStyles.plain),
+			styleString("Action", widthAction, m.uiStyles.plain),
+			styleString("Protocol", widthProtocol, m.uiStyles.plain),
+			styleString("Interface", widthInterface, m.uiStyles.plain),
+			styleString("Source", 0, m.uiStyles.plain),
+			styleString("", 0, m.uiStyles.plain),
+			styleString("Destination", 0, m.uiStyles.plain),
+			styleString("", 0, m.uiStyles.plain))
 		headerLine = sliceString(headerLine, m.uiOffsetH, m.uiWidth)
-		b.WriteString(m.uiStyles.header.Render(headerLine) + newLine)
+		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render(headerLine) + "\n")
 
 		// main
 		for i := visibleStart; i < visibleEnd; i++ {
 			if i >= len(m.entriesAvailable) {
 				break
 			}
-			lineNum := m.entriesAvailable[i]
-			entry := m.getEntryAtLine(lineNum)
+			entry := m.getEntryAtLine(m.entriesAvailable[i])
 			if entry == nil {
 				// entry not loaded in memory
-				b.WriteString(m.uiStyles.entryLoading.Render("loading...") + newLine)
+				b.WriteString(m.uiStyles.faint.Render("loading...") + "\n")
 				continue
 			}
-			srcPort := ""
+			// action
+			var actionStyle lipgloss.Style
+			switch entry.Action {
+			case stream.ActionBlock:
+				actionStyle = m.uiStyles.alert
+			case stream.ActionPass:
+				actionStyle = m.uiStyles.plain
+			default:
+				actionStyle = m.uiStyles.bold
+			}
+			// interface
+			iface := entry.Interface
+			switch entry.Direction {
+			case stream.DirectionIn:
+				iface = ">" + iface
+			case stream.DirectionOut:
+				iface = "<" + iface
+			case stream.DirectionInOut:
+				iface = "><" + iface
+			default:
+				iface = entry.Direction + "." + iface
+			}
+			// source
+			var srcPort string
 			if entry.SrcPort > 0 {
-				srcPort = fmt.Sprintf("%d", entry.SrcPort)
+				srcPort = fmt.Sprintf(formatPort, entry.SrcPort)
 			}
-			dstPort := ""
+			// destination
+			var dstPort string
 			if entry.DstPort > 0 {
-				dstPort = fmt.Sprintf("%d", entry.DstPort)
+				dstPort = fmt.Sprintf(formatPort, entry.DstPort)
 			}
-			line := fmt.Sprintf(headerLineFormat,
-				truncateString(entry.Time.Format("Jan 02 15:04:05"), colWidthTime),
-				truncateString(entry.Action, colWidthAction),
-				truncateString(entry.Interface, colWidthInterface),
-				truncateString(entry.Direction, colWidthDir),
-				truncateString(entry.Src, colWidthSource),
-				truncateString(srcPort, colWidthSrcPort),
-				truncateString(entry.Dst, colWidthDest),
-				truncateString(dstPort, colWidthDstPort),
-				truncateString(entry.ProtoName, colWidthProto),
-				truncateString(entry.Reason, colWidthReason))
-
+			line := fmt.Sprintf(formatLine,
+				styleString(entry.Time.Format("Jan 02 15:04:05"), widthTime, m.uiStyles.plain),
+				styleString(entry.Action, widthAction, actionStyle),
+				styleString(entry.ProtoName, widthProtocol, m.uiStyles.plain),
+				styleString(iface, widthInterface, m.uiStyles.plain),
+				styleString(entry.Src, 0, m.uiStyles.bold),
+				styleString(srcPort, 0, m.uiStyles.faint),
+				styleString(entry.Dst, 0, m.uiStyles.bold),
+				styleString(dstPort, 0, m.uiStyles.faint))
 			line = sliceString(line, m.uiOffsetH, m.uiWidth)
 			if i == m.uiSelected {
-				line = m.uiStyles.entrySelected.Width(m.uiWidth).Render(line)
-			} else if entry.Action == stream.ActionBlock {
-				line = m.uiStyles.entryBlock.Render(line)
+				line = m.uiStyles.selected.Width(m.uiWidth).Render(ansi.Strip(line))
 			}
-			b.WriteString(line + newLine)
+			b.WriteString(line + "\n")
 		}
-		for i := visibleEnd - visibleStart; i < contentHeight; i++ {
-			b.WriteString(newLine) // fill remaining space
+		for i := visibleEnd - visibleStart; i < visibleHeight; i++ {
+			b.WriteString("\n") // fill remaining space
 		}
 	}
 
 	// status
 	statusLine := "position: %d/%d"
-	if m.errorsView {
-		statusLine = fmt.Sprintf(statusLine+" (limit: %d)", m.uiSelected+1, len(m.errors), stream.MaxErrorsInMemory)
+	if m.detailsView {
+		statusLine = fmt.Sprintf(statusLine, m.uiSelected+1, detailsHeight)
 	} else if m.filterView {
 		statusLine = m.filterInput.View()
+	} else if m.errorsView {
+		statusLine = fmt.Sprintf(statusLine+" (limit: %d)", m.uiSelected+1, len(m.errors), stream.MaxErrorsInMemory)
 	} else {
 		statusLine = fmt.Sprintf(statusLine, m.uiSelected+1, len(m.entriesAvailable))
 		if m.filterError != "" {
-			statusLine += " | " + m.uiStyles.statusError.Render(m.filterError)
+			statusLine += " | " + m.uiStyles.barAlert.Render(m.filterError)
 		} else if m.uiStatusMsg != "" {
 			statusLine += " | " + m.uiStatusMsg
 		}
 	}
-	b.WriteString(m.uiStyles.status.Width(m.uiWidth).Render(statusLine) + newLine)
+	b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render(statusLine) + "\n")
 
 	// help
-	helpLine := "q: quit | k/up j/dn h/lt l/rt: scroll | u/pgup d/pgdn: page | g/home G/end: jump"
-	if m.errorsView {
-		helpLine += " | e/esc: back to log view"
+	helpLine := "q: quit | hjkl: move | ud: page | gG: jump"
+	if m.detailsView || m.errorsView {
+		helpLine += " | esc: back"
 	} else if m.filterView {
-		helpLine = "enter: apply | esc: cancel | example: iface eth0 and (src 192.168.1.1 or dstport 80)"
+		helpLine = "enter: apply | esc: cancel"
 	} else {
-		helpLine += " | /: filter"
+		helpLine += " | enter: details | /: filter"
 		if m.filterApplied {
-			helpLine += " | esc: clear filter"
+			helpLine += " | esc: clear"
 		}
 		if len(m.errors) > 0 {
 			errorCount := fmt.Sprintf("%d", len(m.errors))
 			if len(m.errors) >= stream.MaxErrorsInMemory {
 				errorCount += "+"
 			}
-			helpLine += " | e: " + m.uiStyles.statusError.Render(fmt.Sprintf("show %s errors", errorCount))
+			helpLine += " | e: " + m.uiStyles.barAlert.Render(fmt.Sprintf("show %s errors", errorCount))
 		}
 	}
 	b.WriteString(helpLine)
@@ -456,188 +711,6 @@ func loadEntriesFiltered(s *stream.Stream, lineNums []int) tea.Cmd {
 	}
 }
 
-// handlers
-
-// handleNormalInput handles keyboard input when in default view
-func (m model) handleNormalInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if !m.indexed {
-		return m, nil
-	}
-
-	switch msg.String() {
-	case "ctrl+c", "q":
-		return m, tea.Quit
-
-	case "e":
-		if len(m.errors) > 0 {
-			m.errorsView = !m.errorsView
-			m.uiOffsetH = 0
-			m.uiOffsetV = 0
-			m.uiSelected = 0
-		}
-		return m, nil
-
-	case "j", "down":
-		m.scrollDown(1)
-		if m.filterApplied {
-			return m, m.checkLoadEntriesFiltered()
-		}
-		return m, m.checkLoadEntries()
-
-	case "k", "up":
-		m.scrollUp(1)
-		if m.filterApplied {
-			return m, m.checkLoadEntriesFiltered()
-		}
-		return m, m.checkLoadEntries()
-
-	case "d", "pgdown":
-		m.scrollDown(m.uiHeight / 2)
-		if m.filterApplied {
-			return m, m.checkLoadEntriesFiltered()
-		}
-		return m, m.checkLoadEntries()
-
-	case "u", "pgup":
-		m.scrollUp(m.uiHeight / 2)
-		if m.filterApplied {
-			return m, m.checkLoadEntriesFiltered()
-		}
-		return m, m.checkLoadEntries()
-
-	case "g", "home":
-		m.uiSelected = 0
-		m.uiOffsetV = 0
-		if m.errorsView {
-			return m, nil
-		}
-		if m.filterApplied {
-			return m, m.checkLoadEntriesFiltered()
-		}
-		return m, m.checkLoadEntries()
-
-	case "G", "end":
-		var lines int
-		if m.errorsView {
-			lines = len(m.errors)
-		} else {
-			lines = len(m.entriesAvailable)
-		}
-		contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
-		m.uiSelected = max(lines-1, 0)
-		m.uiOffsetV = max(lines-contentHeight, 0)
-		if m.errorsView {
-			return m, nil
-		}
-		if m.filterApplied {
-			return m, m.checkLoadEntriesFiltered()
-		}
-		return m, m.checkLoadEntries()
-
-	case "h", "left":
-		m.uiOffsetH = max(m.uiOffsetH-10, 0)
-		return m, nil
-
-	case "l", "right":
-		m.uiOffsetH = m.uiOffsetH + 10
-		return m, nil
-
-	case "/":
-		if !m.errorsView {
-			m.filterView = true
-			return m, m.filterInput.Focus()
-		}
-		return m, nil
-
-	case "esc":
-		if m.errorsView {
-			m.errorsView = false
-			return m, nil
-		}
-		if m.filterApplied {
-			m.filterApplied = false
-			m.filterCompiled = nil
-			m.filterInput.SetValue("")
-			m.uiOffsetH = 0
-			m.uiOffsetV = 0
-			m.uiSelected = 0
-			m.uiStatusMsg = ""
-			m.showAllLines()
-			return m, m.checkLoadEntries()
-		}
-		return m, nil
-	}
-
-	return m, nil
-}
-
-// handleFilterInput handles keyboard input when in filter view
-func (m model) handleFilterInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "enter":
-		filterValue := m.filterInput.Value()
-		m.filterApplied = len(filterValue) > 0
-		m.filterInput.Blur()
-		m.filterView = false
-		m.uiOffsetH = 0
-		m.uiOffsetV = 0
-		m.uiSelected = 0
-		// compile the filter
-		if m.filterApplied {
-			compiled, err := filter.Compile(filterValue)
-			if err != nil {
-				m.filterError = err.Error()
-				m.filterApplied = false
-				m.filterCompiled = nil
-			} else {
-				m.filterCompiled = compiled
-				m.filterError = ""
-				return m, m.withLoadingView(m.scanAndFilter())
-			}
-		} else {
-			m.filterCompiled = nil
-			m.filterError = ""
-		}
-		if !m.filterApplied {
-			m.uiStatusMsg = ""
-			m.showAllLines()
-		}
-		return m, m.checkLoadEntries()
-
-	case "esc":
-		m.filterInput.Blur()
-		m.filterInput.SetValue("")
-		m.filterView = false
-		m.uiStatusMsg = ""
-		return m, nil
-
-	default:
-		// let textinput handle all other keys
-		var cmd tea.Cmd
-		m.filterInput, cmd = m.filterInput.Update(msg)
-		return m, cmd
-	}
-}
-
-// scrolling
-
-func (m *model) scrollDown(n int) {
-	var lines int
-	if m.errorsView {
-		lines = len(m.errors)
-	} else {
-		lines = len(m.entriesAvailable)
-	}
-	contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
-	m.uiSelected = min(m.uiSelected+n, lines-1)
-	m.uiOffsetV = max(m.uiOffsetV, m.uiSelected-contentHeight+1) // +1 to keep selected line visible at bottom
-}
-
-func (m *model) scrollUp(n int) {
-	m.uiSelected = max(m.uiSelected-n, 0)
-	m.uiOffsetV = min(m.uiOffsetV, m.uiSelected)
-}
-
 // view management
 
 // checkLoadEntries checks if the currently loaded contiguous block needs reloading and returns a command to load it if needed
@@ -645,9 +718,8 @@ func (m model) checkLoadEntries() tea.Cmd {
 	if !m.indexed || m.uiLoading || len(m.entriesAvailable) == 0 {
 		return nil
 	}
-	contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
 	visibleStart := m.uiOffsetV
-	visibleEnd := min(visibleStart+contentHeight, len(m.entriesAvailable))
+	visibleEnd := min(visibleStart+m.visibleHeight(), len(m.entriesAvailable))
 	minLine := m.entriesTotal
 	maxLine := 0
 	for i := visibleStart; i < visibleEnd; i++ {
@@ -669,9 +741,8 @@ func (m model) checkLoadEntriesFiltered() tea.Cmd {
 	if !m.filterApplied || len(m.entriesAvailable) == 0 {
 		return nil
 	}
-	contentHeight := m.uiHeight - 3 // -3 for header, status, and help line
 	visibleStart := m.uiOffsetV
-	visibleEnd := min(visibleStart+contentHeight, len(m.entriesAvailable))
+	visibleEnd := min(visibleStart+m.visibleHeight(), len(m.entriesAvailable))
 	linesToLoad := make([]int, 0, visibleEnd-visibleStart)
 	for i := visibleStart; i < visibleEnd; i++ {
 		if i < 0 || i >= len(m.entriesAvailable) {
@@ -742,18 +813,36 @@ func (m model) scanAndFilter() tea.Cmd {
 // Display starts the TUI and displays the log file from the given stream
 func Display(s *stream.Stream) error {
 	defer s.Close()
-
-	st := newStyles()
-
+	// uiStyles
+	st := &styles{
+		alert: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("202")),
+		bar: lipgloss.NewStyle().
+			// width must be set before rendering
+			Background(lipgloss.Color("237")).
+			Foreground(lipgloss.Color("15")),
+		barAlert: lipgloss.NewStyle().
+			Background(lipgloss.Color("196")).
+			Foreground(lipgloss.Color("231")),
+		bold: lipgloss.NewStyle().
+			Bold(true),
+		faint: lipgloss.NewStyle().
+			Faint(true),
+		plain: lipgloss.NewStyle(),
+		selected: lipgloss.NewStyle().
+			// width must be set before rendering
+			Reverse(true),
+	}
+	// uiLoadingSpinner
 	sp := spinner.New()
-	sp.Spinner = spinner.Dot
-
+	sp.Spinner = spinner.Line
+	// filterInput
 	ti := textinput.New()
 	ti.Prompt = "filter: "
-	ti.TextStyle = st.status
-	ti.Cursor.Style = st.status
-	ti.Cursor.TextStyle = st.status
-
+	ti.TextStyle = st.bar
+	ti.Cursor.Style = st.bar
+	ti.Cursor.TextStyle = st.bar
+	// model
 	m := model{
 		stream:           s,
 		indexed:          false,
