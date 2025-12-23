@@ -248,8 +248,8 @@ func TestParsedValues(t *testing.T) {
 	if entry.Action != ActionPass {
 		t.Fatalf("entry 1: expected %s, got %s", ActionPass, entry.Action)
 	}
-	if entry.Direction != directionIn {
-		t.Fatalf("entry 1: expected %s, got %s", directionIn, entry.Direction)
+	if entry.Direction != DirectionIn {
+		t.Fatalf("entry 1: expected %s, got %s", DirectionIn, entry.Direction)
 	}
 	if entry.SrcPort != 63511 || entry.DstPort != 53 {
 		t.Fatalf("entry 1: expected ports 63511:53, got %d:%d", entry.SrcPort, entry.DstPort)

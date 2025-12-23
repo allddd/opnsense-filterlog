@@ -46,9 +46,9 @@ const (
 	actionSynproxyDrop = "synproxy-drop"
 
 	// directions
-	directionIn    = "in"
-	directionInOut = "in/out"
-	directionOut   = "out"
+	DirectionIn    = "in"
+	DirectionInOut = "in/out"
+	DirectionOut   = "out"
 
 	// ip
 	ipVersion4 = 4
@@ -261,12 +261,12 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	}
 
 	switch direction {
-	case directionIn:
-		entry.Direction = directionIn
-	case directionOut:
-		entry.Direction = directionOut
-	case directionInOut:
-		entry.Direction = directionInOut
+	case DirectionIn:
+		entry.Direction = DirectionIn
+	case DirectionOut:
+		entry.Direction = DirectionOut
+	case DirectionInOut:
+		entry.Direction = DirectionInOut
 	default:
 		entry.Direction = direction
 	}
