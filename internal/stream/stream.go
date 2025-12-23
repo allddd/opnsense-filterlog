@@ -162,12 +162,11 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	}
 
 	// extract the csv data (after "] ")
-	csvStart := strings.Index(line, "] ")
-	if csvStart == -1 {
+	_, csv, ok := strings.Cut(line, "] ")
+	if !ok {
 		s.addError(fmt.Sprintf("invalid csv on line %d", lineNum))
 		return nil
 	}
-	csv := line[csvStart+2:] // +2 for "] "
 
 	// extract CSV fields
 	// 3: label, 4: interface, 5: reason, 6: action, 7: direction, 8: ipversion
