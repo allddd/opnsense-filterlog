@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"maps"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -49,7 +50,7 @@ const (
 	widthAction    = 7
 	widthInterface = 10
 	widthProtocol  = 9
-	widthTime      = 16
+	widthTime      = 15
 )
 
 type model struct {
@@ -493,7 +494,7 @@ func (m model) View() string {
 		// main
 		// don't forget to update the detailsHeight const when making changes here
 		details := []string{
-			fmt.Sprintf("%-18s%s", "Time:", m.details.Time.Format("Jan 02 15:04:05")),
+			fmt.Sprintf("%-18s%s", "Time:", m.details.Time.Format(time.RFC1123Z)),
 			fmt.Sprintf("%-18s%s", "Action:", m.details.Action),
 			fmt.Sprintf("%-18s%s", "Protocol:", m.details.ProtoName),
 			fmt.Sprintf("%-18s%s", "Interface:", m.details.Interface),
@@ -593,7 +594,7 @@ func (m model) View() string {
 				dstPort = fmt.Sprintf(formatPort, entry.DstPort)
 			}
 			line := fmt.Sprintf(formatLine,
-				styleString(entry.Time.Format("Jan 02 15:04:05"), widthTime, m.uiStyles.plain),
+				styleString(entry.Time.Format("Jan02-15:04:05"), widthTime, m.uiStyles.plain),
 				styleString(entry.Action, widthAction, actionStyle),
 				styleString(entry.ProtoName, widthProtocol, m.uiStyles.plain),
 				styleString(iface, widthInterface, m.uiStyles.plain),
