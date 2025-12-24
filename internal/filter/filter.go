@@ -42,17 +42,17 @@ const (
 )
 
 const (
-	fieldAction      fieldTyp = iota // action taken
-	fieldDestination                 // destination ip address
-	fieldDirection                   // traffic direction
-	fieldDstPort                     // destination port
-	fieldIPVersion                   // ip version
-	fieldInterface                   // network interface
-	fieldPort                        // source or destination port
-	fieldProtocol                    // protocol
-	fieldReason                      // reason for action
-	fieldSource                      // source IP address
-	fieldSrcPort                     // source port
+	fieldAction fieldTyp = iota
+	fieldDestination
+	fieldDestinationPort
+	fieldDirection
+	fieldIPVersion
+	fieldInterface
+	fieldPort
+	fieldProtocolName
+	fieldReason
+	fieldSource
+	fieldSourcePort
 )
 
 var (
@@ -81,8 +81,8 @@ var (
 		"dest":        fieldDestination,
 		"dst":         fieldDestination,
 		// destination port
-		"dstport": fieldDstPort,
-		"dport":   fieldDstPort,
+		"dstport": fieldDestinationPort,
+		"dport":   fieldDestinationPort,
 		// ip version
 		"ipversion": fieldIPVersion,
 		"ip":        fieldIPVersion,
@@ -93,16 +93,16 @@ var (
 		// port
 		"port": fieldPort,
 		// protocol
-		"protocol": fieldProtocol,
-		"proto":    fieldProtocol,
+		"protocol": fieldProtocolName,
+		"proto":    fieldProtocolName,
 		// reason
 		"reason": fieldReason,
 		// source
 		"source": fieldSource,
 		"src":    fieldSource,
 		// source port
-		"srcport": fieldSrcPort,
-		"sport":   fieldSrcPort,
+		"srcport": fieldSourcePort,
+		"sport":   fieldSourcePort,
 	}
 )
 
@@ -340,9 +340,9 @@ func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 		entry.Interface,
 		entry.Reason,
 		entry.Time.Format("Jan02-15:04:05"),
-		entry.Dst,
-		entry.ProtoName,
-		entry.Src,
+		entry.Destination,
+		entry.ProtocolName,
+		entry.Source,
 	}
 	for _, field := range searchFields {
 		if strings.Contains(strings.ToLower(field), value) {
@@ -365,25 +365,25 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldAction:
 		return matchStr(entry.Action)
 	case fieldDestination:
-		return matchStr(entry.Dst)
+		return matchStr(entry.Destination)
 	case fieldDirection:
 		return matchStr(entry.Direction)
-	case fieldDstPort:
-		return matchInt(entry.DstPort)
+	case fieldDestinationPort:
+		return matchInt(entry.DestinationPort)
 	case fieldIPVersion:
 		return matchInt(entry.IPVersion)
 	case fieldInterface:
 		return matchStr(entry.Interface)
 	case fieldPort:
-		return matchInt(entry.SrcPort) || matchInt(entry.DstPort)
-	case fieldProtocol:
-		return matchStr(entry.ProtoName)
+		return matchInt(entry.SourcePort) || matchInt(entry.DestinationPort)
+	case fieldProtocolName:
+		return matchStr(entry.ProtocolName)
 	case fieldReason:
 		return matchStr(entry.Reason)
 	case fieldSource:
-		return matchStr(entry.Src)
-	case fieldSrcPort:
-		return matchInt(entry.SrcPort)
+		return matchStr(entry.Source)
+	case fieldSourcePort:
+		return matchInt(entry.SourcePort)
 	}
 	return false
 }

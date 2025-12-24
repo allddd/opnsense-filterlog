@@ -519,13 +519,13 @@ func (m model) View() string {
 		details := []string{
 			fmt.Sprintf("%-18s%s", "Time:", m.details.Time.Format(time.RFC1123Z)),
 			fmt.Sprintf("%-18s%s", "Action:", m.details.Action),
-			fmt.Sprintf("%-18s%s", "Protocol:", m.details.ProtoName),
+			fmt.Sprintf("%-18s%s", "Protocol:", m.details.ProtocolName),
 			fmt.Sprintf("%-18s%s", "Interface:", m.details.Interface),
 			fmt.Sprintf("%-18s%s", "Direction:", m.details.Direction),
-			fmt.Sprintf("%-18s%s", "Source:", m.details.Src),
-			fmt.Sprintf("%-18s%d", "Source port:", m.details.SrcPort),
-			fmt.Sprintf("%-18s%s", "Destination:", m.details.Dst),
-			fmt.Sprintf("%-18s%d", "Destination port:", m.details.DstPort),
+			fmt.Sprintf("%-18s%s", "Source:", m.details.Source),
+			fmt.Sprintf("%-18s%d", "Source port:", m.details.SourcePort),
+			fmt.Sprintf("%-18s%s", "Destination:", m.details.Destination),
+			fmt.Sprintf("%-18s%d", "Destination port:", m.details.DestinationPort),
 			fmt.Sprintf("%-18s%s", "Reason:", m.details.Reason),
 		}
 		for i := visibleStart; i < visibleEnd; i++ {
@@ -607,24 +607,24 @@ func (m model) View() string {
 				iface = entry.Direction + "." + iface
 			}
 			// source
-			var srcPort string
-			if entry.SrcPort > 0 {
-				srcPort = fmt.Sprintf(formatPort, entry.SrcPort)
+			var sourcePort string
+			if entry.SourcePort > 0 {
+				sourcePort = fmt.Sprintf(formatPort, entry.SourcePort)
 			}
 			// destination
-			var dstPort string
-			if entry.DstPort > 0 {
-				dstPort = fmt.Sprintf(formatPort, entry.DstPort)
+			var destinationPort string
+			if entry.DestinationPort > 0 {
+				destinationPort = fmt.Sprintf(formatPort, entry.DestinationPort)
 			}
 			line := fmt.Sprintf(formatLine,
 				styleString(entry.Time.Format("Jan02-15:04:05"), widthTime, m.uiStyles.plain),
 				styleString(entry.Action, widthAction, actionStyle),
-				styleString(entry.ProtoName, widthProtocol, m.uiStyles.plain),
+				styleString(entry.ProtocolName, widthProtocol, m.uiStyles.plain),
 				styleString(iface, widthInterface, m.uiStyles.plain),
-				styleString(entry.Src, 0, m.uiStyles.bold),
-				styleString(srcPort, 0, m.uiStyles.faint),
-				styleString(entry.Dst, 0, m.uiStyles.bold),
-				styleString(dstPort, 0, m.uiStyles.faint))
+				styleString(entry.Source, 0, m.uiStyles.bold),
+				styleString(sourcePort, 0, m.uiStyles.faint),
+				styleString(entry.Destination, 0, m.uiStyles.bold),
+				styleString(destinationPort, 0, m.uiStyles.faint))
 			line = sliceString(line, m.uiOffsetH, m.uiWidth)
 			if i == m.uiSelected {
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(ansi.Strip(line))

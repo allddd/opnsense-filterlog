@@ -242,8 +242,8 @@ func TestParsedValues(t *testing.T) {
 	if entry.IPVersion != ipVersion6 {
 		t.Fatalf("entry 1: expected ipv%d, got ipv%d", ipVersion6, entry.IPVersion)
 	}
-	if entry.ProtoName != protoUDP {
-		t.Fatalf("entry 1: expected %s, got %s", protoUDP, entry.ProtoName)
+	if entry.ProtocolName != protocolUDP {
+		t.Fatalf("entry 1: expected %s, got %s", protocolUDP, entry.ProtocolName)
 	}
 	if entry.Action != ActionPass {
 		t.Fatalf("entry 1: expected %s, got %s", ActionPass, entry.Action)
@@ -251,8 +251,8 @@ func TestParsedValues(t *testing.T) {
 	if entry.Direction != DirectionIn {
 		t.Fatalf("entry 1: expected %s, got %s", DirectionIn, entry.Direction)
 	}
-	if entry.SrcPort != 63511 || entry.DstPort != 53 {
-		t.Fatalf("entry 1: expected ports 63511:53, got %d:%d", entry.SrcPort, entry.DstPort)
+	if entry.SourcePort != 63511 || entry.DestinationPort != 53 {
+		t.Fatalf("entry 1: expected ports 63511:53, got %d:%d", entry.SourcePort, entry.DestinationPort)
 	}
 	expectedTime := time.Date(2025, 10, 10, 0, 0, 0, 0, time.FixedZone("", 2*60*60))
 	if !entry.Time.Equal(expectedTime) {
@@ -266,11 +266,11 @@ func TestParsedValues(t *testing.T) {
 	if entry.IPVersion != ipVersion4 {
 		t.Fatalf("entry 2: expected ipv%d, got ipv%d", ipVersion4, entry.IPVersion)
 	}
-	if entry.ProtoName != protoUDP {
-		t.Fatalf("entry 2: expected %s, got %s", protoUDP, entry.ProtoName)
+	if entry.ProtocolName != protocolUDP {
+		t.Fatalf("entry 2: expected %s, got %s", protocolUDP, entry.ProtocolName)
 	}
-	if entry.Src != "192.168.1.100" || entry.Dst != "192.168.1.1" {
-		t.Fatalf("entry 2: expected src/dst 192.168.1.100/192.168.1.1, got %s/%s", entry.Src, entry.Dst)
+	if entry.Source != "192.168.1.100" || entry.Destination != "192.168.1.1" {
+		t.Fatalf("entry 2: expected src/dst 192.168.1.100/192.168.1.1, got %s/%s", entry.Source, entry.Destination)
 	}
 	// 7th entry
 	for range 4 {
@@ -283,8 +283,8 @@ func TestParsedValues(t *testing.T) {
 	if entry.Action != ActionBlock {
 		t.Fatalf("entry 7: expected %s, got %s", ActionBlock, entry.Action)
 	}
-	if entry.ProtoName != protoTCP {
-		t.Fatalf("entry 7: expected %s, got %s", protoTCP, entry.ProtoName)
+	if entry.ProtocolName != protocolTCP {
+		t.Fatalf("entry 7: expected %s, got %s", protocolTCP, entry.ProtocolName)
 	}
 }
 

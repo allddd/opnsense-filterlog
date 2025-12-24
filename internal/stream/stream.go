@@ -55,10 +55,10 @@ const (
 	ipVersion6 = 6
 
 	// protocols
-	protoICMP   = "icmp"
-	protoICMPv6 = "ipv6-icmp"
-	protoTCP    = "tcp"
-	protoUDP    = "udp"
+	protocolICMP   = "icmp"
+	protocolICMPv6 = "ipv6-icmp"
+	protocolTCP    = "tcp"
+	protocolUDP    = "udp"
 
 	// reasons
 	reasonBadOffset     = "bad-offset"
@@ -81,21 +81,21 @@ const (
 // LogEntry represents a parsed filter log entry
 type LogEntry struct {
 	// common
-	Action    string    `json:"action"` // action taken
-	Direction string    `json:"dir"`    // traffic direction
-	Interface string    `json:"iface"`  // network interface
-	Reason    string    `json:"reason"` // reason for action
-	Time      time.Time `json:"time"`   // timestamp
+	Action    string    `json:"action"`
+	Direction string    `json:"dir"`
+	Interface string    `json:"iface"`
+	Reason    string    `json:"reason"`
+	Time      time.Time `json:"time"`
 
 	// ip
-	Dst       string `json:"dst"`   // destination ip address
-	IPVersion uint8  `json:"ipver"` // ip protocol version
-	ProtoName string `json:"proto"` // protocol name
-	Src       string `json:"src"`   // source ip address
+	Destination  string `json:"dst"`
+	IPVersion    uint8  `json:"ipver"`
+	ProtocolName string `json:"proto"`
+	Source       string `json:"src"`
 
 	// protocol
-	DstPort uint16 `json:"dport,omitempty"` // destination port
-	SrcPort uint16 `json:"sport,omitempty"` // source port
+	DestinationPort uint16 `json:"dport,omitempty"`
+	SourcePort      uint16 `json:"sport,omitempty"`
 }
 
 // indexEntry represents an entry in the index
@@ -288,93 +288,93 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	// ipv4
 	case ipVersion4:
 		// 9:tos, 10:ecn, 11:ttl, 12:id, 13:offset, 14:flags, 15:protonum, 16:protoname, 17:length, 18:src, 19:dst
-		protoName, ok := extractCSVField(csv, 16)
+		protocolName, ok := extractCSVField(csv, 16)
 		if !ok {
-			s.addError(fmt.Sprintf("invalid v4/protoName on line %d", lineNum))
+			s.addError(fmt.Sprintf("invalid v4/protocolName on line %d", lineNum))
 			return nil
 		}
 
-		src, ok := extractCSVField(csv, 18)
+		source, ok := extractCSVField(csv, 18)
 		if !ok {
-			s.addError(fmt.Sprintf("invalid v4/src on line %d", lineNum))
+			s.addError(fmt.Sprintf("invalid v4/source on line %d", lineNum))
 			return nil
 		}
-		entry.Src = src
+		entry.Source = source
 
-		dst, ok := extractCSVField(csv, 19)
+		destination, ok := extractCSVField(csv, 19)
 		if !ok {
-			s.addError(fmt.Sprintf("invalid v4/dst on line %d", lineNum))
+			s.addError(fmt.Sprintf("invalid v4/destination on line %d", lineNum))
 			return nil
 		}
-		entry.Dst = dst
+		entry.Destination = destination
 
-		switch protoName {
-		case protoTCP:
-			entry.ProtoName = protoTCP
-		case protoUDP:
-			entry.ProtoName = protoUDP
-		case protoICMP:
-			entry.ProtoName = protoICMP
+		switch protocolName {
+		case protocolTCP:
+			entry.ProtocolName = protocolTCP
+		case protocolUDP:
+			entry.ProtocolName = protocolUDP
+		case protocolICMP:
+			entry.ProtocolName = protocolICMP
 		default:
-			entry.ProtoName = protoName
+			entry.ProtocolName = protocolName
 		}
 
-		switch entry.ProtoName {
+		switch entry.ProtocolName {
 		// udp4
-		case protoUDP:
+		case protocolUDP:
 			// 20: srcport, 21: dstport, 22: datalen
-			srcPortStr, ok := extractCSVField(csv, 20)
+			sourcePortStr, ok := extractCSVField(csv, 20)
 			if !ok {
-				s.addError(fmt.Sprintf("invalid udp4/srcPortStr on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp4/sourcePortStr on line %d", lineNum))
 				return nil
 			}
-			srcPort, err := strconv.ParseUint(srcPortStr, 10, 16)
+			sourcePort, err := strconv.ParseUint(sourcePortStr, 10, 16)
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid udp4/srcPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp4/sourcePort on line %d", lineNum))
 				return nil
 			}
 
-			dstPortStr, ok := extractCSVField(csv, 21)
+			destinationPortStr, ok := extractCSVField(csv, 21)
 			if !ok {
-				s.addError(fmt.Sprintf("invalid udp4/dstPortStr on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp4/destinationPortStr on line %d", lineNum))
 				return nil
 			}
-			dstPort, err := strconv.ParseUint(dstPortStr, 10, 16)
+			destinationPort, err := strconv.ParseUint(destinationPortStr, 10, 16)
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid udp4/dstPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp4/destinationPort on line %d", lineNum))
 				return nil
 			}
 
-			entry.SrcPort = uint16(srcPort)
-			entry.DstPort = uint16(dstPort)
+			entry.SourcePort = uint16(sourcePort)
+			entry.DestinationPort = uint16(destinationPort)
 
 		// tcp4
-		case protoTCP:
+		case protocolTCP:
 			// 20: srcport, 21: dstport, 22: datalen, 23: flags, 24: seq, 25: ack, 26: window, 27: urg, 28: options
-			srcPortStr, ok := extractCSVField(csv, 20)
+			sourcePortStr, ok := extractCSVField(csv, 20)
 			if !ok {
-				s.addError(fmt.Sprintf("invalid tcp4/srcPortStr on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp4/sourcePortStr on line %d", lineNum))
 				return nil
 			}
-			srcPort, err := strconv.ParseUint(srcPortStr, 10, 16)
+			sourcePort, err := strconv.ParseUint(sourcePortStr, 10, 16)
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid tcp4/srcPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp4/sourcePort on line %d", lineNum))
 				return nil
 			}
 
-			dstPortStr, ok := extractCSVField(csv, 21)
+			destinationPortStr, ok := extractCSVField(csv, 21)
 			if !ok {
-				s.addError(fmt.Sprintf("invalid tcp4/dstPortStr on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp4/destinationPortStr on line %d", lineNum))
 				return nil
 			}
-			dstPort, err := strconv.ParseUint(dstPortStr, 10, 16)
+			destinationPort, err := strconv.ParseUint(destinationPortStr, 10, 16)
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid tcp4/dstPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp4/destinationPort on line %d", lineNum))
 				return nil
 			}
 
-			entry.SrcPort = uint16(srcPort)
-			entry.DstPort = uint16(dstPort)
+			entry.SourcePort = uint16(sourcePort)
+			entry.DestinationPort = uint16(destinationPort)
 
 		// skip for any other protocol
 		default:
@@ -383,94 +383,94 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	// ipv6
 	case ipVersion6:
 		// 9:class, 10:flow, 11:hoplimit, 12:protoname, 13:protonum, 14:length, 15:src, 16:dst
-		protoName, ok := extractCSVField(csv, 12)
+		protocolName, ok := extractCSVField(csv, 12)
 		if !ok {
-			s.addError(fmt.Sprintf("invalid v6/protoName on line %d", lineNum))
+			s.addError(fmt.Sprintf("invalid v6/protocolName on line %d", lineNum))
 			return nil
 		}
 
-		src, ok := extractCSVField(csv, 15)
+		source, ok := extractCSVField(csv, 15)
 		if !ok {
-			s.addError(fmt.Sprintf("invalid v6/src on line %d", lineNum))
+			s.addError(fmt.Sprintf("invalid v6/source on line %d", lineNum))
 			return nil
 		}
-		entry.Src = src
+		entry.Source = source
 
-		dst, ok := extractCSVField(csv, 16)
+		destination, ok := extractCSVField(csv, 16)
 		if !ok {
-			s.addError(fmt.Sprintf("invalid v6/dst on line %d", lineNum))
+			s.addError(fmt.Sprintf("invalid v6/destination on line %d", lineNum))
 			return nil
 		}
-		entry.Dst = dst
+		entry.Destination = destination
 
-		switch protoName {
-		case protoTCP:
-			entry.ProtoName = protoTCP
-		case protoUDP:
-			entry.ProtoName = protoUDP
-		case protoICMPv6:
-			entry.ProtoName = protoICMPv6
+		switch protocolName {
+		case protocolTCP:
+			entry.ProtocolName = protocolTCP
+		case protocolUDP:
+			entry.ProtocolName = protocolUDP
+		case protocolICMPv6:
+			entry.ProtocolName = protocolICMPv6
 		default:
-			entry.ProtoName = protoName
+			entry.ProtocolName = protocolName
 		}
 
-		switch entry.ProtoName {
+		switch entry.ProtocolName {
 
 		// udp6
-		case protoUDP:
+		case protocolUDP:
 			// 17: srcport, 18: dstport, 19: datalen
-			srcPortStr, ok := extractCSVField(csv, 17)
+			sourcePortStr, ok := extractCSVField(csv, 17)
 			if !ok {
-				s.addError(fmt.Sprintf("invalid udp6/srcPortStr on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp6/sourcePortStr on line %d", lineNum))
 				return nil
 			}
-			srcPort, err := strconv.ParseUint(srcPortStr, 10, 16)
+			sourcePort, err := strconv.ParseUint(sourcePortStr, 10, 16)
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid udp6/srcPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp6/sourcePort on line %d", lineNum))
 				return nil
 			}
 
-			dstPortStr, ok := extractCSVField(csv, 18)
+			destinationPortStr, ok := extractCSVField(csv, 18)
 			if !ok {
-				s.addError(fmt.Sprintf("invalid udp6/dstPortStr on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp6/destinationPortStr on line %d", lineNum))
 				return nil
 			}
-			dstPort, err := strconv.ParseUint(dstPortStr, 10, 16)
+			destinationPort, err := strconv.ParseUint(destinationPortStr, 10, 16)
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid udp6/dstPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp6/destinationPort on line %d", lineNum))
 				return nil
 			}
 
-			entry.SrcPort = uint16(srcPort)
-			entry.DstPort = uint16(dstPort)
+			entry.SourcePort = uint16(sourcePort)
+			entry.DestinationPort = uint16(destinationPort)
 
 		// tcp6
-		case protoTCP:
+		case protocolTCP:
 			// 17: srcport, 18: dstport, 19: datalen, 20: flags, 21: seq, 22: ack, 23: window, 24: urg, 25: options
-			srcPortStr, ok := extractCSVField(csv, 17)
+			sourcePortStr, ok := extractCSVField(csv, 17)
 			if !ok {
-				s.addError(fmt.Sprintf("invalid tcp6/srcPortStr on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp6/sourcePortStr on line %d", lineNum))
 				return nil
 			}
-			srcPort, err := strconv.ParseUint(srcPortStr, 10, 16)
+			sourcePort, err := strconv.ParseUint(sourcePortStr, 10, 16)
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid tcp6/srcPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp6/sourcePort on line %d", lineNum))
 				return nil
 			}
 
-			dstPortStr, ok := extractCSVField(csv, 18)
+			destinationPortStr, ok := extractCSVField(csv, 18)
 			if !ok {
-				s.addError(fmt.Sprintf("invalid tcp6/dstPortStr on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp6/destinationPortStr on line %d", lineNum))
 				return nil
 			}
-			dstPort, err := strconv.ParseUint(dstPortStr, 10, 16)
+			destinationPort, err := strconv.ParseUint(destinationPortStr, 10, 16)
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid tcp6/dstPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp6/destinationPort on line %d", lineNum))
 				return nil
 			}
 
-			entry.SrcPort = uint16(srcPort)
-			entry.DstPort = uint16(dstPort)
+			entry.SourcePort = uint16(sourcePort)
+			entry.DestinationPort = uint16(destinationPort)
 
 		// skip for any other protocol
 		default:
