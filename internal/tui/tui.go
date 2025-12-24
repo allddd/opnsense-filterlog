@@ -45,7 +45,8 @@ const (
 	formatLine = "%s %s %s %s %s%s > %s%s"
 	formatPort = " %d"
 
-	maxEntriesInMemory = 1000
+	loadEntriesMax       = 600
+	loadEntriesThreshold = 200
 
 	widthAction    = 7
 	widthInterface = 10
@@ -62,11 +63,13 @@ type model struct {
 	detailsView bool             // whether showing entry details instead of logs
 
 	// entries
-	entries          []stream.LogEntry       // contiguous block of entries
-	entriesStart     int                     // number of first line in entries block
-	entriesFiltered  map[int]stream.LogEntry // non-contiguous block of entries matching current filter
-	entriesTotal     int                     // total number of valid log entries
-	entriesAvailable []int                   // line numbers that can be displayed (all lines in default view, matching lines when filtering)
+	entries              []stream.LogEntry       // contiguous block of entries
+	entriesStart         int                     // number of first line in entries block
+	entriesFiltered      map[int]stream.LogEntry // non-contiguous block of entries matching current filter
+	entriesFilteredStart int                     // number of first line in entriesFiltered block
+	entriesFilteredEnd   int                     // number of last line in entriesFiltered block
+	entriesTotal         int                     // total number of valid log entries
+	entriesAvailable     []int                   // line numbers that can be displayed (all lines in default view, matching lines when filtering)
 
 	// error
 	errors     []string // parse errors
@@ -119,7 +122,9 @@ type entriesMsg struct {
 
 // entriesFilteredMsg is sent when non-contiguous block of entries matching current filter has been loaded
 type entriesFilteredMsg struct {
-	entriesFiltered map[int]stream.LogEntry // non-contiguous block of entries matching current filter (filter view)
+	entriesFiltered      map[int]stream.LogEntry // non-contiguous block of entries matching current filter
+	entriesFilteredStart int                     // number of first line in entriesFiltered block
+	entriesFilteredEnd   int                     // number of last line in entriesFiltered block
 }
 
 // filterMsg is sent when filtering has completed
@@ -385,6 +390,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			if m.filterApplied {
+				m.entriesFiltered = make(map[int]stream.LogEntry)
+				m.entriesFilteredStart = 0
+				m.entriesFilteredEnd = 0
 				m.filterApplied = false
 				m.filterCompiled = nil
 				m.filterInput.SetValue("")
@@ -419,7 +427,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.showAllLines()
-		return m, loadEntries(m.stream, 0, maxEntriesInMemory)
+		return m, loadEntries(m.stream, 0, loadEntriesMax)
 
 	case entriesMsg:
 		m.entries = msg.entries
@@ -428,12 +436,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case entriesFilteredMsg:
 		m.uiLoading = false
-		// merge new entries into entriesFiltered map
+		m.entriesFilteredStart = msg.entriesFilteredStart
+		m.entriesFilteredEnd = msg.entriesFilteredEnd
+		// evict entries (but keep overlapping)
+		if msg.entriesFilteredEnd > 0 {
+			newEntriesFiltered := make(map[int]stream.LogEntry, msg.entriesFilteredEnd-msg.entriesFilteredStart)
+			for i := msg.entriesFilteredStart; i < msg.entriesFilteredEnd; i++ {
+				lineNum := m.entriesAvailable[i]
+				if entry, exists := m.entriesFiltered[lineNum]; exists {
+					newEntriesFiltered[lineNum] = entry
+				}
+			}
+			m.entriesFiltered = newEntriesFiltered
+		}
+		// merge new entries into map
 		maps.Copy(m.entriesFiltered, msg.entriesFiltered)
-		return m, m.checkLoadEntriesFiltered()
+		return m, nil
 
 	case filterMsg:
 		m.entriesFiltered = make(map[int]stream.LogEntry)
+		m.entriesFilteredStart = 0
+		m.entriesFilteredEnd = 0
 		m.entriesAvailable = msg.entriesAvailable
 		m.uiLoading = false
 		m.uiOffsetH = 0
@@ -695,7 +718,7 @@ func loadEntries(s *stream.Stream, startLine int, count int) tea.Cmd {
 }
 
 // loadEntriesFiltered loads non-contiguous block of entries matching current filter
-func loadEntriesFiltered(s *stream.Stream, lineNums []int) tea.Cmd {
+func loadEntriesFiltered(s *stream.Stream, lineNums []int, entriesFilteredStart, entriesFilteredEnd int) tea.Cmd {
 	return func() tea.Msg {
 		entries := make(map[int]stream.LogEntry)
 		for _, lineNum := range lineNums {
@@ -708,7 +731,11 @@ func loadEntriesFiltered(s *stream.Stream, lineNums []int) tea.Cmd {
 				entries[lineNum] = *entry
 			}
 		}
-		return entriesFilteredMsg{entriesFiltered: entries}
+		return entriesFilteredMsg{
+			entriesFiltered:      entries,
+			entriesFilteredStart: entriesFilteredStart,
+			entriesFilteredEnd:   entriesFilteredEnd,
+		}
 	}
 }
 
@@ -716,47 +743,55 @@ func loadEntriesFiltered(s *stream.Stream, lineNums []int) tea.Cmd {
 
 // checkLoadEntries checks if the currently loaded contiguous block needs reloading and returns a command to load it if needed
 func (m model) checkLoadEntries() tea.Cmd {
-	if !m.indexed || m.uiLoading || len(m.entriesAvailable) == 0 {
+	if m.uiLoading || len(m.entries) == m.entriesTotal || len(m.entriesAvailable) == 0 || !m.indexed {
 		return nil
 	}
 	visibleStart := m.uiOffsetV
 	visibleEnd := min(visibleStart+m.visibleHeight(), len(m.entriesAvailable))
-	minLine := m.entriesTotal
-	maxLine := 0
-	for i := visibleStart; i < visibleEnd; i++ {
-		lineNum := m.entriesAvailable[i]
-		minLine = min(minLine, lineNum)
-		maxLine = max(maxLine, lineNum)
-	}
-	if minLine < m.entriesStart || maxLine >= m.entriesStart+len(m.entries) {
+	firstLine := m.entriesAvailable[visibleStart]
+	lastLine := m.entriesAvailable[visibleEnd-1]
+	if firstLine < m.entriesStart+loadEntriesThreshold || lastLine >= m.entriesStart+len(m.entries)-loadEntriesThreshold {
 		// center around the middle of visible range
-		centerLine := (minLine + maxLine) / 2
-		newStart := max(centerLine-maxEntriesInMemory/2, 0)
-		return loadEntries(m.stream, newStart, maxEntriesInMemory)
+		centerLine := (firstLine + lastLine) / 2
+		newStart := min(max(centerLine-loadEntriesMax/2, 0), max(m.entriesTotal-loadEntriesMax, 0))
+		// only reload if start position would change
+		if newStart != m.entriesStart {
+			return loadEntries(m.stream, newStart, loadEntriesMax)
+		}
 	}
 	return nil
 }
 
-// checkLoadEntriesFiltered checks if any visible filtered entries are missing and returns a command to load them if needed
+// checkLoadEntriesFiltered checks if the currently loaded non-contiguous block needs reloading and returns a command to load it if needed
 func (m model) checkLoadEntriesFiltered() tea.Cmd {
-	if !m.filterApplied || len(m.entriesAvailable) == 0 {
+	if m.uiLoading || !m.filterApplied || len(m.entriesAvailable) == 0 || !m.indexed {
+		return nil
+	}
+	// if filtered results fit in loadEntriesMax, load once and never reload
+	if len(m.entriesAvailable) <= loadEntriesMax && len(m.entriesFiltered) == len(m.entriesAvailable) {
 		return nil
 	}
 	visibleStart := m.uiOffsetV
 	visibleEnd := min(visibleStart+m.visibleHeight(), len(m.entriesAvailable))
-	linesToLoad := make([]int, 0, visibleEnd-visibleStart)
-	for i := visibleStart; i < visibleEnd; i++ {
-		if i < 0 || i >= len(m.entriesAvailable) {
-			continue
+	if visibleStart < m.entriesFilteredStart+loadEntriesThreshold || visibleEnd >= m.entriesFilteredEnd-loadEntriesThreshold {
+		// center around the middle of visible range
+		centerLine := (visibleStart + visibleEnd) / 2
+		newStart := max(0, centerLine-loadEntriesMax/2)
+		newEnd := min(len(m.entriesAvailable), newStart+loadEntriesMax)
+		newStart = max(0, newEnd-loadEntriesMax)
+		// only reload if start/end position would change
+		if newStart != m.entriesFilteredStart || newEnd != m.entriesFilteredEnd {
+			linesToLoad := make([]int, 0, newEnd-newStart)
+			for i := newStart; i < newEnd; i++ {
+				lineNum := m.entriesAvailable[i]
+				if _, exists := m.entriesFiltered[lineNum]; !exists {
+					linesToLoad = append(linesToLoad, lineNum)
+				}
+			}
+			if len(linesToLoad) > 0 {
+				return loadEntriesFiltered(m.stream, linesToLoad, newStart, newEnd)
+			}
 		}
-		lineNum := m.entriesAvailable[i]
-		// only load if not already in filtered entries
-		if _, exists := m.entriesFiltered[lineNum]; !exists {
-			linesToLoad = append(linesToLoad, lineNum)
-		}
-	}
-	if len(linesToLoad) > 0 {
-		return m.withLoadingView(loadEntriesFiltered(m.stream, linesToLoad))
 	}
 	return nil
 }
@@ -847,7 +882,7 @@ func Display(s *stream.Stream) error {
 	m := model{
 		stream:           s,
 		indexed:          false,
-		entries:          make([]stream.LogEntry, 0, maxEntriesInMemory),
+		entries:          make([]stream.LogEntry, 0, loadEntriesMax),
 		entriesFiltered:  make(map[int]stream.LogEntry),
 		entriesAvailable: make([]int, 0),
 		filterApplied:    false,
