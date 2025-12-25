@@ -123,89 +123,66 @@ func (s *Stream) addError(msg string) {
 	}
 }
 
-// extractCSVField extracts a csv field and returns a copy
-func extractCSVField(csv string, field int) (string, bool) {
+// convPort converts a port string to uint16
+func convPort(portStr string) (uint16, error) {
+	port, err := strconv.ParseUint(portStr, 10, 16)
+	if err != nil {
+		return 0, err
+	}
+	return uint16(port), nil
+}
+
+// splitCSV splits a csv string into fields
+// this is similar to strings.Split but optimized for this use case (almost 2x faster)
+func splitCSV(csv string) []string {
+	fields := make([]string, 0, 30) // preallocate for worst case
 	start := 0
-	// check if the field exists and get its start index
-	for range field {
-		idx := strings.IndexByte(csv[start:], ',')
-		if idx == -1 {
-			// field does not exist
-			return "", false
+	for i := 0; i < len(csv); i++ {
+		if csv[i] == ',' {
+			fields = append(fields, csv[start:i])
+			start = i + 1 // +1 for comma
 		}
-		start += idx + 1 // +1 for comma
 	}
-	// find end of field
-	end := strings.IndexByte(csv[start:], ',')
-	if end == -1 {
-		// last field
-		return strings.Clone(csv[start:]), true
-	}
-	return strings.Clone(csv[start : start+end]), true
+	fields = append(fields, csv[start:]) // add last field
+	return fields
 }
 
 // parse parses a single line and returns a LogEntry
 func (s *Stream) parse(line string, lineNum int) *LogEntry {
+	var err error
+	entry := LogEntry{}
+
 	// extract the timestamp (between 1st and 2nd space)
-	timestampStart := strings.IndexByte(line, ' ') + 1 // +1 for 1st space
-	timestampEnd := strings.IndexByte(line[timestampStart:], ' ')
-	if timestampStart <= 0 || timestampEnd == -1 {
+	timeStart := strings.IndexByte(line, ' ') + 1 // +1 for 1st space
+	timeEnd := strings.IndexByte(line[timeStart:], ' ')
+	if timeStart <= 0 || timeEnd == -1 {
 		s.addError(fmt.Sprintf("invalid timestamp on line %d", lineNum))
 		return nil
 	}
-	timestampEnd += timestampStart // make relative index absolute
-	timestamp, err := time.Parse(time.RFC3339, line[timestampStart:timestampEnd])
+	timeEnd += timeStart // make relative index absolute
+	entry.Time, err = time.Parse(time.RFC3339, line[timeStart:timeEnd])
 	if err != nil {
 		s.addError(fmt.Sprintf("invalid timestamp on line %d: %v", lineNum, err))
-		// TODO: maybe we should just show a random timestamp instead of failing?
 		return nil
 	}
 
-	// extract the csv data (after "] ")
+	// extract the csv string (after "] ") and split it into fields
 	_, csv, ok := strings.Cut(line, "] ")
 	if !ok {
 		s.addError(fmt.Sprintf("invalid csv on line %d", lineNum))
 		return nil
 	}
+	fields := splitCSV(csv)
 
-	// extract CSV fields
 	// 3: label, 4: interface, 5: reason, 6: action, 7: direction, 8: ipversion
-	iface, ok := extractCSVField(csv, 4)
-	if !ok {
-		s.addError(fmt.Sprintf("invalid iface on line %d", lineNum))
+	if len(fields) < 9 {
+		s.addError(fmt.Sprintf("invalid packetfilter section on line %d", lineNum))
 		return nil
 	}
 
-	reason, ok := extractCSVField(csv, 5)
-	if !ok {
-		s.addError(fmt.Sprintf("invalid reason on line %d", lineNum))
-		return nil
-	}
+	entry.Interface = fields[4]
 
-	action, ok := extractCSVField(csv, 6)
-	if !ok {
-		s.addError(fmt.Sprintf("invalid action on line %d", lineNum))
-		return nil
-	}
-
-	direction, ok := extractCSVField(csv, 7)
-	if !ok {
-		s.addError(fmt.Sprintf("invalid direction on line %d", lineNum))
-		return nil
-	}
-
-	ipVersion, ok := extractCSVField(csv, 8)
-	if !ok {
-		s.addError(fmt.Sprintf("invalid ipVersion on line %d", lineNum))
-		return nil
-	}
-
-	entry := LogEntry{
-		Time:      timestamp,
-		Interface: iface,
-	}
-
-	switch reason {
+	switch fields[5] {
 	case reasonMatch:
 		entry.Reason = reasonMatch
 	case reasonBadOffset:
@@ -237,10 +214,10 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	case reasonSynproxy:
 		entry.Reason = reasonSynproxy
 	default:
-		entry.Reason = reason
+		entry.Reason = fields[5]
 	}
 
-	switch action {
+	switch fields[6] {
 	case ActionPass:
 		entry.Action = ActionPass
 	case ActionBlock:
@@ -256,10 +233,10 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	case actionSynproxyDrop:
 		entry.Action = actionSynproxyDrop
 	default:
-		entry.Action = action
+		entry.Action = fields[6]
 	}
 
-	switch direction {
+	switch fields[7] {
 	case DirectionIn:
 		entry.Direction = DirectionIn
 	case DirectionOut:
@@ -267,48 +244,29 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	case DirectionInOut:
 		entry.Direction = DirectionInOut
 	default:
-		entry.Direction = direction
+		entry.Direction = fields[7]
 	}
 
-	switch ipVersion {
+	switch fields[8] {
 	case "4":
 		entry.IPVersion = ipVersion4
 	case "6":
 		entry.IPVersion = ipVersion6
 	default:
-		ipVersion, err := strconv.ParseUint(ipVersion, 10, 8)
-		if err != nil {
-			s.addError(fmt.Sprintf("invalid ipVersion on line %d", lineNum))
-			return nil
-		}
-		entry.IPVersion = uint8(ipVersion)
+		s.addError(fmt.Sprintf("invalid ip version on line %d", lineNum))
+		return nil
 	}
 
 	switch entry.IPVersion {
 	// ipv4
 	case ipVersion4:
 		// 9:tos, 10:ecn, 11:ttl, 12:id, 13:offset, 14:flags, 15:protonum, 16:protoname, 17:length, 18:src, 19:dst
-		protocolName, ok := extractCSVField(csv, 16)
-		if !ok {
-			s.addError(fmt.Sprintf("invalid v4/protocolName on line %d", lineNum))
+		if len(fields) < 20 {
+			s.addError(fmt.Sprintf("invalid ipv4 section on line %d", lineNum))
 			return nil
 		}
 
-		source, ok := extractCSVField(csv, 18)
-		if !ok {
-			s.addError(fmt.Sprintf("invalid v4/source on line %d", lineNum))
-			return nil
-		}
-		entry.Source = source
-
-		destination, ok := extractCSVField(csv, 19)
-		if !ok {
-			s.addError(fmt.Sprintf("invalid v4/destination on line %d", lineNum))
-			return nil
-		}
-		entry.Destination = destination
-
-		switch protocolName {
+		switch fields[16] {
 		case protocolTCP:
 			entry.ProtocolName = protocolTCP
 		case protocolUDP:
@@ -316,65 +274,52 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		case protocolICMP:
 			entry.ProtocolName = protocolICMP
 		default:
-			entry.ProtocolName = protocolName
+			entry.ProtocolName = fields[16]
 		}
+
+		entry.Source = fields[18]
+		entry.Destination = fields[19]
 
 		switch entry.ProtocolName {
 		// udp4
 		case protocolUDP:
 			// 20: srcport, 21: dstport, 22: datalen
-			sourcePortStr, ok := extractCSVField(csv, 20)
-			if !ok {
-				s.addError(fmt.Sprintf("invalid udp4/sourcePortStr on line %d", lineNum))
-				return nil
-			}
-			sourcePort, err := strconv.ParseUint(sourcePortStr, 10, 16)
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid udp4/sourcePort on line %d", lineNum))
+			if len(fields) < 22 {
+				s.addError(fmt.Sprintf("invalid udp4 section on line %d", lineNum))
 				return nil
 			}
 
-			destinationPortStr, ok := extractCSVField(csv, 21)
-			if !ok {
-				s.addError(fmt.Sprintf("invalid udp4/destinationPortStr on line %d", lineNum))
-				return nil
-			}
-			destinationPort, err := strconv.ParseUint(destinationPortStr, 10, 16)
+			entry.SourcePort, err = convPort(fields[20])
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid udp4/destinationPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid source port on line %d: %v", lineNum, err))
 				return nil
 			}
 
-			entry.SourcePort = uint16(sourcePort)
-			entry.DestinationPort = uint16(destinationPort)
+			entry.DestinationPort, err = convPort(fields[21])
+			if err != nil {
+				s.addError(fmt.Sprintf("invalid destination port on line %d: %v", lineNum, err))
+				return nil
+			}
 
 		// tcp4
 		case protocolTCP:
 			// 20: srcport, 21: dstport, 22: datalen, 23: flags, 24: seq, 25: ack, 26: window, 27: urg, 28: options
-			sourcePortStr, ok := extractCSVField(csv, 20)
-			if !ok {
-				s.addError(fmt.Sprintf("invalid tcp4/sourcePortStr on line %d", lineNum))
-				return nil
-			}
-			sourcePort, err := strconv.ParseUint(sourcePortStr, 10, 16)
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid tcp4/sourcePort on line %d", lineNum))
+			if len(fields) < 22 {
+				s.addError(fmt.Sprintf("invalid tcp4 section on line %d", lineNum))
 				return nil
 			}
 
-			destinationPortStr, ok := extractCSVField(csv, 21)
-			if !ok {
-				s.addError(fmt.Sprintf("invalid tcp4/destinationPortStr on line %d", lineNum))
-				return nil
-			}
-			destinationPort, err := strconv.ParseUint(destinationPortStr, 10, 16)
+			entry.SourcePort, err = convPort(fields[20])
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid tcp4/destinationPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid source port on line %d: %v", lineNum, err))
 				return nil
 			}
 
-			entry.SourcePort = uint16(sourcePort)
-			entry.DestinationPort = uint16(destinationPort)
+			entry.DestinationPort, err = convPort(fields[21])
+			if err != nil {
+				s.addError(fmt.Sprintf("invalid destination port on line %d: %v", lineNum, err))
+				return nil
+			}
 
 		// skip for any other protocol
 		default:
@@ -383,27 +328,12 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	// ipv6
 	case ipVersion6:
 		// 9:class, 10:flow, 11:hoplimit, 12:protoname, 13:protonum, 14:length, 15:src, 16:dst
-		protocolName, ok := extractCSVField(csv, 12)
-		if !ok {
-			s.addError(fmt.Sprintf("invalid v6/protocolName on line %d", lineNum))
+		if len(fields) < 17 {
+			s.addError(fmt.Sprintf("invalid ipv6 section on line %d", lineNum))
 			return nil
 		}
 
-		source, ok := extractCSVField(csv, 15)
-		if !ok {
-			s.addError(fmt.Sprintf("invalid v6/source on line %d", lineNum))
-			return nil
-		}
-		entry.Source = source
-
-		destination, ok := extractCSVField(csv, 16)
-		if !ok {
-			s.addError(fmt.Sprintf("invalid v6/destination on line %d", lineNum))
-			return nil
-		}
-		entry.Destination = destination
-
-		switch protocolName {
+		switch fields[12] {
 		case protocolTCP:
 			entry.ProtocolName = protocolTCP
 		case protocolUDP:
@@ -411,74 +341,56 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		case protocolICMPv6:
 			entry.ProtocolName = protocolICMPv6
 		default:
-			entry.ProtocolName = protocolName
+			entry.ProtocolName = fields[12]
 		}
 
-		switch entry.ProtocolName {
+		entry.Source = fields[15]
+		entry.Destination = fields[16]
 
+		switch entry.ProtocolName {
 		// udp6
 		case protocolUDP:
 			// 17: srcport, 18: dstport, 19: datalen
-			sourcePortStr, ok := extractCSVField(csv, 17)
-			if !ok {
-				s.addError(fmt.Sprintf("invalid udp6/sourcePortStr on line %d", lineNum))
-				return nil
-			}
-			sourcePort, err := strconv.ParseUint(sourcePortStr, 10, 16)
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid udp6/sourcePort on line %d", lineNum))
+			if len(fields) < 19 {
+				s.addError(fmt.Sprintf("invalid udp6 section on line %d", lineNum))
 				return nil
 			}
 
-			destinationPortStr, ok := extractCSVField(csv, 18)
-			if !ok {
-				s.addError(fmt.Sprintf("invalid udp6/destinationPortStr on line %d", lineNum))
-				return nil
-			}
-			destinationPort, err := strconv.ParseUint(destinationPortStr, 10, 16)
+			entry.SourcePort, err = convPort(fields[17])
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid udp6/destinationPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid source port on line %d: %v", lineNum, err))
 				return nil
 			}
 
-			entry.SourcePort = uint16(sourcePort)
-			entry.DestinationPort = uint16(destinationPort)
+			entry.DestinationPort, err = convPort(fields[18])
+			if err != nil {
+				s.addError(fmt.Sprintf("invalid destination port on line %d: %v", lineNum, err))
+				return nil
+			}
 
 		// tcp6
 		case protocolTCP:
 			// 17: srcport, 18: dstport, 19: datalen, 20: flags, 21: seq, 22: ack, 23: window, 24: urg, 25: options
-			sourcePortStr, ok := extractCSVField(csv, 17)
-			if !ok {
-				s.addError(fmt.Sprintf("invalid tcp6/sourcePortStr on line %d", lineNum))
-				return nil
-			}
-			sourcePort, err := strconv.ParseUint(sourcePortStr, 10, 16)
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid tcp6/sourcePort on line %d", lineNum))
+			if len(fields) < 19 {
+				s.addError(fmt.Sprintf("invalid tcp6 section on line %d", lineNum))
 				return nil
 			}
 
-			destinationPortStr, ok := extractCSVField(csv, 18)
-			if !ok {
-				s.addError(fmt.Sprintf("invalid tcp6/destinationPortStr on line %d", lineNum))
-				return nil
-			}
-			destinationPort, err := strconv.ParseUint(destinationPortStr, 10, 16)
+			entry.SourcePort, err = convPort(fields[17])
 			if err != nil {
-				s.addError(fmt.Sprintf("invalid tcp6/destinationPort on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid source port on line %d: %v", lineNum, err))
 				return nil
 			}
 
-			entry.SourcePort = uint16(sourcePort)
-			entry.DestinationPort = uint16(destinationPort)
+			entry.DestinationPort, err = convPort(fields[18])
+			if err != nil {
+				s.addError(fmt.Sprintf("invalid destination port on line %d: %v", lineNum, err))
+				return nil
+			}
 
 		// skip for any other protocol
 		default:
 		}
-
-	default:
-		s.addError(fmt.Sprintf("invalid ipVersion '%d' on line %d", entry.IPVersion, lineNum))
-		return nil
 	}
 
 	return &entry

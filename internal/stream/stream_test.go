@@ -24,84 +24,36 @@
 package stream
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
 
-func TestExtractCSVField(t *testing.T) {
+func TestSplit(t *testing.T) {
 	tests := []struct {
-		name        string
-		csv         string
-		field       int
-		expectOk    bool
-		expectValue string
+		name string
+		csv  string
 	}{
-		{
-			name:        "first field",
-			csv:         "a,b,c",
-			field:       0,
-			expectOk:    true,
-			expectValue: "a",
-		},
-		{
-			name:        "middle field",
-			csv:         "a,b,c",
-			field:       1,
-			expectOk:    true,
-			expectValue: "b",
-		},
-		{
-			name:        "last field",
-			csv:         "a,b,c",
-			field:       2,
-			expectOk:    true,
-			expectValue: "c",
-		},
-		{
-			name:        "field out of range",
-			csv:         "a,b,c",
-			field:       3,
-			expectOk:    false,
-			expectValue: "",
-		},
-		{
-			name:        "empty field",
-			csv:         "a,,c",
-			field:       1,
-			expectOk:    true,
-			expectValue: "",
-		},
-		{
-			name:        "single field",
-			csv:         "a",
-			field:       0,
-			expectOk:    true,
-			expectValue: "a",
-		},
-		{
-			name:        "empty string",
-			csv:         "",
-			field:       0,
-			expectOk:    true,
-			expectValue: "",
-		},
-		{
-			name:        "long csv",
-			csv:         "a,b,c,d,e,f,g,h,i,j,k,l,m,n",
-			field:       11,
-			expectOk:    true,
-			expectValue: "l",
-		},
+		{"empty string", ""},
+		{"single field", "a"},
+		{"empty in the middle", "a,,c"},
+		{"empty at boundaries", ",b,"},
+		{"all empty", ",,"},
+		{"real ipv4", "68,,,4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a,eth1,match,pass,out,4,0x0,,127,17785,0,DF,6,tcp,52,192.168.1.100,10.0.0.5,46376,80,0,S,1356197145,,64480,,mss;nop;wscale;nop;nop;sackOK"},
+		{"real ipv6", "61,,,3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f,eth0,match,pass,in,6,0x00,0xd3e97,128,udp,17,60,fd00:abcd:ef01:2345:6789:abcd:ef01:2345,fd00:1111:2222:3333:4444:5555:6666:7777,51091,53,60"},
+		{"very large", strings.Repeat("field,", 50) + "last"},
 	}
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			value, ok := extractCSVField(tc.csv, tc.field)
-			if ok != tc.expectOk {
-				t.Fatalf("expected ok=%v, got %v", tc.expectOk, ok)
+			got := splitCSV(tc.csv)
+			expected := strings.Split(tc.csv, ",")
+			if len(got) != len(expected) {
+				t.Fatalf("expected %d fields, got %d", len(expected), len(got))
 			}
-			if value != tc.expectValue {
-				t.Fatalf("expected %q, got %q", tc.expectValue, value)
+			for i := range expected {
+				if got[i] != expected[i] {
+					t.Fatalf("field %d: expected %q, got %q", i, expected[i], got[i])
+				}
 			}
 		})
 	}
