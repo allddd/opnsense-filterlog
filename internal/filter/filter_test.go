@@ -191,25 +191,25 @@ func TestFieldFilter(t *testing.T) {
 		{
 			name:        "match ip version",
 			filter:      "ipversion 4",
-			entry:       stream.LogEntry{IPVersion: 4},
+			entry:       stream.LogEntry{IPVersion: "4"},
 			expectMatch: true,
 		},
 		{
 			name:        "match ip version alias",
 			filter:      "ipver 6",
-			entry:       stream.LogEntry{IPVersion: 6},
+			entry:       stream.LogEntry{IPVersion: "6"},
 			expectMatch: true,
 		},
 		{
 			name:        "match ip version alias",
 			filter:      "ip 4",
-			entry:       stream.LogEntry{IPVersion: 4},
+			entry:       stream.LogEntry{IPVersion: "4"},
 			expectMatch: true,
 		},
 		{
 			name:        "do not match wrong ip version",
 			filter:      "ipversion 6",
-			entry:       stream.LogEntry{IPVersion: 4},
+			entry:       stream.LogEntry{IPVersion: "4"},
 			expectMatch: false,
 		},
 		{
@@ -233,43 +233,43 @@ func TestFieldFilter(t *testing.T) {
 		{
 			name:        "match source port",
 			filter:      "srcport 443",
-			entry:       stream.LogEntry{SourcePort: 443},
+			entry:       stream.LogEntry{SourcePort: "443"},
 			expectMatch: true,
 		},
 		{
 			name:        "match source port alias",
 			filter:      "sport 80",
-			entry:       stream.LogEntry{SourcePort: 80},
+			entry:       stream.LogEntry{SourcePort: "80"},
 			expectMatch: true,
 		},
 		{
 			name:        "match destination port",
 			filter:      "dstport 22",
-			entry:       stream.LogEntry{DestinationPort: 22},
+			entry:       stream.LogEntry{DestinationPort: "22"},
 			expectMatch: true,
 		},
 		{
 			name:        "match destination port alias",
 			filter:      "dport 8080",
-			entry:       stream.LogEntry{DestinationPort: 8080},
+			entry:       stream.LogEntry{DestinationPort: "8080"},
 			expectMatch: true,
 		},
 		{
 			name:        "match port on source",
 			filter:      "port 443",
-			entry:       stream.LogEntry{SourcePort: 443, DestinationPort: 8080},
+			entry:       stream.LogEntry{SourcePort: "443", DestinationPort: "8080"},
 			expectMatch: true,
 		},
 		{
 			name:        "match port on destination",
 			filter:      "port 8080",
-			entry:       stream.LogEntry{SourcePort: 443, DestinationPort: 8080},
+			entry:       stream.LogEntry{SourcePort: "443", DestinationPort: "8080"},
 			expectMatch: true,
 		},
 		{
 			name:        "do not match port",
 			filter:      "port 22",
-			entry:       stream.LogEntry{SourcePort: 2, DestinationPort: 222},
+			entry:       stream.LogEntry{SourcePort: "2", DestinationPort: "222"},
 			expectMatch: false,
 		},
 	}
@@ -305,13 +305,13 @@ func TestAndOperator(t *testing.T) {
 		{
 			name:        "multiple and operators",
 			filter:      "src 192.168 && proto tcp and dport 443",
-			entry:       stream.LogEntry{Source: "192.168.1.1", ProtocolName: "tcp", DestinationPort: 443},
+			entry:       stream.LogEntry{Source: "192.168.1.1", ProtocolName: "tcp", DestinationPort: "443"},
 			expectMatch: true,
 		},
 		{
 			name:        "multiple and operators one fails",
 			filter:      "source 192.168 && protocol tcp && dstport 80",
-			entry:       stream.LogEntry{Source: "192.168.1.1", ProtocolName: "tcp", DestinationPort: 443},
+			entry:       stream.LogEntry{Source: "192.168.1.1", ProtocolName: "tcp", DestinationPort: "443"},
 			expectMatch: false,
 		},
 		{

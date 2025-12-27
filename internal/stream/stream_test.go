@@ -152,8 +152,8 @@ func TestSeekToLine(t *testing.T) {
 	if entry == nil {
 		t.Fatal("expected entry at line 0, got nil")
 	}
-	if entry.IPVersion != ipVersion6 {
-		t.Fatalf("expected ipv%d at line 0, got ipv%d", ipVersion6, entry.IPVersion)
+	if entry.IPVersion != "6" {
+		t.Fatalf("expected ipv6 at line 0, got ipv%s", entry.IPVersion)
 	}
 	// seek to middle
 	if err := s.SeekToLine(10); err != nil {
@@ -191,53 +191,127 @@ func TestParsedValues(t *testing.T) {
 	if entry == nil {
 		t.Fatal("expected entry 1, got nil")
 	}
-	if entry.IPVersion != ipVersion6 {
-		t.Fatalf("entry 1: expected ipv%d, got ipv%d", ipVersion6, entry.IPVersion)
+	if entry.IPVersion != "6" {
+		t.Fatalf("entry 1: expected ipv6, got ipv%s", entry.IPVersion)
 	}
-	if entry.ProtocolName != protocolUDP {
-		t.Fatalf("entry 1: expected %s, got %s", protocolUDP, entry.ProtocolName)
+	if entry.ProtocolName != "udp" {
+		t.Fatalf("entry 1: expected udp, got %s", entry.ProtocolName)
 	}
-	if entry.Action != ActionPass {
-		t.Fatalf("entry 1: expected %s, got %s", ActionPass, entry.Action)
+	if entry.Action != "pass" {
+		t.Fatalf("entry 1: expected pass, got %s", entry.Action)
 	}
-	if entry.Direction != DirectionIn {
-		t.Fatalf("entry 1: expected %s, got %s", DirectionIn, entry.Direction)
+	if entry.Direction != "in" {
+		t.Fatalf("entry 1: expected in, got %s", entry.Direction)
 	}
-	if entry.SourcePort != 63511 || entry.DestinationPort != 53 {
-		t.Fatalf("entry 1: expected ports 63511:53, got %d:%d", entry.SourcePort, entry.DestinationPort)
+	if entry.SourcePort != "63511" || entry.DestinationPort != "53" {
+		t.Fatalf("entry 1: expected ports 63511:53, got %s:%s", entry.SourcePort, entry.DestinationPort)
 	}
 	expectedTime := time.Date(2025, 10, 10, 0, 0, 0, 0, time.FixedZone("", 2*60*60))
 	if !entry.Time.Equal(expectedTime) {
 		t.Fatalf("entry 1: expected time %v, got %v", expectedTime, entry.Time)
+	}
+	if entry.Class != "0x00" {
+		t.Fatalf("entry 1: expected class 0x00, got %s", entry.Class)
+	}
+	if entry.Flow != "0xfd492" {
+		t.Fatalf("entry 1: expected flow 0xfd492, got %s", entry.Flow)
+	}
+	if entry.HopLimit != "128" {
+		t.Fatalf("entry 1: expected hoplimit 128, got %s", entry.HopLimit)
+	}
+	if entry.Length != "60" {
+		t.Fatalf("entry 1: expected length 60, got %s", entry.Length)
+	}
+	if entry.Label != "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d" {
+		t.Fatalf("entry 1: expected label 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d, got %s", entry.Label)
+	}
+	if entry.DataLength != "60" {
+		t.Fatalf("entry 1: expected datalen 60, got %s", entry.DataLength)
 	}
 	// 2nd entry
 	entry = s.Next()
 	if entry == nil {
 		t.Fatal("expected entry 2, got nil")
 	}
-	if entry.IPVersion != ipVersion4 {
-		t.Fatalf("entry 2: expected ipv%d, got ipv%d", ipVersion4, entry.IPVersion)
+	if entry.IPVersion != "4" {
+		t.Fatalf("entry 2: expected ipv4, got ipv%s", entry.IPVersion)
 	}
-	if entry.ProtocolName != protocolUDP {
-		t.Fatalf("entry 2: expected %s, got %s", protocolUDP, entry.ProtocolName)
+	if entry.ProtocolName != "udp" {
+		t.Fatalf("entry 2: expected udp, got %s", entry.ProtocolName)
 	}
 	if entry.Source != "192.168.1.100" || entry.Destination != "192.168.1.1" {
 		t.Fatalf("entry 2: expected src/dst 192.168.1.100/192.168.1.1, got %s/%s", entry.Source, entry.Destination)
 	}
-	// 7th entry
-	for range 4 {
-		s.Next()
+	if entry.DSCP != "0x0" {
+		t.Fatalf("entry 2: expected dscp 0x0, got %s", entry.DSCP)
 	}
+	if entry.TTL != "64" {
+		t.Fatalf("entry 2: expected ttl 64, got %s", entry.TTL)
+	}
+	if entry.ID != "0" {
+		t.Fatalf("entry 2: expected id 0, got %s", entry.ID)
+	}
+	if entry.Offset != "0" {
+		t.Fatalf("entry 2: expected offset 0, got %s", entry.Offset)
+	}
+	if entry.Flags != "DF" {
+		t.Fatalf("entry 2: expected flags DF, got %s", entry.Flags)
+	}
+	if entry.Length != "80" {
+		t.Fatalf("entry 2: expected length 80, got %s", entry.Length)
+	}
+	if entry.ECN != "" {
+		t.Fatalf("entry 2: expected ecn empty, got %s", entry.ECN)
+	}
+	if entry.DataLength != "60" {
+		t.Fatalf("entry 2: expected datalen 60, got %s", entry.DataLength)
+	}
+	// 4th entry
+	s.Next() // skip 3rd entry
 	entry = s.Next()
 	if entry == nil {
-		t.Fatal("expected entry 7, got nil")
+		t.Fatal("expected entry 4, got nil")
 	}
-	if entry.Action != ActionBlock {
-		t.Fatalf("entry 7: expected %s, got %s", ActionBlock, entry.Action)
+	if entry.IPVersion != "4" {
+		t.Fatalf("entry 4: expected ipv4, got ipv%s", entry.IPVersion)
 	}
-	if entry.ProtocolName != protocolTCP {
-		t.Fatalf("entry 7: expected %s, got %s", protocolTCP, entry.ProtocolName)
+	if entry.ProtocolName != "tcp" {
+		t.Fatalf("entry 4: expected tcp, got %s", entry.ProtocolName)
 	}
+	if entry.SourcePort != "46376" || entry.DestinationPort != "80" {
+		t.Fatalf("entry 4: expected ports 46376:80, got %s:%s", entry.SourcePort, entry.DestinationPort)
+	}
+	if entry.DataLength != "0" {
+		t.Fatalf("entry 4: expected datalen 0, got %s", entry.DataLength)
+	}
+	if entry.TCPFlags != "S" {
+		t.Fatalf("entry 4: expected tcpflags S, got %s", entry.TCPFlags)
+	}
+	if entry.TCPSequence != "1356197145" {
+		t.Fatalf("entry 4: expected tcpseq 1356197145, got %s", entry.TCPSequence)
+	}
+	if entry.TCPAcknowledgment != "" {
+		t.Fatalf("entry 4: expected tcpack empty, got %s", entry.TCPAcknowledgment)
+	}
+	if entry.TCPWindow != "64480" {
+		t.Fatalf("entry 4: expected tcpwindow 64480, got %s", entry.TCPWindow)
+	}
+	if entry.TCPUrgentPointer != "" {
+		t.Fatalf("entry 4: expected tcpurg empty, got %s", entry.TCPUrgentPointer)
+	}
+	if entry.TCPOptions != "mss;nop;wscale;nop;nop;sackOK" {
+		t.Fatalf("entry 4: expected tcpoptions mss;nop;wscale;nop;nop;sackOK, got %s", entry.TCPOptions)
+	}
+	if entry.DSCP != "0x0" {
+		t.Fatalf("entry 4: expected dscp 0x0, got %s", entry.DSCP)
+	}
+	if entry.TTL != "127" {
+		t.Fatalf("entry 4: expected ttl 127, got %s", entry.TTL)
+	}
+	if entry.Length != "52" {
+		t.Fatalf("entry 4: expected length 52, got %s", entry.Length)
+	}
+
 }
 
 func TestTotalLines(t *testing.T) {

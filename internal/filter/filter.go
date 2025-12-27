@@ -355,35 +355,29 @@ func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 // Matches (fieldFilter) returns true if the log entry matches the field filter criteria
 func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	value := strings.ToLower(f.value)
-	matchInt := func(i any) bool {
-		return fmt.Sprintf("%d", i) == f.value
-	}
-	matchStr := func(s string) bool {
-		return strings.HasPrefix(strings.ToLower(s), value)
-	}
 	switch f.field {
 	case fieldAction:
-		return matchStr(entry.Action)
+		return strings.HasPrefix(strings.ToLower(entry.Action), value)
 	case fieldDestination:
-		return matchStr(entry.Destination)
+		return strings.HasPrefix(strings.ToLower(entry.Destination), value)
 	case fieldDirection:
-		return matchStr(entry.Direction)
+		return strings.HasPrefix(strings.ToLower(entry.Direction), value)
 	case fieldDestinationPort:
-		return matchInt(entry.DestinationPort)
+		return entry.DestinationPort == f.value
 	case fieldIPVersion:
-		return matchInt(entry.IPVersion)
+		return strings.HasPrefix(strings.ToLower(entry.IPVersion), value)
 	case fieldInterface:
-		return matchStr(entry.Interface)
+		return strings.HasPrefix(strings.ToLower(entry.Interface), value)
 	case fieldPort:
-		return matchInt(entry.SourcePort) || matchInt(entry.DestinationPort)
+		return entry.SourcePort == f.value || entry.DestinationPort == f.value
 	case fieldProtocolName:
-		return matchStr(entry.ProtocolName)
+		return strings.HasPrefix(strings.ToLower(entry.ProtocolName), value)
 	case fieldReason:
-		return matchStr(entry.Reason)
+		return strings.HasPrefix(strings.ToLower(entry.Reason), value)
 	case fieldSource:
-		return matchStr(entry.Source)
+		return strings.HasPrefix(strings.ToLower(entry.Source), value)
 	case fieldSourcePort:
-		return matchInt(entry.SourcePort)
+		return entry.SourcePort == f.value
 	}
 	return false
 }

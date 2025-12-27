@@ -40,10 +40,9 @@ import (
 )
 
 const (
-	detailsHeight = 10
-
-	formatLine = "%s %s %s %s %s%s > %s%s"
-	formatPort = " %d"
+	formatDetail = "%-14s%s"
+	formatLine   = "%s %s %s %s %s%s > %s%s"
+	formatPort   = " %s"
 
 	loadEntriesMax       = 600
 	loadEntriesThreshold = 200
@@ -59,8 +58,9 @@ type model struct {
 	indexed bool           // whether file has been indexed
 
 	// details
-	details     *stream.LogEntry // entry being displayed in detail view
-	detailsView bool             // whether showing entry details instead of logs
+	details       *stream.LogEntry // entry being displayed in detail view
+	detailsHeight int              // dynamic height
+	detailsView   bool             // whether showing entry details instead of logs
 
 	// entries
 	entries              []stream.LogEntry       // contiguous block of entries
@@ -172,7 +172,7 @@ func styleString(str string, width int, style ...lipgloss.Style) string {
 func (m *model) scrollDown(n int) {
 	var lines int
 	if m.detailsView {
-		lines = detailsHeight
+		lines = m.detailsHeight
 	} else if m.errorsView {
 		lines = len(m.errors)
 	} else {
@@ -328,7 +328,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "G", "end":
 			var lines int
 			if m.detailsView {
-				lines = detailsHeight
+				lines = m.detailsHeight
 			} else if m.errorsView {
 				lines = len(m.errors)
 			} else {
@@ -364,6 +364,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.uiOffsetH = 0
 						m.uiOffsetV = 0
 						m.uiSelected = 0
+						m.detailsHeight = 21
+						switch m.details.ProtocolName {
+						case "tcp":
+							m.detailsHeight += 7
+						case "udp":
+							m.detailsHeight += 1
+						}
 					}
 				}
 			}
@@ -509,24 +516,53 @@ func (m model) View() string {
 	visibleStart := m.uiOffsetV
 
 	if m.detailsView { // details view
-		visibleEnd = min(visibleStart+visibleHeight, detailsHeight)
-
+		visibleEnd = min(visibleStart+visibleHeight, m.detailsHeight)
 		// header
 		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render("Details") + "\n")
 
 		// main
-		// don't forget to update the detailsHeight const when making changes here
 		details := []string{
-			fmt.Sprintf("%-18s%s", "Time:", m.details.Time.Format(time.RFC1123Z)),
-			fmt.Sprintf("%-18s%s", "Action:", m.details.Action),
-			fmt.Sprintf("%-18s%s", "Protocol:", m.details.ProtocolName),
-			fmt.Sprintf("%-18s%s", "Interface:", m.details.Interface),
-			fmt.Sprintf("%-18s%s", "Direction:", m.details.Direction),
-			fmt.Sprintf("%-18s%s", "Source:", m.details.Source),
-			fmt.Sprintf("%-18s%d", "Source port:", m.details.SourcePort),
-			fmt.Sprintf("%-18s%s", "Destination:", m.details.Destination),
-			fmt.Sprintf("%-18s%d", "Destination port:", m.details.DestinationPort),
-			fmt.Sprintf("%-18s%s", "Reason:", m.details.Reason),
+			fmt.Sprintf(formatDetail, "Time:", m.details.Time.Format(time.RFC1123Z)),
+			fmt.Sprintf(formatDetail, "Label:", m.details.Label),
+			fmt.Sprintf(formatDetail, "Action:", m.details.Action),
+			fmt.Sprintf(formatDetail, "Reason:", m.details.Reason),
+			//
+			fmt.Sprintf(formatDetail, "Interface:", m.details.Interface),
+			fmt.Sprintf(formatDetail, "Direction:", m.details.Direction),
+			fmt.Sprintf(formatDetail, "Protocol:", m.details.ProtocolName),
+			//
+			fmt.Sprintf(formatDetail, "Source:", m.details.Source),
+			fmt.Sprintf(formatDetail, "  Port:", m.details.SourcePort),
+			//
+			fmt.Sprintf(formatDetail, "Destination:", m.details.Destination),
+			fmt.Sprintf(formatDetail, "  Port:", m.details.DestinationPort),
+			//
+			fmt.Sprintf(formatDetail, "Class:", m.details.Class),
+			fmt.Sprintf(formatDetail, "DSCP:", m.details.DSCP),
+			fmt.Sprintf(formatDetail, "ECN:", m.details.ECN),
+			fmt.Sprintf(formatDetail, "Flags:", m.details.Flags),
+			fmt.Sprintf(formatDetail, "Flow:", m.details.Flow),
+			fmt.Sprintf(formatDetail, "Hop limit:", m.details.HopLimit),
+			fmt.Sprintf(formatDetail, "ID:", m.details.ID),
+			fmt.Sprintf(formatDetail, "Length:", m.details.Length),
+			fmt.Sprintf(formatDetail, "Offset:", m.details.Offset),
+			fmt.Sprintf(formatDetail, "TTL:", m.details.TTL),
+		}
+		switch m.details.ProtocolName {
+		case "tcp":
+			details = append(details,
+				fmt.Sprintf(formatDetail, "Data length:", m.details.DataLength),
+				fmt.Sprintf(formatDetail, "TCP Ack:", m.details.TCPAcknowledgment),
+				fmt.Sprintf(formatDetail, "TCP Flags:", m.details.TCPFlags),
+				fmt.Sprintf(formatDetail, "TCP Options:", m.details.TCPOptions),
+				fmt.Sprintf(formatDetail, "TCP Seq:", m.details.TCPSequence),
+				fmt.Sprintf(formatDetail, "TCP Urg:", m.details.TCPUrgentPointer),
+				fmt.Sprintf(formatDetail, "TCP Window:", m.details.TCPWindow),
+			)
+		case "udp":
+			details = append(details,
+				fmt.Sprintf(formatDetail, "Data length:", m.details.DataLength),
+			)
 		}
 		for i := visibleStart; i < visibleEnd; i++ {
 			line := sliceString(details[i], m.uiOffsetH, m.uiWidth)
@@ -587,9 +623,9 @@ func (m model) View() string {
 			// action
 			var actionStyle lipgloss.Style
 			switch entry.Action {
-			case stream.ActionBlock:
+			case "block":
 				actionStyle = m.uiStyles.alert
-			case stream.ActionPass:
+			case "pass":
 				actionStyle = m.uiStyles.plain
 			default:
 				actionStyle = m.uiStyles.bold
@@ -597,23 +633,21 @@ func (m model) View() string {
 			// interface
 			iface := entry.Interface
 			switch entry.Direction {
-			case stream.DirectionIn:
+			case "in":
 				iface = ">" + iface
-			case stream.DirectionOut:
+			case "out":
 				iface = "<" + iface
-			case stream.DirectionInOut:
-				iface = "><" + iface
 			default:
-				iface = entry.Direction + "." + iface
+				iface = "?" + iface
 			}
 			// source
 			var sourcePort string
-			if entry.SourcePort > 0 {
+			if entry.SourcePort != "" {
 				sourcePort = fmt.Sprintf(formatPort, entry.SourcePort)
 			}
 			// destination
 			var destinationPort string
-			if entry.DestinationPort > 0 {
+			if entry.DestinationPort != "" {
 				destinationPort = fmt.Sprintf(formatPort, entry.DestinationPort)
 			}
 			line := fmt.Sprintf(formatLine,
@@ -639,7 +673,7 @@ func (m model) View() string {
 	// status
 	statusLine := "position: %d/%d"
 	if m.detailsView {
-		statusLine = fmt.Sprintf(statusLine, m.uiSelected+1, detailsHeight)
+		statusLine = fmt.Sprintf(statusLine, m.uiSelected+1, m.detailsHeight)
 	} else if m.filterView {
 		statusLine = m.filterInput.View()
 	} else if m.errorsView {

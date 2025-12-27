@@ -28,54 +28,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
 
 const (
 	MaxErrorsInMemory = 1000
-
-	// actions
-	actionBinat        = "binat"
-	ActionBlock        = "block"
-	actionNat          = "nat"
-	ActionPass         = "pass"
-	actionRdr          = "rdr"
-	actionScrub        = "scrub"
-	actionSynproxyDrop = "synproxy-drop"
-
-	// directions
-	DirectionIn    = "in"
-	DirectionInOut = "in/out"
-	DirectionOut   = "out"
-
-	// ip
-	ipVersion4 = 4
-	ipVersion6 = 6
-
-	// protocols
-	protocolICMP   = "icmp"
-	protocolICMPv6 = "ipv6-icmp"
-	protocolTCP    = "tcp"
-	protocolUDP    = "udp"
-
-	// reasons
-	reasonBadOffset     = "bad-offset"
-	reasonBadTimestamp  = "bad-timestamp"
-	reasonCongestion    = "congestion"
-	reasonFragment      = "fragment"
-	reasonIpOption      = "ip-option"
-	reasonMatch         = "match"
-	reasonMemory        = "memory"
-	reasonNormalize     = "normalize"
-	reasonProtoChecksum = "proto-cksum"
-	reasonShort         = "short"
-	reasonSrcLimit      = "src-limit"
-	reasonStateInsert   = "state-insert"
-	reasonStateLimit    = "state-limit"
-	reasonStateMismatch = "state-mismatch"
-	reasonSynproxy      = "synproxy"
 )
 
 // LogEntry represents a parsed filter log entry
@@ -84,18 +42,34 @@ type LogEntry struct {
 	Action    string    `json:"action"`
 	Direction string    `json:"dir"`
 	Interface string    `json:"iface"`
+	Label     string    `json:"label"`
 	Reason    string    `json:"reason"`
 	Time      time.Time `json:"time"`
-
 	// ip
+	Class        string `json:"class,omitempty"`
+	DSCP         string `json:"dscp,omitempty"`
 	Destination  string `json:"dst"`
-	IPVersion    uint8  `json:"ipver"`
+	ECN          string `json:"ecn,omitempty"`
+	Flags        string `json:"flags,omitempty"`
+	Flow         string `json:"flow,omitempty"`
+	HopLimit     string `json:"hoplimit,omitempty"`
+	ID           string `json:"id,omitempty"`
+	IPVersion    string `json:"ipver"`
+	Length       string `json:"length,omitempty"`
+	Offset       string `json:"offset,omitempty"`
 	ProtocolName string `json:"proto"`
 	Source       string `json:"src"`
-
+	TTL          string `json:"ttl,omitempty"`
 	// protocol
-	DestinationPort uint16 `json:"dport,omitempty"`
-	SourcePort      uint16 `json:"sport,omitempty"`
+	DataLength        string `json:"datalen,omitempty"`
+	DestinationPort   string `json:"dport,omitempty"`
+	SourcePort        string `json:"sport,omitempty"`
+	TCPAcknowledgment string `json:"tcpack,omitempty"`
+	TCPFlags          string `json:"tcpflags,omitempty"`
+	TCPOptions        string `json:"tcpopts,omitempty"`
+	TCPSequence       string `json:"tcpseq,omitempty"`
+	TCPUrgentPointer  string `json:"tcpurg,omitempty"`
+	TCPWindow         string `json:"tcpwin,omitempty"`
 }
 
 // indexEntry represents an entry in the index
@@ -121,15 +95,6 @@ func (s *Stream) addError(msg string) {
 	if len(s.errors) < MaxErrorsInMemory {
 		s.errors = append(s.errors, msg)
 	}
-}
-
-// convPort converts a port string to uint16
-func convPort(portStr string) (uint16, error) {
-	port, err := strconv.ParseUint(portStr, 10, 16)
-	if err != nil {
-		return 0, err
-	}
-	return uint16(port), nil
 }
 
 // splitCSV splits a csv string into fields
@@ -180,217 +145,118 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		return nil
 	}
 
+	entry.Label = fields[3]
 	entry.Interface = fields[4]
-
-	switch fields[5] {
-	case reasonMatch:
-		entry.Reason = reasonMatch
-	case reasonBadOffset:
-		entry.Reason = reasonBadOffset
-	case reasonBadTimestamp:
-		entry.Reason = reasonBadTimestamp
-	case reasonCongestion:
-		entry.Reason = reasonCongestion
-	case reasonFragment:
-		entry.Reason = reasonFragment
-	case reasonIpOption:
-		entry.Reason = reasonIpOption
-	case reasonMemory:
-		entry.Reason = reasonMemory
-	case reasonNormalize:
-		entry.Reason = reasonNormalize
-	case reasonProtoChecksum:
-		entry.Reason = reasonProtoChecksum
-	case reasonShort:
-		entry.Reason = reasonShort
-	case reasonSrcLimit:
-		entry.Reason = reasonSrcLimit
-	case reasonStateInsert:
-		entry.Reason = reasonStateInsert
-	case reasonStateLimit:
-		entry.Reason = reasonStateLimit
-	case reasonStateMismatch:
-		entry.Reason = reasonStateMismatch
-	case reasonSynproxy:
-		entry.Reason = reasonSynproxy
-	default:
-		entry.Reason = fields[5]
-	}
-
-	switch fields[6] {
-	case ActionPass:
-		entry.Action = ActionPass
-	case ActionBlock:
-		entry.Action = ActionBlock
-	case actionBinat:
-		entry.Action = actionBinat
-	case actionNat:
-		entry.Action = actionNat
-	case actionRdr:
-		entry.Action = actionRdr
-	case actionScrub:
-		entry.Action = actionScrub
-	case actionSynproxyDrop:
-		entry.Action = actionSynproxyDrop
-	default:
-		entry.Action = fields[6]
-	}
-
-	switch fields[7] {
-	case DirectionIn:
-		entry.Direction = DirectionIn
-	case DirectionOut:
-		entry.Direction = DirectionOut
-	case DirectionInOut:
-		entry.Direction = DirectionInOut
-	default:
-		entry.Direction = fields[7]
-	}
-
-	switch fields[8] {
-	case "4":
-		entry.IPVersion = ipVersion4
-	case "6":
-		entry.IPVersion = ipVersion6
-	default:
-		s.addError(fmt.Sprintf("invalid ip version on line %d", lineNum))
-		return nil
-	}
+	entry.Reason = fields[5]
+	entry.Action = fields[6]
+	entry.Direction = fields[7]
+	entry.IPVersion = fields[8]
 
 	switch entry.IPVersion {
 	// ipv4
-	case ipVersion4:
-		// 9:tos, 10:ecn, 11:ttl, 12:id, 13:offset, 14:flags, 15:protonum, 16:protoname, 17:length, 18:src, 19:dst
+	case "4":
+		// 9:dscp/tos, 10:ecn, 11:ttl, 12:id, 13:offset, 14:flags, 15:protonum, 16:protoname, 17:length, 18:src, 19:dst
 		if len(fields) < 20 {
 			s.addError(fmt.Sprintf("invalid ipv4 section on line %d", lineNum))
 			return nil
 		}
 
-		switch fields[16] {
-		case protocolTCP:
-			entry.ProtocolName = protocolTCP
-		case protocolUDP:
-			entry.ProtocolName = protocolUDP
-		case protocolICMP:
-			entry.ProtocolName = protocolICMP
-		default:
-			entry.ProtocolName = fields[16]
-		}
-
+		entry.DSCP = fields[9]
+		entry.ECN = fields[10]
+		entry.TTL = fields[11]
+		entry.ID = fields[12]
+		entry.Offset = fields[13]
+		entry.Flags = fields[14]
+		entry.ProtocolName = fields[16]
+		entry.Length = fields[17]
 		entry.Source = fields[18]
 		entry.Destination = fields[19]
 
 		switch entry.ProtocolName {
 		// udp4
-		case protocolUDP:
+		case "udp":
 			// 20: srcport, 21: dstport, 22: datalen
-			if len(fields) < 22 {
+			if len(fields) < 23 {
 				s.addError(fmt.Sprintf("invalid udp4 section on line %d", lineNum))
 				return nil
 			}
-
-			entry.SourcePort, err = convPort(fields[20])
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid source port on line %d: %v", lineNum, err))
-				return nil
-			}
-
-			entry.DestinationPort, err = convPort(fields[21])
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid destination port on line %d: %v", lineNum, err))
-				return nil
-			}
+			entry.SourcePort = fields[20]
+			entry.DestinationPort = fields[21]
+			entry.DataLength = fields[22]
 
 		// tcp4
-		case protocolTCP:
+		case "tcp":
 			// 20: srcport, 21: dstport, 22: datalen, 23: flags, 24: seq, 25: ack, 26: window, 27: urg, 28: options
-			if len(fields) < 22 {
+			if len(fields) < 29 {
 				s.addError(fmt.Sprintf("invalid tcp4 section on line %d", lineNum))
 				return nil
 			}
-
-			entry.SourcePort, err = convPort(fields[20])
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid source port on line %d: %v", lineNum, err))
-				return nil
-			}
-
-			entry.DestinationPort, err = convPort(fields[21])
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid destination port on line %d: %v", lineNum, err))
-				return nil
-			}
+			entry.SourcePort = fields[20]
+			entry.DestinationPort = fields[21]
+			entry.DataLength = fields[22]
+			entry.TCPFlags = fields[23]
+			entry.TCPSequence = fields[24]
+			entry.TCPAcknowledgment = fields[25]
+			entry.TCPWindow = fields[26]
+			entry.TCPUrgentPointer = fields[27]
+			entry.TCPOptions = fields[28]
 
 		// skip for any other protocol
 		default:
 		}
 
 	// ipv6
-	case ipVersion6:
+	case "6":
 		// 9:class, 10:flow, 11:hoplimit, 12:protoname, 13:protonum, 14:length, 15:src, 16:dst
 		if len(fields) < 17 {
 			s.addError(fmt.Sprintf("invalid ipv6 section on line %d", lineNum))
 			return nil
 		}
 
-		switch fields[12] {
-		case protocolTCP:
-			entry.ProtocolName = protocolTCP
-		case protocolUDP:
-			entry.ProtocolName = protocolUDP
-		case protocolICMPv6:
-			entry.ProtocolName = protocolICMPv6
-		default:
-			entry.ProtocolName = fields[12]
-		}
-
+		entry.Class = fields[9]
+		entry.Flow = fields[10]
+		entry.HopLimit = fields[11]
+		entry.ProtocolName = fields[12]
+		entry.Length = fields[14]
 		entry.Source = fields[15]
 		entry.Destination = fields[16]
 
 		switch entry.ProtocolName {
 		// udp6
-		case protocolUDP:
+		case "udp":
 			// 17: srcport, 18: dstport, 19: datalen
-			if len(fields) < 19 {
+			if len(fields) < 20 {
 				s.addError(fmt.Sprintf("invalid udp6 section on line %d", lineNum))
 				return nil
 			}
-
-			entry.SourcePort, err = convPort(fields[17])
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid source port on line %d: %v", lineNum, err))
-				return nil
-			}
-
-			entry.DestinationPort, err = convPort(fields[18])
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid destination port on line %d: %v", lineNum, err))
-				return nil
-			}
+			entry.SourcePort = fields[17]
+			entry.DestinationPort = fields[18]
+			entry.DataLength = fields[19]
 
 		// tcp6
-		case protocolTCP:
+		case "tcp":
 			// 17: srcport, 18: dstport, 19: datalen, 20: flags, 21: seq, 22: ack, 23: window, 24: urg, 25: options
-			if len(fields) < 19 {
+			if len(fields) < 26 {
 				s.addError(fmt.Sprintf("invalid tcp6 section on line %d", lineNum))
 				return nil
 			}
-
-			entry.SourcePort, err = convPort(fields[17])
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid source port on line %d: %v", lineNum, err))
-				return nil
-			}
-
-			entry.DestinationPort, err = convPort(fields[18])
-			if err != nil {
-				s.addError(fmt.Sprintf("invalid destination port on line %d: %v", lineNum, err))
-				return nil
-			}
+			entry.SourcePort = fields[17]
+			entry.DestinationPort = fields[18]
+			entry.DataLength = fields[19]
+			entry.TCPFlags = fields[20]
+			entry.TCPSequence = fields[21]
+			entry.TCPAcknowledgment = fields[22]
+			entry.TCPWindow = fields[23]
+			entry.TCPUrgentPointer = fields[24]
+			entry.TCPOptions = fields[25]
 
 		// skip for any other protocol
 		default:
 		}
+
+	default:
+		s.addError(fmt.Sprintf("invalid ip version on line %d", lineNum))
+		return nil
 	}
 
 	return &entry
