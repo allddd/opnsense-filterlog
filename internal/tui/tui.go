@@ -101,8 +101,9 @@ type styles struct {
 	bar      lipgloss.Style
 	barAlert lipgloss.Style
 	bold     lipgloss.Style
-	faint    lipgloss.Style
+	ip       lipgloss.Style
 	plain    lipgloss.Style
+	port     lipgloss.Style
 	selected lipgloss.Style
 }
 
@@ -617,7 +618,7 @@ func (m model) View() string {
 			entry := m.getEntryAtLine(m.entriesAvailable[i])
 			if entry == nil {
 				// entry not loaded in memory
-				b.WriteString(m.uiStyles.faint.Render("loading...") + "\n")
+				b.WriteString(m.uiStyles.bold.Render("loading...") + "\n")
 				continue
 			}
 			// action
@@ -634,11 +635,11 @@ func (m model) View() string {
 			iface := entry.Interface
 			switch entry.Direction {
 			case "in":
-				iface = ">" + iface
+				iface = "I " + iface
 			case "out":
-				iface = "<" + iface
+				iface = "O " + iface
 			default:
-				iface = "?" + iface
+				iface = m.uiStyles.bold.Render("?") + " " + iface
 			}
 			// source
 			var sourcePort string
@@ -655,10 +656,10 @@ func (m model) View() string {
 				styleString(entry.Action, widthAction, actionStyle),
 				styleString(entry.ProtocolName, widthProtocol, m.uiStyles.plain),
 				styleString(iface, widthInterface, m.uiStyles.plain),
-				styleString(entry.Source, 0, m.uiStyles.bold),
-				styleString(sourcePort, 0, m.uiStyles.faint),
-				styleString(entry.Destination, 0, m.uiStyles.bold),
-				styleString(destinationPort, 0, m.uiStyles.faint))
+				styleString(entry.Source, 0, m.uiStyles.ip),
+				styleString(sourcePort, 0, m.uiStyles.port),
+				styleString(entry.Destination, 0, m.uiStyles.ip),
+				styleString(destinationPort, 0, m.uiStyles.port))
 			line = sliceString(line, m.uiOffsetH, m.uiWidth)
 			if i == m.uiSelected {
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(ansi.Strip(line))
@@ -896,9 +897,11 @@ func Display(s *stream.Stream) error {
 			Foreground(lipgloss.Color("231")),
 		bold: lipgloss.NewStyle().
 			Bold(true),
-		faint: lipgloss.NewStyle().
-			Faint(true),
 		plain: lipgloss.NewStyle(),
+		ip: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("2")),
+		port: lipgloss.NewStyle().
+			Foreground(lipgloss.Color("4")),
 		selected: lipgloss.NewStyle().
 			// width must be set before rendering
 			Reverse(true),
