@@ -86,6 +86,7 @@ You can interact with the TUI using:
 - **`l`** or **`►`** - Scroll right
 - **`u`** or **`PgUp`** - Page up
 - **`d`** or **`PgDn`** - Page down
+- **`Enter`** - View details
 - **`/`** - Enter filter mode
 - **`q`** - Quit
 
