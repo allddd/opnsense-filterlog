@@ -1,4 +1,4 @@
-# Copyright (c) 2025 allddd <me@allddd.onl>
+# Copyright (c) 2025, 2026 allddd <me@allddd.onl>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -72,8 +72,9 @@ install: build-release ## build and install files
 modernize: ## modernize code
 	$(GO) run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -diff ./...
 
-release: fmt modernize test clean build-release ## create signed release
+release: fmt modernize test clean build-release ## build, sign and upload release binary
 	sha256sum $(PROGRAM) | gpg --clearsign > ./$(PROGRAM).sha256
+	curl -sS --fail-with-body -w '\n' -H 'PRIVATE-TOKEN: $(PAT)' -T './$(PROGRAM){,.sha256}' https://gitlab.com/api/v4/projects/76289353/packages/generic/$(PROGRAM)/$(VERSION)/
 
 test: ## run tests
 	$(GO) test -fullpath -shuffle=on ./...
