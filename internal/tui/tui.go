@@ -26,6 +26,7 @@ package tui
 import (
 	"fmt"
 	"maps"
+	"strconv"
 	"strings"
 	"time"
 
@@ -701,7 +702,7 @@ func (m model) View() string {
 			helpLine += " | esc: clear"
 		}
 		if len(m.errors) > 0 {
-			errorCount := fmt.Sprintf("%d", len(m.errors))
+			errorCount := strconv.Itoa(len(m.errors))
 			if len(m.errors) >= stream.MaxErrorsInMemory {
 				errorCount += "+"
 			}

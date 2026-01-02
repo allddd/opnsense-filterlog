@@ -25,6 +25,7 @@ package stream
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -364,7 +365,7 @@ func (s *Stream) Next() *LogEntry {
 // SeekToLine seeks to a specific line number using the index.
 func (s *Stream) SeekToLine(lineNum int) error {
 	if len(s.index) <= 0 {
-		return fmt.Errorf("error(stream): could not seek: missing index")
+		return errors.New("error(stream): could not seek: missing index")
 	}
 	if lineNum < 0 || lineNum >= len(s.index) {
 		return fmt.Errorf("error(stream): could not seek: line %d out of range [0, %d)", lineNum, len(s.index))
