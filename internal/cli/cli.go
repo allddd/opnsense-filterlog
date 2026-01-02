@@ -64,7 +64,7 @@ func (f *flags) flagsDefine() {
 		name := ft.Tag.Get("name")
 		usage := ft.Tag.Get("usage")
 		value := ft.Tag.Get("value")
-		switch fv.Kind() {
+		switch fv.Kind() { //nolint:exhaustive
 		case reflect.Bool:
 			valueBool, _ := strconv.ParseBool(value)
 			flag.BoolVar(fv.Addr().Interface().(*bool), name, valueBool, usage)
