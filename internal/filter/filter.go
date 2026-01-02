@@ -57,7 +57,7 @@ const (
 
 var (
 	// tokens maps string representations of tokens to token types.
-	tokens = map[string]tokenTyp{
+	tokens = map[string]tokenTyp{ //nolint:gochecknoglobals
 		// and
 		"and": tokenAnd,
 		"&&":  tokenAnd,
@@ -70,7 +70,7 @@ var (
 	}
 
 	// fields maps field names (and their aliases) to field types.
-	fields = map[string]fieldTyp{
+	fields = map[string]fieldTyp{ //nolint:gochecknoglobals
 		// action
 		"action": fieldAction,
 		// direction

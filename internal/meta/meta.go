@@ -24,6 +24,6 @@
 package meta
 
 var (
-	Name    = "opnsense-filterlog"
-	Version = "unknown"
+	Name    = "opnsense-filterlog" //nolint:gochecknoglobals
+	Version = "unknown"            //nolint:gochecknoglobals
 )
