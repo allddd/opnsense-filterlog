@@ -338,7 +338,7 @@ func (s Stream) GetErrors() []string {
 
 // NewStream creates a new streaming parser for the given log file.
 func NewStream(path string) (*Stream, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("error(stream): %w", err)
 	}
