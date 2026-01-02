@@ -1,0 +1,44 @@
+---
+default:
+    image: golang:latest
+    interruptible: true
+
+stages:
+    - lint
+    - test
+    - build
+
+.go-cache:
+    variables:
+        GOPATH: $CI_PROJECT_DIR/.go
+    before_script:
+        - mkdir -p .go
+    cache:
+        key:
+            files:
+                - go.sum
+        paths:
+            - .go/pkg/mod/
+
+lint:
+    stage: lint
+    image: golangci/golangci-lint:latest
+    script:
+        - golangci-lint fmt -d
+        - golangci-lint run
+
+test:
+    stage: test
+    extends: .go-cache
+    script:
+        - go test -fullpath -shuffle=on ./...
+
+build:
+    stage: build
+    extends: .go-cache
+    script:
+        - GOARCH=amd64 GOOS=freebsd go build -o $CI_PROJECT_NAME
+    artifacts:
+        paths:
+            - $CI_PROJECT_NAME
+        expire_in: 1 day
