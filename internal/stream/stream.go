@@ -366,7 +366,7 @@ func (s *Stream) Next() *LogEntry {
 
 // SeekToLine seeks to a specific line number using the index.
 func (s *Stream) SeekToLine(lineNum int) error {
-	if len(s.index) <= 0 {
+	if len(s.index) == 0 {
 		return errors.New("error(stream): could not seek: missing index")
 	}
 	if lineNum < 0 || lineNum >= len(s.index) {

@@ -173,11 +173,12 @@ func styleString(str string, width int, style ...lipgloss.Style) string {
 
 func (m *model) scrollDown(n int) {
 	var lines int
-	if m.detailsView {
+	switch {
+	case m.detailsView:
 		lines = m.detailsHeight
-	} else if m.errorsView {
+	case m.errorsView:
 		lines = len(m.errors)
-	} else {
+	default:
 		lines = len(m.entriesAvailable)
 	}
 	m.uiSelected = min(m.uiSelected+n, lines-1)
@@ -329,11 +330,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "G", "end":
 			var lines int
-			if m.detailsView {
+			switch {
+			case m.detailsView:
 				lines = m.detailsHeight
-			} else if m.errorsView {
+			case m.errorsView:
 				lines = len(m.errors)
-			} else {
+			default:
 				lines = len(m.entriesAvailable)
 			}
 			m.uiSelected = max(lines-1, 0)
@@ -351,7 +353,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case "l", "right":
-			m.uiOffsetH = m.uiOffsetH + 10
+			m.uiOffsetH += 10
 			return m, nil
 
 		case "enter":
@@ -517,7 +519,7 @@ func (m model) View() string {
 	visibleHeight := m.visibleHeight()
 	visibleStart := m.uiOffsetV
 
-	if m.detailsView { // details view
+	if m.detailsView { //nolint:gocritic // details view
 		visibleEnd = min(visibleStart+visibleHeight, m.detailsHeight)
 		// header
 		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render("Details") + "\n")
@@ -674,13 +676,14 @@ func (m model) View() string {
 
 	// status
 	statusLine := "position: %d/%d"
-	if m.detailsView {
+	switch {
+	case m.detailsView:
 		statusLine = fmt.Sprintf(statusLine, m.uiSelected+1, m.detailsHeight)
-	} else if m.filterView {
+	case m.filterView:
 		statusLine = m.filterInput.View()
-	} else if m.errorsView {
+	case m.errorsView:
 		statusLine = fmt.Sprintf(statusLine+" (limit: %d)", m.uiSelected+1, len(m.errors), stream.MaxErrorsInMemory)
-	} else {
+	default:
 		statusLine = fmt.Sprintf(statusLine, m.uiSelected+1, len(m.entriesAvailable))
 		if m.filterError != "" {
 			statusLine += " | " + m.uiStyles.barAlert.Render(m.filterError)
@@ -692,11 +695,12 @@ func (m model) View() string {
 
 	// help
 	helpLine := "q: quit | hjkl: move | ud: page | gG: jump"
-	if m.detailsView || m.errorsView {
+	switch {
+	case m.detailsView || m.errorsView:
 		helpLine += " | esc: back"
-	} else if m.filterView {
+	case m.filterView:
 		helpLine = "enter: apply | esc: cancel"
-	} else {
+	default:
 		helpLine += " | enter: details | /: filter"
 		if m.filterApplied {
 			helpLine += " | esc: clear"
