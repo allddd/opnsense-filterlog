@@ -286,7 +286,10 @@ func TestStructure(t *testing.T) {
 	// check all entries can be unmarshaled to LogEntry
 	for i, e := range entries {
 		var entry stream.LogEntry
-		entryJSON, _ := json.Marshal(e)
+		entryJSON, err := json.Marshal(e)
+		if err != nil {
+			t.Fatalf("could not marshal entry %d: %v", i, err)
+		}
 		if err := json.Unmarshal(entryJSON, &entry); err != nil {
 			t.Fatalf("could not unmarshal entry %d: %v", i, err)
 		}
