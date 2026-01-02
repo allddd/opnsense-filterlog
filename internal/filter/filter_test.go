@@ -441,8 +441,8 @@ func TestGrouping(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "grouping with or and and",
-			filter:      "(src 192.168 or src 10.0) and proto tcp",
+			name:        "grouping with || and &&",
+			filter:      "(src 192.168 || src 10.0) && proto tcp",
 			entry:       stream.LogEntry{Source: "192.168.1.1", ProtocolName: "tcp"},
 			expectMatch: true,
 		},
