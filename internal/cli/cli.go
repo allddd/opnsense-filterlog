@@ -67,9 +67,9 @@ func (f *flags) flagsDefine() {
 		switch fv.Kind() { //nolint:exhaustive
 		case reflect.Bool:
 			valueBool, _ := strconv.ParseBool(value)
-			flag.BoolVar(fv.Addr().Interface().(*bool), name, valueBool, usage)
+			flag.BoolVar(fv.Addr().Interface().(*bool), name, valueBool, usage) //nolint:forcetypeassert
 		case reflect.String:
-			flag.StringVar(fv.Addr().Interface().(*string), name, value, usage)
+			flag.StringVar(fv.Addr().Interface().(*string), name, value, usage) //nolint:forcetypeassert
 		}
 	}
 }
