@@ -32,18 +32,18 @@ import (
 	"gitlab.com/allddd/opnsense-filterlog/internal/stream"
 )
 
-func captureOutput(fn func() error) (stdout, stderr []byte, err error) {
+func captureOutput(fn func() error) ([]byte, []byte, error) {
 	rOut, wOut, _ := os.Pipe()
 	rErr, wErr, _ := os.Pipe()
 	oldOut, oldErr := os.Stdout, os.Stderr
 	os.Stdout, os.Stderr = wOut, wErr
-	err = fn()
+	err := fn()
 	wOut.Close()
 	wErr.Close()
 	os.Stdout, os.Stderr = oldOut, oldErr
-	stdout, _ = io.ReadAll(rOut)
-	stderr, _ = io.ReadAll(rErr)
-	return
+	stdout, _ := io.ReadAll(rOut)
+	stderr, _ := io.ReadAll(rErr)
+	return stdout, stderr, err
 }
 
 func TestValidLog(t *testing.T) {
