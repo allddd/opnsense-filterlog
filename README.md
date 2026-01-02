@@ -183,7 +183,7 @@ Before opening a merge request, please [open an issue](https://gitlab.com/allddd
 
 Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification (see `git log` for examples).
 
-Before submitting a merge request, make sure `make test` passes, your code follows go conventions (`make fmt` and `make modernize`), new features have tests, and documentation is updated.
+Before submitting a merge request, make sure `make test` passes, your code follows go conventions (`make lint`), new features have tests, and documentation is updated.
 
 ## Copyright
 

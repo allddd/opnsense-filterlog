@@ -21,7 +21,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-.PHONY: build build-release clean deps fmt help install modernize release test uninstall
+.PHONY: build build-release clean deps help lint install release test uninstall
 
 PROGRAM = opnsense-filterlog
 VERSION != git describe --tags 2>/dev/null || printf 'unknown'
@@ -56,12 +56,13 @@ deps: ## update dependencies
 	$(GO) mod tidy
 	$(GO) mod verify
 
-fmt: ## format code
-	$(GO) fmt ./...
-
 help: ## display help message
 	@printf 'available targets:\n'
 	@awk -F' ## ' '/^[a-z-]+:/ {sub(/:.*/, "", $$1); printf "  %-15s - %s\n", $$1, $$2}' ./Makefile
+
+lint: ## format code and run linters
+	golangci-lint fmt
+	golangci-lint run
 
 install: build-release ## build and install files
 	$(INSTALL) -d $(DESTDIR)$(SBINDIR)
@@ -69,10 +70,7 @@ install: build-release ## build and install files
 	$(INSTALL) -d $(DESTDIR)$(MAN8DIR)
 	$(INSTALL_DATA) ./docs/$(PROGRAM).8 $(DESTDIR)$(MAN8DIR)/$(PROGRAM).8
 
-modernize: ## modernize code
-	$(GO) run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -diff ./...
-
-release: fmt modernize test clean build-release ## build, sign and upload release binary
+release: lint test clean build-release ## build, sign and upload release binary
 	sha256sum $(PROGRAM) | gpg --clearsign > ./$(PROGRAM).sha256
 	curl -sS --fail-with-body -w '\n' -H 'PRIVATE-TOKEN: $(PAT)' -T './$(PROGRAM){,.sha256}' https://gitlab.com/api/v4/projects/76289353/packages/generic/$(PROGRAM)/$(VERSION)/
 
