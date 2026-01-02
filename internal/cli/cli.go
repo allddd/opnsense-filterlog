@@ -58,7 +58,7 @@ type flags struct {
 func (f *flags) flagsDefine() {
 	sv := reflect.ValueOf(f).Elem()
 	st := sv.Type()
-	for i := 0; i < st.NumField(); i++ {
+	for i := range st.NumField() {
 		ft := st.Field(i)
 		fv := sv.Field(i)
 		name := ft.Tag.Get("name")

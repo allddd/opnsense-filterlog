@@ -858,7 +858,7 @@ func (m model) getEntryAtLine(lineNum int) *stream.LogEntry {
 // showAllLines populates visibleLines with all line numbers and is used when initializing or when clearing a filter.
 func (m *model) showAllLines() {
 	m.entriesAvailable = m.entriesAvailable[:0]
-	for i := 0; i < m.entriesTotal; i++ {
+	for i := range m.entriesTotal {
 		m.entriesAvailable = append(m.entriesAvailable, i)
 	}
 }
@@ -870,7 +870,7 @@ func (m model) scanAndFilter() tea.Cmd {
 		if err := m.stream.SeekToLine(0); err != nil {
 			return streamErrorMsg{err: err}
 		}
-		for i := 0; i < m.entriesTotal; i++ {
+		for i := range m.entriesTotal {
 			entry := m.stream.Next()
 			if entry == nil {
 				break

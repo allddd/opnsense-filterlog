@@ -103,7 +103,7 @@ func (s *Stream) addError(msg string) {
 func splitCSV(csv string) []string {
 	fields := make([]string, 0, 30) // preallocate for worst case
 	start := 0
-	for i := 0; i < len(csv); i++ {
+	for i := range len(csv) {
 		if csv[i] == ',' {
 			fields = append(fields, csv[start:i])
 			start = i + 1 // +1 for comma
