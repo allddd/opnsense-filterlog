@@ -39,8 +39,8 @@ func TestSplit(t *testing.T) {
 		{"empty in the middle", "a,,c"},
 		{"empty at boundaries", ",b,"},
 		{"all empty", ",,"},
-		{"real ipv4", "68,,,4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a,eth1,match,pass,out,4,0x0,,127,17785,0,DF,6,tcp,52,192.168.1.100,10.0.0.5,46376,80,0,S,1356197145,,64480,,mss;nop;wscale;nop;nop;sackOK"},
-		{"real ipv6", "61,,,3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f,eth0,match,pass,in,6,0x00,0xd3e97,128,udp,17,60,fd00:abcd:ef01:2345:6789:abcd:ef01:2345,fd00:1111:2222:3333:4444:5555:6666:7777,51091,53,60"},
+		{"real ipv4", "68,,,4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a,eth1,match,pass,out,4,0x0,,127,17785,0,DF,6,tcp,52,192.168.1.100,10.0.0.5,46376,80,0,S,1356197145,,64480,,mss;nop;wscale;nop;nop;sackOK"},     //nolint:lll
+		{"real ipv6", "61,,,3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f,eth0,match,pass,in,6,0x00,0xd3e97,128,udp,17,60,fd00:abcd:ef01:2345:6789:abcd:ef01:2345,fd00:1111:2222:3333:4444:5555:6666:7777,51091,53,60"}, //nolint:lll
 		{"very large", strings.Repeat("field,", 50) + "last"},
 	}
 	for _, tc := range tests {
@@ -335,7 +335,7 @@ func TestTotalLines(t *testing.T) {
 
 func BenchmarkParse(b *testing.B) {
 	s := &Stream{}
-	line := `<134>1 2025-10-10T00:00:00+02:00 opnsense.filter.log filterlog 86605 - [meta sequenceId="4"] 68,,,4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a,eth1,match,pass,out,4,0x0,,127,17785,0,DF,6,tcp,52,192.168.1.100,10.0.0.5,46376,80,0,S,1356197145,,64480,,mss;nop;wscale;nop;nop;sackOK`
+	line := `<134>1 2025-10-10T00:00:00+02:00 opnsense.filter.log filterlog 86605 - [meta sequenceId="4"] 68,,,4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a,eth1,match,pass,out,4,0x0,,127,17785,0,DF,6,tcp,52,192.168.1.100,10.0.0.5,46376,80,0,S,1356197145,,64480,,mss;nop;wscale;nop;nop;sackOK` //nolint:lll
 	for b.Loop() {
 		s.parse(line, 1)
 	}

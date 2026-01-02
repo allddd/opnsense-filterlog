@@ -69,7 +69,7 @@ type model struct {
 	entriesFilteredStart int                     // number of first line in entriesFiltered block
 	entriesFilteredEnd   int                     // number of last line in entriesFiltered block
 	entriesTotal         int                     // total number of valid log entries
-	entriesAvailable     []int                   // line numbers that can be displayed (all lines in default view, matching lines when filtering)
+	entriesAvailable     []int                   // line numbers that can be displayed (all or matching filter)
 
 	// error
 	errors     []string // parse errors
@@ -421,8 +421,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.filterInput.Width = msg.Width - len(m.filterInput.Prompt) - 1 // -1 for cursor
 		m.uiHeight = msg.Height
 		m.uiWidth = msg.Width
-		// keep selected line visible after resize
-		m.uiOffsetV = max(0, min(m.uiSelected, max(m.uiOffsetV, m.uiSelected-m.visibleHeight()+1))) // +1 to keep selected line visible at bottom
+		// keep selected line visible after resize (+1 to keep selected line visible at bottom)
+		m.uiOffsetV = max(0, min(m.uiSelected, max(m.uiOffsetV, m.uiSelected-m.visibleHeight()+1)))
 		return m, nil
 
 	case indexMsg:
@@ -776,7 +776,8 @@ func loadEntriesFiltered(s *stream.Stream, lineNums []int, entriesFilteredStart,
 
 // view management
 
-// checkLoadEntries checks if the currently loaded contiguous block needs reloading and returns a command to load it if needed
+// checkLoadEntries checks if the currently loaded contiguous block needs reloading
+// and returns a command to load it if needed.
 func (m model) checkLoadEntries() tea.Cmd {
 	if m.uiLoading || len(m.entries) == m.entriesTotal || len(m.entriesAvailable) == 0 || !m.indexed {
 		return nil
@@ -797,7 +798,8 @@ func (m model) checkLoadEntries() tea.Cmd {
 	return nil
 }
 
-// checkLoadEntriesFiltered checks if the currently loaded non-contiguous block needs reloading and returns a command to load it if needed
+// checkLoadEntriesFiltered checks if the currently loaded non-contiguous block needs reloading
+// and returns a command to load it if needed.
 func (m model) checkLoadEntriesFiltered() tea.Cmd {
 	if m.uiLoading || !m.filterApplied || len(m.entriesAvailable) == 0 || !m.indexed {
 		return nil
@@ -808,7 +810,8 @@ func (m model) checkLoadEntriesFiltered() tea.Cmd {
 	}
 	visibleStart := m.uiOffsetV
 	visibleEnd := min(visibleStart+m.visibleHeight(), len(m.entriesAvailable))
-	if visibleStart < m.entriesFilteredStart+loadEntriesThreshold || visibleEnd >= m.entriesFilteredEnd-loadEntriesThreshold {
+	if visibleStart < m.entriesFilteredStart+loadEntriesThreshold ||
+		visibleEnd >= m.entriesFilteredEnd-loadEntriesThreshold {
 		// center around the middle of visible range
 		centerLine := (visibleStart + visibleEnd) / 2
 		newStart := max(0, centerLine-loadEntriesMax/2)
