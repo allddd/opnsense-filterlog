@@ -57,7 +57,9 @@ func displayJSON(s *stream.Stream, filterValue string) error {
 		}
 	}
 	// open object and entries array
-	fmt.Fprint(os.Stdout, `{"entries":[`)
+	if _, err := fmt.Fprint(os.Stdout, `{"entries":[`); err != nil {
+		return fmt.Errorf("error(json): could not write output: %w", err)
+	}
 	// stream entries and count
 	entries := 0
 	for entry := s.Next(); entry != nil; entry = s.Next() {
@@ -70,13 +72,19 @@ func displayJSON(s *stream.Stream, filterValue string) error {
 			return fmt.Errorf("error(json): could not encode entry: %w", err)
 		}
 		if entries > 0 {
-			fmt.Fprint(os.Stdout, ",")
+			if _, err := fmt.Fprint(os.Stdout, ","); err != nil {
+				return fmt.Errorf("error(json): could not write output: %w", err)
+			}
 		}
-		fmt.Fprint(os.Stdout, string(jsonEntry))
+		if _, err := fmt.Fprint(os.Stdout, string(jsonEntry)); err != nil {
+			return fmt.Errorf("error(json): could not write output: %w", err)
+		}
 		entries++
 	}
 	// close entries and open meta
-	fmt.Fprint(os.Stdout, `],"meta":`)
+	if _, err := fmt.Fprint(os.Stdout, `],"meta":`); err != nil {
+		return fmt.Errorf("error(json): could not write output: %w", err)
+	}
 	// build and write meta object
 	errors := s.GetErrors()
 	source, err := s.GetPathAbs()
@@ -93,7 +101,9 @@ func displayJSON(s *stream.Stream, filterValue string) error {
 	if err != nil {
 		return fmt.Errorf("error(json): could not encode meta: %w", err)
 	}
-	fmt.Fprintln(os.Stdout, string(jsonMeta)+"}")
+	if _, err := fmt.Fprintln(os.Stdout, string(jsonMeta)+"}"); err != nil {
+		return fmt.Errorf("error(json): could not write output: %w", err)
+	}
 	// print errors to stderr (if any)
 	if len(errors) > 0 {
 		for _, err := range errors {

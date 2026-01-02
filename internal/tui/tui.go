@@ -887,7 +887,7 @@ func (m model) scanAndFilter() tea.Cmd {
 
 // Display starts the TUI and displays the log file from the given stream.
 func Display(s *stream.Stream) error {
-	defer s.Close()
+	defer s.Close() //nolint:errcheck
 	// uiStyles
 	st := &styles{
 		alert: lipgloss.NewStyle().

@@ -268,7 +268,9 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 // reset repositions the stream to the start of the file.
 func (s *Stream) reset() error {
 	if s.file != nil {
-		s.file.Close()
+		if err := s.file.Close(); err != nil {
+			return fmt.Errorf("error(stream): could not close file: %w", err)
+		}
 	}
 	file, err := os.Open(s.path)
 	if err != nil {
@@ -371,7 +373,9 @@ func (s *Stream) SeekToLine(lineNum int) error {
 		return fmt.Errorf("error(stream): could not seek: line %d out of range [0, %d)", lineNum, len(s.index))
 	}
 	if s.file != nil {
-		s.file.Close()
+		if err := s.file.Close(); err != nil {
+			return fmt.Errorf("error(stream): could not close file: %w", err)
+		}
 	}
 	file, err := os.Open(s.path)
 	if err != nil {
@@ -379,7 +383,7 @@ func (s *Stream) SeekToLine(lineNum int) error {
 	}
 	_, err = file.Seek(s.index[lineNum].lineOffset, 0)
 	if err != nil {
-		file.Close()
+		_ = file.Close()
 		return fmt.Errorf("error(stream): could not seek to line %d: %w", lineNum, err)
 	}
 	s.file = file

@@ -105,7 +105,9 @@ func Execute() {
 	}
 	// -V
 	if f.Version {
-		fmt.Fprintln(os.Stdout, meta.Version)
+		if _, err := fmt.Fprintln(os.Stdout, meta.Version); err != nil {
+			os.Exit(1)
+		}
 		os.Exit(0)
 	}
 	// args
