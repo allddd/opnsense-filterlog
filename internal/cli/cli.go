@@ -54,7 +54,7 @@ type flags struct {
 	Version bool   `name:"V" usage:"display version information and exit"`
 }
 
-// flagsDefine defines all flags set in the struct
+// flagsDefine defines all flags set in the struct.
 func (f *flags) flagsDefine() {
 	sv := reflect.ValueOf(f).Elem()
 	st := sv.Type()

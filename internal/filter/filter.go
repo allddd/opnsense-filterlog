@@ -56,7 +56,7 @@ const (
 )
 
 var (
-	// tokens maps string representations of tokens to token types
+	// tokens maps string representations of tokens to token types.
 	tokens = map[string]tokenTyp{
 		// and
 		"and": tokenAnd,
@@ -69,7 +69,7 @@ var (
 		"||": tokenOr,
 	}
 
-	// fields maps field names (and their aliases) to field types
+	// fields maps field names (and their aliases) to field types.
 	fields = map[string]fieldTyp{
 		// action
 		"action": fieldAction,
@@ -108,19 +108,19 @@ var (
 
 type tokenTyp int
 
-// token represents a single token from the filter expression
+// token represents a single token from the filter expression.
 type token struct {
 	typ   tokenTyp // type of token
 	value string   // value of the token
 }
 
-// lexer tokenizes filter expression input into a stream of tokens
+// lexer tokenizes filter expression input into a stream of tokens.
 type lexer struct {
 	input string // input string being lexed
 	pos   int    // current position in the input string
 }
 
-// parser parses filter expressions into a filter node tree
+// parser parses filter expressions into a filter node tree.
 type parser struct {
 	lex     *lexer // provides tokens
 	current token  // current token being parsed
@@ -128,42 +128,42 @@ type parser struct {
 
 type fieldTyp int
 
-// FilterNode is the interface that all filter nodes use to match log entries
+// FilterNode is the interface that all filter nodes use to match log entries.
 type FilterNode interface {
 	Matches(entry *stream.LogEntry) bool
 }
 
-// anyFilter matches any field containing the value
+// anyFilter matches any field containing the value.
 type anyFilter struct {
 	value string // value to search for in any field
 }
 
-// fieldFilter matches a specific field against a value
+// fieldFilter matches a specific field against a value.
 type fieldFilter struct {
 	field fieldTyp // type of field
 	value string   // value to match against
 }
 
-// andFilter matches only if both child filters match
+// andFilter matches only if both child filters match.
 type andFilter struct {
 	left  FilterNode // left side of the and expression
 	right FilterNode // right side of the and expression
 }
 
-// orFilter matches if either child filter matches
+// orFilter matches if either child filter matches.
 type orFilter struct {
 	left  FilterNode // left side of the or expression
 	right FilterNode // right side of the or expression
 }
 
-// notFilter inverts the result of its child filter
+// notFilter inverts the result of its child filter.
 type notFilter struct {
 	child FilterNode // filter expression to invert
 }
 
 // lexer
 
-// readWord reads a word token (letters, numbers, etc.) until space or parentheses
+// readWord reads a word token (letters, numbers, etc.) until space or parentheses.
 func (l *lexer) readWord() string {
 	start := l.pos
 	for l.pos < len(l.input) {
@@ -175,7 +175,7 @@ func (l *lexer) readWord() string {
 	return l.input[start:l.pos]
 }
 
-// nextToken returns the next token
+// nextToken returns the next token.
 func (l *lexer) nextToken() token {
 	// skip space(s)
 	for l.pos < len(l.input) && l.input[l.pos] == ' ' {
@@ -212,7 +212,7 @@ func (l *lexer) nextToken() token {
 	return token{typ: tokenValue, value: word}
 }
 
-// newLexer creates a new lexer for the given input string
+// newLexer creates a new lexer for the given input string.
 func newLexer(input string) *lexer {
 	return &lexer{
 		input: strings.TrimSpace(input),
@@ -222,7 +222,7 @@ func newLexer(input string) *lexer {
 
 // parser
 
-// newParser creates a new parser for the given input string
+// newParser creates a new parser for the given input string.
 func newParser(input string) *parser {
 	lex := newLexer(input)
 	return &parser{
@@ -231,12 +231,12 @@ func newParser(input string) *parser {
 	}
 }
 
-// advance moves to the next token
+// advance moves to the next token.
 func (p *parser) advance() {
 	p.current = p.lex.nextToken()
 }
 
-// parse parses the entire filter expression and returns the root FilterNode or nil if empty
+// parse parses the entire filter expression and returns the root FilterNode or nil if empty.
 func (p *parser) parse() (FilterNode, error) {
 	if p.current.typ == tokenEOF {
 		return nil, nil
@@ -244,7 +244,7 @@ func (p *parser) parse() (FilterNode, error) {
 	return p.parseOr()
 }
 
-// parseOr handles or expressions (lowest precedence)
+// parseOr handles or expressions (lowest precedence).
 func (p *parser) parseOr() (FilterNode, error) {
 	left, err := p.parseAnd()
 	if err != nil {
@@ -261,7 +261,7 @@ func (p *parser) parseOr() (FilterNode, error) {
 	return left, nil
 }
 
-// parseAnd handles and expressions (medium precedence)
+// parseAnd handles and expressions (medium precedence).
 func (p *parser) parseAnd() (FilterNode, error) {
 	left, err := p.parseNot()
 	if err != nil {
@@ -278,7 +278,7 @@ func (p *parser) parseAnd() (FilterNode, error) {
 	return left, nil
 }
 
-// parseNot handles not expressions (highest precedence)
+// parseNot handles not expressions (highest precedence).
 func (p *parser) parseNot() (FilterNode, error) {
 	if p.current.typ == tokenNot {
 		p.advance()
@@ -291,7 +291,7 @@ func (p *parser) parseNot() (FilterNode, error) {
 	return p.parsePrimary()
 }
 
-// parsePrimary handles parentheses, field filters and bare values
+// parsePrimary handles parentheses, field filters and bare values.
 func (p *parser) parsePrimary() (FilterNode, error) {
 	// handle parentheses for grouping
 	if p.current.typ == tokenParenL {
@@ -331,7 +331,7 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 
 // filter nodes
 
-// Matches (anyFilter) returns true if any field in the log entry contains the filter value
+// Matches (anyFilter) returns true if any field in the log entry contains the filter value.
 func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 	value := strings.ToLower(f.value)
 	searchFields := []string{
@@ -352,7 +352,7 @@ func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 	return false
 }
 
-// Matches (fieldFilter) returns true if the log entry matches the field filter criteria
+// Matches (fieldFilter) returns true if the log entry matches the field filter criteria.
 func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	value := strings.ToLower(f.value)
 	switch f.field {
@@ -382,24 +382,24 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	return false
 }
 
-// Matches (andFilter) returns true only if both left and right filters match
+// Matches (andFilter) returns true only if both left and right filters match.
 func (f *andFilter) Matches(entry *stream.LogEntry) bool {
 	return f.left.Matches(entry) && f.right.Matches(entry)
 }
 
-// Matches (orFilter) returns true if either left or right filter matches
+// Matches (orFilter) returns true if either left or right filter matches.
 func (f *orFilter) Matches(entry *stream.LogEntry) bool {
 	return f.left.Matches(entry) || f.right.Matches(entry)
 }
 
-// Matches (notFilter) returns the opposite of what the child filter returns
+// Matches (notFilter) returns the opposite of what the child filter returns.
 func (f *notFilter) Matches(entry *stream.LogEntry) bool {
 	return !f.child.Matches(entry)
 }
 
 // public
 
-// Compile compiles a filter expression string into a FilterNode tree
+// Compile compiles a filter expression string into a FilterNode tree.
 func Compile(expression string) (FilterNode, error) {
 	if expression == "" {
 		return nil, nil

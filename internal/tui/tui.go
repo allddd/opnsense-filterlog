@@ -110,37 +110,37 @@ type styles struct {
 // message
 // messages are processed in the Update method and represent events that update the model
 
-// indexMsg is sent when the file has been successfully indexed
+// indexMsg is sent when the file has been successfully indexed.
 type indexMsg struct {
 	entriesTotal int // total number of valid log entries
 }
 
-// entriesMsg is sent when contiguous block of entries has been loaded
+// entriesMsg is sent when contiguous block of entries has been loaded.
 type entriesMsg struct {
 	entries      []stream.LogEntry // contiguous block of entries (default view)
 	entriesStart int               // number of first line in entries block
 }
 
-// entriesFilteredMsg is sent when non-contiguous block of entries matching current filter has been loaded
+// entriesFilteredMsg is sent when non-contiguous block of entries matching current filter has been loaded.
 type entriesFilteredMsg struct {
 	entriesFiltered      map[int]stream.LogEntry // non-contiguous block of entries matching current filter
 	entriesFilteredStart int                     // number of first line in entriesFiltered block
 	entriesFilteredEnd   int                     // number of last line in entriesFiltered block
 }
 
-// filterMsg is sent when filtering has completed
+// filterMsg is sent when filtering has completed.
 type filterMsg struct {
 	entriesAvailable []int // line numbers that can be displayed
 }
 
-// streamErrorMsg is sent when a stream operation fails (e.g. SeekToLine)
+// streamErrorMsg is sent when a stream operation fails (e.g. SeekToLine).
 type streamErrorMsg struct {
 	err error // error that occurred
 }
 
 // bubbletea
 
-// sliceString returns a substring starting at offset and up to width chars
+// sliceString returns a substring starting at offset and up to width chars.
 func sliceString(s string, offset int, width int) string {
 	sw := ansi.StringWidth(s)
 	if offset <= 0 && width >= sw {
@@ -152,7 +152,7 @@ func sliceString(s string, offset int, width int) string {
 	return ansi.Cut(s, offset, offset+width)
 }
 
-// styleString truncates, styles, and pads a string
+// styleString truncates, styles, and pads a string.
 func styleString(str string, width int, style ...lipgloss.Style) string {
 	if width > 0 && ansi.StringWidth(str) > width {
 		if width <= 1 {
@@ -188,18 +188,18 @@ func (m *model) scrollUp(n int) {
 	m.uiOffsetV = min(m.uiOffsetV, m.uiSelected)
 }
 
-// withLoadingView enables loading state and batches the command with spinner tick
+// withLoadingView enables loading state and batches the command with spinner tick.
 func (m *model) withLoadingView(cmd tea.Cmd) tea.Cmd {
 	m.uiLoading = true
 	return tea.Batch(cmd, m.uiLoadingSpinner.Tick)
 }
 
-// Init starts the indexing process
+// Init starts the indexing process.
 func (m model) Init() tea.Cmd {
 	return m.withLoadingView(index(m.stream))
 }
 
-// Update handles all messages (and is the main event loop)
+// Update handles all messages (and is the main event loop).
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
@@ -491,12 +491,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-// visibleHeight returns the number of lines available for content display
+// visibleHeight returns the number of lines available for content display.
 func (m model) visibleHeight() int {
 	return m.uiHeight - 3 // -3 for header, status, and help lines
 }
 
-// View renders the current state of the UI (as a string)
+// View renders the current state of the UI (as a string).
 func (m model) View() string {
 	// show loading view during initialization or on request
 	if m.uiLoading || m.uiWidth == 0 || m.uiHeight == 0 {
@@ -715,7 +715,7 @@ func (m model) View() string {
 
 // async
 
-// index builds the file index
+// index builds the file index.
 func index(s *stream.Stream) tea.Cmd {
 	return func() tea.Msg {
 		if err := s.BuildIndex(); err != nil {
@@ -725,7 +725,7 @@ func index(s *stream.Stream) tea.Cmd {
 	}
 }
 
-// loadEntries loads a contiguous block of log entries starting at a specific line
+// loadEntries loads a contiguous block of log entries starting at a specific line.
 func loadEntries(s *stream.Stream, startLine int, count int) tea.Cmd {
 	return func() tea.Msg {
 		startLine = max(startLine, 0)
@@ -752,7 +752,7 @@ func loadEntries(s *stream.Stream, startLine int, count int) tea.Cmd {
 	}
 }
 
-// loadEntriesFiltered loads non-contiguous block of entries matching current filter
+// loadEntriesFiltered loads non-contiguous block of entries matching current filter.
 func loadEntriesFiltered(s *stream.Stream, lineNums []int, entriesFilteredStart, entriesFilteredEnd int) tea.Cmd {
 	return func() tea.Msg {
 		entries := make(map[int]stream.LogEntry)
@@ -834,7 +834,7 @@ func (m model) checkLoadEntriesFiltered() tea.Cmd {
 	return nil
 }
 
-// getEntryAtLine returns the log entry for a specific line number
+// getEntryAtLine returns the log entry for a specific line number.
 func (m model) getEntryAtLine(lineNum int) *stream.LogEntry {
 	if m.filterApplied && len(m.entriesFiltered) > 0 {
 		if entry, exists := m.entriesFiltered[lineNum]; exists {
@@ -854,7 +854,7 @@ func (m model) getEntryAtLine(lineNum int) *stream.LogEntry {
 
 // filtering
 
-// showAllLines populates visibleLines with all line numbers and is used when initializing or when clearing a filter
+// showAllLines populates visibleLines with all line numbers and is used when initializing or when clearing a filter.
 func (m *model) showAllLines() {
 	m.entriesAvailable = m.entriesAvailable[:0]
 	for i := 0; i < m.entriesTotal; i++ {
@@ -862,7 +862,7 @@ func (m *model) showAllLines() {
 	}
 }
 
-// scanAndFilter scans the entire file and builds the list of matching line numbers
+// scanAndFilter scans the entire file and builds the list of matching line numbers.
 func (m model) scanAndFilter() tea.Cmd {
 	return func() tea.Msg {
 		entries := make([]int, 0)
@@ -884,7 +884,7 @@ func (m model) scanAndFilter() tea.Cmd {
 
 // public
 
-// Display starts the TUI and displays the log file from the given stream
+// Display starts the TUI and displays the log file from the given stream.
 func Display(s *stream.Stream) error {
 	defer s.Close()
 	// uiStyles

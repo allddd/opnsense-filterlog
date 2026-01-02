@@ -36,7 +36,7 @@ const (
 	MaxErrorsInMemory = 1000
 )
 
-// LogEntry represents a parsed filter log entry
+// LogEntry represents a parsed filter log entry.
 type LogEntry struct {
 	// common
 	Action    string    `json:"action"`
@@ -72,13 +72,13 @@ type LogEntry struct {
 	TCPWindow         string `json:"tcpwin,omitempty"`
 }
 
-// indexEntry represents an entry in the index
+// indexEntry represents an entry in the index.
 type indexEntry struct {
 	lineNum    int   // line number
 	lineOffset int64 // byte offset
 }
 
-// Stream represents a streaming log parser
+// Stream represents a streaming log parser.
 type Stream struct {
 	errors  []string       // parsing errors
 	file    *os.File       // file handle
@@ -90,7 +90,7 @@ type Stream struct {
 
 // parsing
 
-// addError adds a parsing error to the errors slice
+// addError adds a parsing error to the errors slice.
 func (s *Stream) addError(msg string) {
 	if len(s.errors) < MaxErrorsInMemory {
 		s.errors = append(s.errors, msg)
@@ -98,7 +98,7 @@ func (s *Stream) addError(msg string) {
 }
 
 // splitCSV splits a csv string into fields
-// this is similar to strings.Split but optimized for this use case (almost 2x faster)
+// This is similar to strings.Split but optimized for this use case (almost 2x faster).
 func splitCSV(csv string) []string {
 	fields := make([]string, 0, 30) // preallocate for worst case
 	start := 0
@@ -112,7 +112,7 @@ func splitCSV(csv string) []string {
 	return fields
 }
 
-// parse parses a single line and returns a LogEntry
+// parse parses a single line and returns a LogEntry.
 func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	var err error
 	entry := LogEntry{}
@@ -264,7 +264,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 
 // stream
 
-// reset repositions the stream to the start of the file
+// reset repositions the stream to the start of the file.
 func (s *Stream) reset() error {
 	if s.file != nil {
 		s.file.Close()
@@ -281,7 +281,7 @@ func (s *Stream) reset() error {
 
 // public
 
-// BuildIndex builds an index of line positions in the file
+// BuildIndex builds an index of line positions in the file.
 func (s *Stream) BuildIndex() error {
 	if err := s.reset(); err != nil {
 		return err
@@ -310,7 +310,7 @@ func (s *Stream) BuildIndex() error {
 	return s.reset()
 }
 
-// Close closes the log file
+// Close closes the log file.
 func (s *Stream) Close() error {
 	if s.file != nil {
 		return s.file.Close()
@@ -318,22 +318,22 @@ func (s *Stream) Close() error {
 	return nil
 }
 
-// GetPathAbs returns the absolute path of the log file
+// GetPathAbs returns the absolute path of the log file.
 func (s Stream) GetPathAbs() (string, error) {
 	return filepath.Abs(s.path)
 }
 
-// GetPathRel returns the relative path of the log file
+// GetPathRel returns the relative path of the log file.
 func (s Stream) GetPathRel() string {
 	return s.path
 }
 
-// GetErrors returns all parsing errors encountered during parsing
+// GetErrors returns all parsing errors encountered during parsing.
 func (s Stream) GetErrors() []string {
 	return s.errors
 }
 
-// NewStream creates a new streaming parser for the given log file
+// NewStream creates a new streaming parser for the given log file.
 func NewStream(path string) (*Stream, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -349,7 +349,7 @@ func NewStream(path string) (*Stream, error) {
 	}, nil
 }
 
-// Next reads and parses the next log entry (returns nil when EOF is reached)
+// Next reads and parses the next log entry (returns nil when EOF is reached).
 func (s *Stream) Next() *LogEntry {
 	for s.scanner.Scan() {
 		s.lineNum++
@@ -361,7 +361,7 @@ func (s *Stream) Next() *LogEntry {
 	return nil
 }
 
-// SeekToLine seeks to a specific line number using the index
+// SeekToLine seeks to a specific line number using the index.
 func (s *Stream) SeekToLine(lineNum int) error {
 	if len(s.index) <= 0 {
 		return fmt.Errorf("error(stream): could not seek: missing index")
@@ -387,7 +387,7 @@ func (s *Stream) SeekToLine(lineNum int) error {
 	return nil
 }
 
-// TotalLines returns the total number of valid lines (if indexed)
+// TotalLines returns the total number of valid lines (if indexed).
 func (s Stream) TotalLines() int {
 	if i := len(s.index); i > 0 {
 		return i

@@ -39,13 +39,13 @@ type jsonObjMeta struct {
 	Source  string `json:"source"`           // file path (absolute if possible)
 }
 
-// jsonObj represents the complete JSON output structure (used only for tests and docs)
+// jsonObj represents the complete JSON output structure (used only for tests and docs).
 type jsonObj struct {
 	Entries []*stream.LogEntry `json:"entries"` // array of log entries
 	Meta    jsonObjMeta        `json:"meta"`    // meta object
 }
 
-// displayJSON writes the jsonObj to stdout
+// displayJSON writes the jsonObj to stdout.
 func displayJSON(s *stream.Stream, filterValue string) error {
 	// compile filter expression (if any)
 	var compiled filter.FilterNode
