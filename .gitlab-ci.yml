@@ -31,6 +31,7 @@ test:
     stage: test
     extends: .go-cache
     script:
+        - go run github.com/bobg/mingo/cmd/mingo@latest -v -check -tests
         - make test
 
 build:
