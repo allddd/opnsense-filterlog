@@ -31,13 +31,13 @@ test:
     stage: test
     extends: .go-cache
     script:
-        - go test -fullpath -shuffle=on ./...
+        - make test
 
 build:
     stage: build
     extends: .go-cache
     script:
-        - GOARCH=amd64 GOOS=freebsd go build -o $CI_PROJECT_NAME
+        - make VERSION="${CI_COMMIT_TAG:-$CI_PIPELINE_ID}" build-release
     artifacts:
         paths:
             - $CI_PROJECT_NAME
