@@ -70,9 +70,18 @@ install: build-release ## build and install files
 	$(INSTALL) -d $(DESTDIR)$(MAN8DIR)
 	$(INSTALL_DATA) ./docs/$(PROGRAM).8 $(DESTDIR)$(MAN8DIR)/$(PROGRAM).8
 
-release: lint test clean build-release ## build, sign and upload release binary
+release: clean build-release ## create release
+	@git branch --show-current | grep -qx master || (printf 'error: not on master branch\n'; exit 1)
+	@git describe --exact-match HEAD >/dev/null 2>&1 || (printf 'error: HEAD not tagged\n'; exit 1)
+	@! git ls-remote -t --exit-code origin $(VERSION) >/dev/null 2>&1 || (printf 'error: tag $(VERSION) already exists\n'; exit 1)
+	git push origin $(VERSION)
+	sleep 10
+	glab ci status -lb $(VERSION)
+	glab job artifact -p ./artifacts/ $(VERSION) build
+	cmp ./$(PROGRAM) ./artifacts/$(PROGRAM) || (rm -rf ./artifacts; exit 1)
+	rm -rf ./artifacts
 	sha256sum $(PROGRAM) | gpg --clearsign > ./$(PROGRAM).sha256
-	curl -sS --fail-with-body -w '\n' -H 'PRIVATE-TOKEN: $(PAT)' -T './$(PROGRAM){,.sha256}' https://gitlab.com/api/v4/projects/76289353/packages/generic/$(PROGRAM)/$(VERSION)/
+	glab release upload --use-package-registry --package-name $(PROGRAM) $(VERSION) ./$(PROGRAM).sha256
 
 test: ## run tests
 	$(GO) test -fullpath -shuffle=on ./...
