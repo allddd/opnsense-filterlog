@@ -47,10 +47,10 @@ INSTALL_PROGRAM = $(INSTALL)
 all: build ## run build
 
 build: ## build binary
-	CGO_ENABLED=0 GOARCH=$(GOARCH) GOOS=$(GOOS) $(GO) build -trimpath -ldflags "$(LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
+	CGO_ENABLED=0 GOARCH=$(GOARCH) GOOS=$(GOOS) $(GO) build -trimpath -buildvcs=false -ldflags="$(LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
 
 build-dev: ## build development binary
-	$(GO) build -ldflags "$(LDFLAGS)" -o ./$(PROGRAM) ./
+	$(GO) build -ldflags="$(LDFLAGS)" -o ./$(PROGRAM) ./
 
 clean: ## remove build artifacts
 	rm -f ./$(PROGRAM)
