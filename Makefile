@@ -21,8 +21,10 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-.PHONY: build build-release clean deps help lint install release test uninstall
+.PHONY: all build build-dev clean deps help install lint release test uninstall
 
+GOARCH = amd64
+GOOS = freebsd
 PROGRAM = opnsense-filterlog
 VERSION != git describe --tags 2>/dev/null || printf 'unknown'
 # needed for gmake < 4.0
@@ -42,35 +44,38 @@ INSTALL = install
 INSTALL_DATA = $(INSTALL) -m 644
 INSTALL_PROGRAM = $(INSTALL)
 
-build: ## build development binary (default)
-	$(GO) build -ldflags "$(LDFLAGS)" -o ./$(PROGRAM) ./
+all: build ## run build
 
-build-release: ## build release binary
-	CGO_ENABLED=0 GOARCH=amd64 GOOS=freebsd $(GO) build -trimpath -ldflags "$(LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
+build: ## build binary
+	CGO_ENABLED=0 GOARCH=$(GOARCH) GOOS=$(GOOS) $(GO) build -trimpath -ldflags "$(LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
+
+build-dev: ## build development binary
+	$(GO) build -ldflags "$(LDFLAGS)" -o ./$(PROGRAM) ./
 
 clean: ## remove build artifacts
 	rm -f ./$(PROGRAM)
 
 deps: ## update dependencies
+	$(GO) mod tidy
 	$(GO) get -u ./...
 	$(GO) mod tidy
 	$(GO) mod verify
 
 help: ## display help message
 	@printf 'available targets:\n'
-	@awk -F' ## ' '/^[a-z-]+:/ {sub(/:.*/, "", $$1); printf "  %-15s - %s\n", $$1, $$2}' ./Makefile
+	@awk -F' ## ' '/^[a-z-]+:.+##/ {sub(/:.*/, "", $$1); printf "  %-15s - %s\n", $$1, $$2}' ./Makefile
 
-lint: ## format code and run linters
-	golangci-lint fmt
-	golangci-lint run
-
-install: build-release ## build and install files
+install: ## install files
 	$(INSTALL) -d $(DESTDIR)$(SBINDIR)
 	$(INSTALL_PROGRAM) ./$(PROGRAM) $(DESTDIR)$(SBINDIR)/$(PROGRAM)
 	$(INSTALL) -d $(DESTDIR)$(MAN8DIR)
 	$(INSTALL_DATA) ./docs/$(PROGRAM).8 $(DESTDIR)$(MAN8DIR)/$(PROGRAM).8
 
-release: clean build-release ## create release
+lint: ## format code and run linters
+	golangci-lint fmt
+	golangci-lint run
+
+release: clean build ## create release
 	@git branch --show-current | grep -qx master || (printf 'error: not on master branch\n'; exit 1)
 	@git describe --exact-match HEAD >/dev/null 2>&1 || (printf 'error: HEAD not tagged\n'; exit 1)
 	@! git ls-remote -t --exit-code origin $(VERSION) >/dev/null 2>&1 || (printf 'error: tag $(VERSION) already exists\n'; exit 1)

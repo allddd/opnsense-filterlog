@@ -44,7 +44,7 @@ Build the binary:
 
 ```sh
 cd ./opnsense-filterlog
-make build-release
+make
 ```
 
 ## Usage
