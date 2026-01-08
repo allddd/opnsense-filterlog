@@ -21,36 +21,34 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-.PHONY: all build build-dev clean deps help install lint release test uninstall
+.PHONY: all build build-release clean deps help install lint release test uninstall
 
-GOARCH = amd64
-GOOS = freebsd
-PROGRAM = opnsense-filterlog
+GO ?= go
+INSTALL ?= install
+INSTALL_DATA ?= $(INSTALL) -m 644
+INSTALL_PROGRAM ?= $(INSTALL)
+
+PREFIX ?= /usr/local
+EXEC_PREFIX ?= $(PREFIX)
+SBINDIR ?= $(EXEC_PREFIX)/sbin
+DATAROOTDIR ?= $(PREFIX)/share
+MANDIR ?= $(DATAROOTDIR)/man
+MAN8DIR ?= $(MANDIR)/man8
+
+PROGRAM ?= opnsense-filterlog
 VERSION != git describe --tags 2>/dev/null || printf 'unknown'
 # needed for gmake < 4.0
 VERSION ?= $(shell git describe --tags 2>/dev/null || printf 'unknown')
-LDFLAGS = -X 'gitlab.com/allddd/opnsense-filterlog/internal/meta.Name=$(PROGRAM)' \
-          -X 'gitlab.com/allddd/opnsense-filterlog/internal/meta.Version=$(VERSION)'
-
-PREFIX = /usr/local
-EXEC_PREFIX = $(PREFIX)
-SBINDIR = $(EXEC_PREFIX)/sbin
-DATAROOTDIR = $(PREFIX)/share
-MANDIR = $(DATAROOTDIR)/man
-MAN8DIR = $(MANDIR)/man8
-
-GO = go
-INSTALL = install
-INSTALL_DATA = $(INSTALL) -m 644
-INSTALL_PROGRAM = $(INSTALL)
+GO_LDFLAGS ?= -X 'gitlab.com/allddd/opnsense-filterlog/internal/meta.Name=$(PROGRAM)' \
+              -X 'gitlab.com/allddd/opnsense-filterlog/internal/meta.Version=$(VERSION)'
 
 all: build ## run build
 
 build: ## build binary
-	CGO_ENABLED=0 GOARCH=$(GOARCH) GOOS=$(GOOS) $(GO) build -trimpath -buildvcs=false -ldflags="$(LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
+	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="$(GO_LDFLAGS)" -o ./$(PROGRAM) ./
 
-build-dev: ## build development binary
-	$(GO) build -ldflags="$(LDFLAGS)" -o ./$(PROGRAM) ./
+build-release: ## build release binary
+	CGO_ENABLED=0 GOARCH=amd64 GOOS=freebsd $(GO) build -trimpath -buildvcs=false -ldflags="$(GO_LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
 
 clean: ## remove build artifacts
 	rm -f ./$(PROGRAM)
@@ -75,7 +73,7 @@ lint: ## format code and run linters
 	golangci-lint fmt
 	golangci-lint run
 
-release: clean build ## create release
+release: clean build-release ## create release
 	@git branch --show-current | grep -qx master || (printf 'error: not on master branch\n'; exit 1)
 	@git describe --exact-match HEAD >/dev/null 2>&1 || (printf 'error: HEAD not tagged\n'; exit 1)
 	@! git ls-remote -t --exit-code origin $(VERSION) >/dev/null 2>&1 || (printf 'error: tag $(VERSION) already exists\n'; exit 1)
