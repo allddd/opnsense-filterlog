@@ -1,4 +1,4 @@
-// Copyright (c) 2025 allddd <me@allddd.onl>
+// Copyright (c) 2025, 2026 allddd <me@allddd.onl>
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -26,8 +26,10 @@ package tui
 import (
 	"fmt"
 	"maps"
+	"reflect"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -59,9 +61,8 @@ type model struct {
 	indexed bool           // whether file has been indexed
 
 	// details
-	details       *stream.LogEntry // entry being displayed in detail view
-	detailsHeight int              // dynamic height
-	detailsView   bool             // whether showing entry details instead of logs
+	details     []string // formatted entry lines
+	detailsView bool     // whether showing details
 
 	// entries
 	entries              []stream.LogEntry       // contiguous block of entries
@@ -74,12 +75,11 @@ type model struct {
 
 	// error
 	errors     []string // parse errors
-	errorsView bool     // whether showing errors instead of logs
+	errorsView bool     // whether showing errors
 
 	// filter
 	filterApplied  bool              // whether filter is currently applied
 	filterCompiled filter.FilterNode // compiled filter expression
-	filterError    string            // error message from filter compilation
 	filterInput    textinput.Model   // filter input field
 	filterView     bool              // whether the user is currently typing filter expression
 
@@ -171,11 +171,38 @@ func styleString(str string, width int, style ...lipgloss.Style) string {
 	return str
 }
 
+// formatEntry returns a formatted log entry.
+func formatEntry(entry *stream.LogEntry) ([]string, error) {
+	var b strings.Builder
+	tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
+	v := reflect.ValueOf(*entry)
+	for i := range v.NumField() {
+		ft := v.Type().Field(i)
+		fv := v.Field(i)
+		switch v := fv.Interface().(type) {
+		case string:
+			if v != "" {
+				if _, err := fmt.Fprintf(tw, "%s:\t%s\n", ft.Name, v); err != nil {
+					return nil, err
+				}
+			}
+		case time.Time:
+			if _, err := fmt.Fprintf(tw, "%s:\t%s\n", ft.Name, v.Format(time.RFC1123Z)); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if err := tw.Flush(); err != nil {
+		return nil, err
+	}
+	return strings.Split(strings.TrimSpace(b.String()), "\n"), nil
+}
+
 func (m *model) scrollDown(n int) {
 	var lines int
 	switch {
 	case m.detailsView:
-		lines = m.detailsHeight
+		lines = len(m.details)
 	case m.errorsView:
 		lines = len(m.errors)
 	default:
@@ -229,19 +256,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// compile the filter
 					compiled, err := filter.Compile(filterValue)
 					if err != nil {
-						m.filterError = err.Error()
-						m.filterApplied = false
+						m.uiStatusMsg = m.uiStyles.barAlert.Render(err.Error())
 						m.filterCompiled = nil
+						m.entriesAvailable = []int{}
 					} else {
 						m.filterCompiled = compiled
-						m.filterError = ""
+						m.uiStatusMsg = ""
 						return m, m.withLoadingView(m.scanAndFilter())
 					}
 				} else {
 					m.filterCompiled = nil
-					m.filterError = ""
-				}
-				if !m.filterApplied {
 					m.uiStatusMsg = ""
 					m.showAllLines()
 				}
@@ -332,7 +356,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var lines int
 			switch {
 			case m.detailsView:
-				lines = m.detailsHeight
+				lines = len(m.details)
 			case m.errorsView:
 				lines = len(m.errors)
 			default:
@@ -363,17 +387,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if entry != nil {
 						m.uiOffsetVPrev = m.uiOffsetV
 						m.uiSelectedPrev = m.uiSelected
-						m.details = entry
 						m.detailsView = true
 						m.uiOffsetH = 0
 						m.uiOffsetV = 0
 						m.uiSelected = 0
-						m.detailsHeight = 21
-						switch m.details.ProtocolName {
-						case "tcp":
-							m.detailsHeight += 7
-						case "udp":
-							m.detailsHeight += 1
+						if details, err := formatEntry(entry); err != nil {
+							m.uiStatusMsg = m.uiStyles.barAlert.Render(fmt.Sprintf("error(tui): could not format entry: %v", err))
+							m.details = []string{}
+						} else {
+							m.details = details
 						}
 					}
 				}
@@ -392,6 +414,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.detailsView = false
 				m.uiOffsetV = m.uiOffsetVPrev
 				m.uiSelected = m.uiSelectedPrev
+				m.uiStatusMsg = ""
 				return m, nil
 			}
 			if m.errorsView {
@@ -520,56 +543,13 @@ func (m model) View() string {
 	visibleStart := m.uiOffsetV
 
 	if m.detailsView { //nolint:gocritic // details view
-		visibleEnd = min(visibleStart+visibleHeight, m.detailsHeight)
+		visibleEnd = min(visibleStart+visibleHeight, len(m.details))
 		// header
 		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render("Details") + "\n")
 
 		// main
-		details := []string{
-			fmt.Sprintf(formatDetail, "Time:", m.details.Time.Format(time.RFC1123Z)),
-			fmt.Sprintf(formatDetail, "Label:", m.details.Label),
-			fmt.Sprintf(formatDetail, "Action:", m.details.Action),
-			fmt.Sprintf(formatDetail, "Reason:", m.details.Reason),
-			//
-			fmt.Sprintf(formatDetail, "Interface:", m.details.Interface),
-			fmt.Sprintf(formatDetail, "Direction:", m.details.Direction),
-			fmt.Sprintf(formatDetail, "Protocol:", m.details.ProtocolName),
-			//
-			fmt.Sprintf(formatDetail, "Source:", m.details.Source),
-			fmt.Sprintf(formatDetail, "  Port:", m.details.SourcePort),
-			//
-			fmt.Sprintf(formatDetail, "Destination:", m.details.Destination),
-			fmt.Sprintf(formatDetail, "  Port:", m.details.DestinationPort),
-			//
-			fmt.Sprintf(formatDetail, "Class:", m.details.Class),
-			fmt.Sprintf(formatDetail, "DSCP:", m.details.DSCP),
-			fmt.Sprintf(formatDetail, "ECN:", m.details.ECN),
-			fmt.Sprintf(formatDetail, "Flags:", m.details.Flags),
-			fmt.Sprintf(formatDetail, "Flow:", m.details.Flow),
-			fmt.Sprintf(formatDetail, "Hop limit:", m.details.HopLimit),
-			fmt.Sprintf(formatDetail, "ID:", m.details.ID),
-			fmt.Sprintf(formatDetail, "Length:", m.details.Length),
-			fmt.Sprintf(formatDetail, "Offset:", m.details.Offset),
-			fmt.Sprintf(formatDetail, "TTL:", m.details.TTL),
-		}
-		switch m.details.ProtocolName {
-		case "tcp":
-			details = append(details,
-				fmt.Sprintf(formatDetail, "Data length:", m.details.DataLength),
-				fmt.Sprintf(formatDetail, "TCP Ack:", m.details.TCPAcknowledgment),
-				fmt.Sprintf(formatDetail, "TCP Flags:", m.details.TCPFlags),
-				fmt.Sprintf(formatDetail, "TCP Options:", m.details.TCPOptions),
-				fmt.Sprintf(formatDetail, "TCP Seq:", m.details.TCPSequence),
-				fmt.Sprintf(formatDetail, "TCP Urg:", m.details.TCPUrgentPointer),
-				fmt.Sprintf(formatDetail, "TCP Window:", m.details.TCPWindow),
-			)
-		case "udp":
-			details = append(details,
-				fmt.Sprintf(formatDetail, "Data length:", m.details.DataLength),
-			)
-		}
 		for i := visibleStart; i < visibleEnd; i++ {
-			line := sliceString(details[i], m.uiOffsetH, m.uiWidth)
+			line := sliceString(m.details[i], m.uiOffsetH, m.uiWidth)
 			if i == m.uiSelected {
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(line)
 			}
@@ -675,19 +655,24 @@ func (m model) View() string {
 	}
 
 	// status
-	statusLine := "position: %d/%d"
-	switch {
-	case m.detailsView:
-		statusLine = fmt.Sprintf(statusLine, m.uiSelected+1, m.detailsHeight)
-	case m.filterView:
+	var statusLine string
+	if m.filterView {
 		statusLine = m.filterInput.View()
-	case m.errorsView:
-		statusLine = fmt.Sprintf(statusLine+" (limit: %d)", m.uiSelected+1, len(m.errors), stream.MaxErrorsInMemory)
-	default:
-		statusLine = fmt.Sprintf(statusLine, m.uiSelected+1, len(m.entriesAvailable))
-		if m.filterError != "" {
-			statusLine += " | " + m.uiStyles.barAlert.Render(m.filterError)
-		} else if m.uiStatusMsg != "" {
+	} else {
+		var lines int
+		switch {
+		case m.detailsView:
+			lines = len(m.details)
+		case m.errorsView:
+			lines = len(m.errors)
+		default:
+			lines = len(m.entriesAvailable)
+		}
+		statusLine = fmt.Sprintf("position: %d/%d", m.uiSelected+1, lines)
+		if m.errorsView {
+			statusLine += fmt.Sprintf(" (limit: %d)", stream.MaxErrorsInMemory)
+		}
+		if m.uiStatusMsg != "" {
 			statusLine += " | " + m.uiStatusMsg
 		}
 	}
