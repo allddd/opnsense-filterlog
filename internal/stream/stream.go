@@ -40,37 +40,41 @@ const (
 // LogEntry represents a parsed filter log entry.
 type LogEntry struct {
 	// common
-	Action    string    `json:"action"`
-	Direction string    `json:"dir"`
-	Interface string    `json:"iface"`
-	Label     string    `json:"label"`
-	Reason    string    `json:"reason"`
-	Time      time.Time `json:"time"`
+	Time            time.Time `json:"time"`
+	Label           string    `json:"label"`
+	Action          string    `json:"action"`
+	Reason          string    `json:"reason"`
+	Direction       string    `json:"dir"`
+	Interface       string    `json:"iface"`
+	IPVersion       string    `json:"ipver"`
+	ProtocolName    string    `json:"proto"`
+	Source          string    `json:"src"`
+	SourcePort      string    `json:"sport,omitempty"`
+	Destination     string    `json:"dst"`
+	DestinationPort string    `json:"dport,omitempty"`
 	// ip
-	Class        string `json:"class,omitempty"`
-	DSCP         string `json:"dscp,omitempty"`
-	Destination  string `json:"dst"`
-	ECN          string `json:"ecn,omitempty"`
-	Flags        string `json:"flags,omitempty"`
-	Flow         string `json:"flow,omitempty"`
-	HopLimit     string `json:"hoplimit,omitempty"`
-	ID           string `json:"id,omitempty"`
-	IPVersion    string `json:"ipver"`
-	Length       string `json:"length,omitempty"`
-	Offset       string `json:"offset,omitempty"`
-	ProtocolName string `json:"proto"`
-	Source       string `json:"src"`
-	TTL          string `json:"ttl,omitempty"`
-	// protocol
-	CARPAdvBase       string `json:"carpabase,omitempty"`
-	CARPAdvSkew       string `json:"carpaskew,omitempty"`
-	CARPTTL           string `json:"carpttl,omitempty"`
-	CARPType          string `json:"carptype,omitempty"`
-	CARPVHID          string `json:"carpvhid,omitempty"`
-	CARPVersion       string `json:"carpver,omitempty"`
-	DataLength        string `json:"datalen,omitempty"`
-	DestinationPort   string `json:"dport,omitempty"`
-	SourcePort        string `json:"sport,omitempty"`
+	Length string `json:"length,omitempty"`
+	// ipv4
+	DSCP   string `json:"dscp,omitempty"`
+	ECN    string `json:"ecn,omitempty"`
+	Flags  string `json:"flags,omitempty"`
+	ID     string `json:"id,omitempty"`
+	Offset string `json:"offset,omitempty"`
+	TTL    string `json:"ttl,omitempty"`
+	// ipv6
+	Class    string `json:"class,omitempty"`
+	Flow     string `json:"flow,omitempty"`
+	HopLimit string `json:"hoplimit,omitempty"`
+	// carp
+	CARPAdvBase string `json:"carpabase,omitempty"`
+	CARPAdvSkew string `json:"carpaskew,omitempty"`
+	CARPTTL     string `json:"carpttl,omitempty"`
+	CARPType    string `json:"carptype,omitempty"`
+	CARPVHID    string `json:"carpvhid,omitempty"`
+	CARPVersion string `json:"carpver,omitempty"`
+	// tcp/udp
+	DataLength string `json:"datalen,omitempty"`
+	// tcp
 	TCPAcknowledgment string `json:"tcpack,omitempty"`
 	TCPFlags          string `json:"tcpflags,omitempty"`
 	TCPOptions        string `json:"tcpopts,omitempty"`
