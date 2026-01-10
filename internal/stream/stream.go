@@ -1,4 +1,4 @@
-// Copyright (c) 2025 allddd <me@allddd.onl>
+// Copyright (c) 2025, 2026 allddd <me@allddd.onl>
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -62,6 +62,12 @@ type LogEntry struct {
 	Source       string `json:"src"`
 	TTL          string `json:"ttl,omitempty"`
 	// protocol
+	CARPAdvBase       string `json:"carpabase,omitempty"`
+	CARPAdvSkew       string `json:"carpaskew,omitempty"`
+	CARPTTL           string `json:"carpttl,omitempty"`
+	CARPType          string `json:"carptype,omitempty"`
+	CARPVHID          string `json:"carpvhid,omitempty"`
+	CARPVersion       string `json:"carpver,omitempty"`
 	DataLength        string `json:"datalen,omitempty"`
 	DestinationPort   string `json:"dport,omitempty"`
 	SourcePort        string `json:"sport,omitempty"`
@@ -202,6 +208,20 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 			entry.TCPUrgentPointer = fields[27]
 			entry.TCPOptions = fields[28]
 
+		// carp4
+		case "carp":
+			// 20: type, 21: ttl, 22: vhid, 23: version, 24: advskew, 25: advbase
+			if len(fields) < 26 {
+				s.addError(fmt.Sprintf("invalid carp4 section on line %d", lineNum))
+				return nil
+			}
+			entry.CARPType = fields[20]
+			entry.CARPTTL = fields[21]
+			entry.CARPVHID = fields[22]
+			entry.CARPVersion = fields[23]
+			entry.CARPAdvSkew = fields[24]
+			entry.CARPAdvBase = fields[25]
+
 		// skip for any other protocol
 		default:
 		}
@@ -250,6 +270,20 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 			entry.TCPWindow = fields[23]
 			entry.TCPUrgentPointer = fields[24]
 			entry.TCPOptions = fields[25]
+
+		// carp6
+		case "carp":
+			// 17: type, 18: ttl, 19: vhid, 20: version, 21: advskew, 22: advbase
+			if len(fields) < 23 {
+				s.addError(fmt.Sprintf("invalid carp6 section on line %d", lineNum))
+				return nil
+			}
+			entry.CARPType = fields[17]
+			entry.CARPTTL = fields[18]
+			entry.CARPVHID = fields[19]
+			entry.CARPVersion = fields[20]
+			entry.CARPAdvSkew = fields[21]
+			entry.CARPAdvBase = fields[22]
 
 		// skip for any other protocol
 		default:
