@@ -1,4 +1,4 @@
-// Copyright (c) 2025 allddd <me@allddd.onl>
+// Copyright (c) 2025, 2026 allddd <me@allddd.onl>
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -56,11 +56,11 @@ type flags struct {
 
 // flagsDefine defines all flags set in the struct.
 func (f *flags) flagsDefine() {
-	sv := reflect.ValueOf(f).Elem()
-	st := sv.Type()
-	for i := range st.NumField() {
-		ft := st.Field(i)
-		fv := sv.Field(i)
+	v := reflect.ValueOf(f).Elem()
+	t := v.Type()
+	for i := range t.NumField() {
+		ft := t.Field(i)
+		fv := v.Field(i)
 		name := ft.Tag.Get("name")
 		usage := ft.Tag.Get("usage")
 		value := ft.Tag.Get("value")
