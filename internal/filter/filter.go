@@ -337,7 +337,7 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 // Matches (anyFilter) returns true if any field in the log entry contains the filter value.
 func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 	value := strings.ToLower(f.value)
-	searchFields := []string{
+	fields := []string{
 		entry.Action,
 		entry.Destination,
 		entry.Direction,
@@ -348,7 +348,7 @@ func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 		entry.Source,
 		entry.Time.Format("Jan02-15:04:05"),
 	}
-	for _, field := range searchFields {
+	for _, field := range fields {
 		if strings.Contains(strings.ToLower(field), value) {
 			return true
 		}
@@ -358,30 +358,29 @@ func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 
 // Matches (fieldFilter) returns true if the log entry matches the field filter criteria.
 func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
-	value := strings.ToLower(f.value)
 	switch f.field {
 	case fieldAction:
-		return strings.HasPrefix(strings.ToLower(entry.Action), value)
+		return entry.Action == f.value
 	case fieldDestination:
-		return strings.HasPrefix(strings.ToLower(entry.Destination), value)
-	case fieldDirection:
-		return strings.HasPrefix(strings.ToLower(entry.Direction), value)
+		return entry.Destination == f.value
 	case fieldDestinationPort:
 		return entry.DestinationPort == f.value
-	case fieldIPVersion:
-		return strings.HasPrefix(strings.ToLower(entry.IPVersion), value)
+	case fieldDirection:
+		return entry.Direction == f.value
 	case fieldInterface:
-		return strings.HasPrefix(strings.ToLower(entry.Interface), value)
+		return entry.Interface == f.value
+	case fieldIPVersion:
+		return entry.IPVersion == f.value
 	case fieldLabel:
-		return strings.Contains(strings.ToLower(entry.Label), value)
+		return entry.Label == f.value
 	case fieldPort:
 		return entry.SourcePort == f.value || entry.DestinationPort == f.value
 	case fieldProtocolName:
-		return strings.HasPrefix(strings.ToLower(entry.ProtocolName), value)
+		return entry.ProtocolName == f.value
 	case fieldReason:
-		return strings.HasPrefix(strings.ToLower(entry.Reason), value)
+		return entry.Reason == f.value
 	case fieldSource:
-		return strings.HasPrefix(strings.ToLower(entry.Source), value)
+		return entry.Source == f.value
 	case fieldSourcePort:
 		return entry.SourcePort == f.value
 	}
