@@ -1,4 +1,4 @@
-// Copyright (c) 2025 allddd <me@allddd.onl>
+// Copyright (c) 2025, 2026 allddd <me@allddd.onl>
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -69,6 +69,12 @@ func TestAnyFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
+			name:        "match destination field",
+			filter:      "10.0",
+			entry:       stream.LogEntry{Destination: "10.0.0.1"},
+			expectMatch: true,
+		},
+		{
 			name:        "match direction field",
 			filter:      "in",
 			entry:       stream.LogEntry{Direction: "in"},
@@ -81,21 +87,21 @@ func TestAnyFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "match reason field",
-			filter:      "match",
-			entry:       stream.LogEntry{Reason: "match"},
-			expectMatch: true,
-		},
-		{
-			name:        "match destination field",
-			filter:      "10.0",
-			entry:       stream.LogEntry{Destination: "10.0.0.1"},
+			name:        "match label field",
+			filter:      "02f4bab031b57d1e30553ce08e0ec131",
+			entry:       stream.LogEntry{Label: "02f4bab031b57d1e30553ce08e0ec131"},
 			expectMatch: true,
 		},
 		{
 			name:        "match protocol field",
 			filter:      "tcp",
 			entry:       stream.LogEntry{ProtocolName: "tcp"},
+			expectMatch: true,
+		},
+		{
+			name:        "match reason field",
+			filter:      "match",
+			entry:       stream.LogEntry{Reason: "match"},
 			expectMatch: true,
 		},
 		{
@@ -271,6 +277,18 @@ func TestFieldFilter(t *testing.T) {
 			filter:      "port 22",
 			entry:       stream.LogEntry{SourcePort: "2", DestinationPort: "222"},
 			expectMatch: false,
+		},
+		{
+			name:        "match label exact",
+			filter:      "label 02f4bab031b57d1e30553ce08e0ec131",
+			entry:       stream.LogEntry{Label: "02f4bab031b57d1e30553ce08e0ec131"},
+			expectMatch: true,
+		},
+		{
+			name:        "match label contains",
+			filter:      "label d1e30553",
+			entry:       stream.LogEntry{Label: "02f4bab031b57d1e30553ce08e0ec131"},
+			expectMatch: true,
 		},
 	}
 	runTests(t, tests)

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 allddd <me@allddd.onl>
+// Copyright (c) 2025, 2026 allddd <me@allddd.onl>
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -48,6 +48,7 @@ const (
 	fieldDirection
 	fieldIPVersion
 	fieldInterface
+	fieldLabel
 	fieldPort
 	fieldProtocolName
 	fieldReason
@@ -90,6 +91,8 @@ var (
 		// interface
 		"interface": fieldInterface,
 		"iface":     fieldInterface,
+		// label
+		"label": fieldLabel,
 		// port
 		"port": fieldPort,
 		// protocol
@@ -336,13 +339,14 @@ func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 	value := strings.ToLower(f.value)
 	searchFields := []string{
 		entry.Action,
+		entry.Destination,
 		entry.Direction,
 		entry.Interface,
-		entry.Reason,
-		entry.Time.Format("Jan02-15:04:05"),
-		entry.Destination,
+		entry.Label,
 		entry.ProtocolName,
+		entry.Reason,
 		entry.Source,
+		entry.Time.Format("Jan02-15:04:05"),
 	}
 	for _, field := range searchFields {
 		if strings.Contains(strings.ToLower(field), value) {
@@ -368,6 +372,8 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 		return strings.HasPrefix(strings.ToLower(entry.IPVersion), value)
 	case fieldInterface:
 		return strings.HasPrefix(strings.ToLower(entry.Interface), value)
+	case fieldLabel:
+		return strings.Contains(strings.ToLower(entry.Label), value)
 	case fieldPort:
 		return entry.SourcePort == f.value || entry.DestinationPort == f.value
 	case fieldProtocolName:

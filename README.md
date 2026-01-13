@@ -107,13 +107,14 @@ tcp
 Use the `field value` syntax to target specific fields:
 
 ```
-src 192.168.1.1
-dst 10.0.0.1
 action block
-proto tcp
-ip 4
-port 443
+dst 10.0.0.1
 iface eth0
+ip 4
+label 02f4bab031b57d1e30553ce08e0ec131
+port 443
+proto tcp
+src 192.168.1.1
 ```
 
 Fields:
@@ -121,16 +122,17 @@ Fields:
 | Field | Aliases | Description |
 |-------|---------|-------------|
 | `action` | - | Action (block, pass, etc.) |
-| `direction` | `dir` | Direction (in, out, etc.) |
 | `destination` | `dst`, `dest` | Destination IP address |
+| `direction` | `dir` | Direction (in, out, etc.) |
+| `dstport` | `dport` | Destination port |
 | `interface` | `iface` | Network interface |
 | `ipversion` | `ip`, `ipver` | IP version (4 or 6) |
+| `label` | - | Rule label |
 | `port` | - | Either source or destination port |
-| `srcport` | `sport` | Source port |
-| `dstport` | `dport` | Destination port |
 | `protocol` | `proto` | Protocol (tcp, udp, icmp, etc.) |
 | `reason` | - | Reason (match, fragment, etc.) |
 | `source` | `src` | Source IP address |
+| `srcport` | `sport` | Source port |
 
 #### Logical operators
 
