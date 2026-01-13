@@ -45,6 +45,7 @@ linters:
             - path: _test\.go
               linters:
                   - errcheck
+                  - gochecknoglobals
                   - goconst
                   - gosec
                   - staticcheck
