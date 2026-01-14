@@ -2,46 +2,71 @@
 version: "2"
 
 linters:
+    # not sure what the best approach is, but enabling all and disabling
+    # annoying ones seems better since new linters get added automatically
+    # without me doing anything
     default: all
 
     disable:
+        # pleasing this one is impossible :D a function is complex if it needs
+        # to be complex... setting max-complexity too high makes this useless,
+        # so might as well just not use it at all
         - cyclop
+        # wants errors as package level variables that get wrapped instead of
+        # just doing it inline. code spaghetti for 0 gains in my opinion,
+        # especially if the errors are used only once...
         - err113
+        # prefer to check this manually rather than enforce with linter
+        - depguard
+        # wants every struct field initialized, even when it makes zero sense
         - exhaustruct
+        # styling/formatting with no impact on functionality
         - funcorder
+        # complains about function length. breaking up a clean 100 line function
+        # into 5 20 line ones (used only once) is not an improvement at all...
         - funlen
+        # same as cyclop
         - gocognit
+        # same as cyclop
         - gocyclo
+        # can't live without todo comments
         - godox
+        # makes no sense in this codebase
         - ireturn
+        # same as cyclop
         - maintidx
+        # numbers are documented with comments which is good enough for me
         - mnd
+        # same as cyclop
         - nestif
+        # makes no sense in this codebase
         - nilnil
+        # styling/formatting with no impact on functionality
         - nlreturn
+        # styling/formatting with no impact on functionality
         - noinlineerr
+        # not all tests can or should run in parallel
         - paralleltest
+        # no real benefit in this codebase
         - recvcheck
+        # does too much stuff
         - revive
+        # i want to test internal functions
         - testpackage
+        # styling/formatting with no impact on functionality
         - varnamelen
+        # styling/formatting with no impact on functionality
         - whitespace
+        # not all errors need wrapping with context
         - wrapcheck
+        # styling/formatting with no impact on functionality
         - wsl
+        # styling/formatting with no impact on functionality
         - wsl_v5
-
-    settings:
-        depguard:
-            rules:
-                main:
-                    list-mode: strict
-                    allow:
-                        - $gostd
-                        - github.com/charmbracelet/
-                        - gitlab.com/allddd/
 
     exclusions:
         rules:
+            # linters below are mostly irrelevant for tests
             - path: _test\.go
               linters:
                   - errcheck
