@@ -183,7 +183,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		entry.Source = fields[18]
 		entry.Destination = fields[19]
 
-		switch entry.ProtocolName {
+		switch entry.ProtocolName { //nolint:dupl
 		// udp4
 		case "udp":
 			// 20: srcport, 21: dstport, 22: datalen
@@ -246,7 +246,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		entry.Source = fields[15]
 		entry.Destination = fields[16]
 
-		switch entry.ProtocolName {
+		switch entry.ProtocolName { //nolint:dupl
 		// udp6
 		case "udp":
 			// 17: srcport, 18: dstport, 19: datalen
