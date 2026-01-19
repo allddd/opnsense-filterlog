@@ -87,15 +87,11 @@ func displayJSON(s *stream.Stream, filterValue string) error {
 	}
 	// build and write meta object
 	errors := s.GetErrors()
-	source, err := s.GetPathAbs()
-	if err != nil {
-		source = s.GetPathRel()
-	}
 	meta := jsonObjMeta{
 		Entries: entries,
 		Errors:  len(errors),
 		Filter:  filterValue,
-		Source:  source,
+		Source:  s.GetPath(),
 	}
 	jsonMeta, err := json.Marshal(meta)
 	if err != nil {

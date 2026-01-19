@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -359,13 +358,8 @@ func (s *Stream) Close() error {
 	return nil
 }
 
-// GetPathAbs returns the absolute path of the log file.
-func (s Stream) GetPathAbs() (string, error) {
-	return filepath.Abs(s.path)
-}
-
-// GetPathRel returns the relative path of the log file.
-func (s Stream) GetPathRel() string {
+// GetPath returns the relative path of the log file.
+func (s Stream) GetPath() string {
 	return s.path
 }
 
