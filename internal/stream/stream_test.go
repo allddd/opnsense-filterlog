@@ -1,4 +1,4 @@
-// Copyright (c) 2025 allddd <me@allddd.onl>
+// Copyright (c) 2025, 2026 allddd <me@allddd.onl>
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -60,7 +60,7 @@ func TestSplit(t *testing.T) {
 }
 
 func TestValidLog(t *testing.T) {
-	s, err := NewStream("../../tests/filter_valid.log")
+	s, err := NewStream("testdata/valid.log")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestValidLog(t *testing.T) {
 }
 
 func TestMixedLog(t *testing.T) {
-	s, err := NewStream("../../tests/filter_mixed.log")
+	s, err := NewStream("testdata/mixed.log")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestMixedLog(t *testing.T) {
 }
 
 func TestCorruptLog(t *testing.T) {
-	s, err := NewStream("../../tests/filter_corrupt.log")
+	s, err := NewStream("testdata/corrupt.log")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestCorruptLog(t *testing.T) {
 }
 
 func TestBuildIndex(t *testing.T) {
-	s, err := NewStream("../../tests/filter_valid.log")
+	s, err := NewStream("testdata/valid.log")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +132,7 @@ func TestBuildIndex(t *testing.T) {
 }
 
 func TestSeekToLine(t *testing.T) {
-	s, err := NewStream("../../tests/filter_valid.log")
+	s, err := NewStream("testdata/valid.log")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +181,7 @@ func TestSeekToLine(t *testing.T) {
 }
 
 func TestParsedValues(t *testing.T) {
-	s, err := NewStream("../../tests/filter_valid.log")
+	s, err := NewStream("testdata/valid.log")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -315,7 +315,7 @@ func TestParsedValues(t *testing.T) {
 }
 
 func TestTotalLines(t *testing.T) {
-	s, err := NewStream("../../tests/filter_valid.log")
+	s, err := NewStream("testdata/valid.log")
 	if err != nil {
 		t.Fatal(err)
 	}
