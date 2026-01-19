@@ -47,7 +47,7 @@ all: build ## run build
 build: ## build binary
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="$(GO_LDFLAGS)" -o ./$(PROGRAM) ./
 
-build-release: ## build release binary
+build-release: clean ## build release binary
 	$(GO) mod verify
 	CGO_ENABLED=0 GOARCH=amd64 GOOS=freebsd $(GO) build -trimpath -buildvcs=false -ldflags="$(GO_LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
 
