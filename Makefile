@@ -87,7 +87,7 @@ release: clean build-release ## create release
 	sha256sum $(PROGRAM) | gpg --clearsign > ./$(PROGRAM).sha256
 	glab release upload --use-package-registry --package-name $(PROGRAM) $(VERSION) ./$(PROGRAM).sha256
 
-test: ## run tests
+test: build ## run tests
 	$(GO) test -fullpath -shuffle=on ./...
 
 uninstall: ## remove installed files
