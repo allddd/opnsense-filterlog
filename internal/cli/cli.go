@@ -112,8 +112,15 @@ func Execute() {
 	}
 	// args
 	args := flag.Args()
-	if len(args) == 0 {
+	switch len(args) {
+	case 0:
 		args = []string{defaultLogPath}
+	case 1:
+		// skip
+	default:
+		fmt.Fprintln(os.Stderr, "error(cli): too many arguments")
+		flag.Usage()
+		os.Exit(1)
 	}
 
 	s, err := stream.NewStream(args[0])
