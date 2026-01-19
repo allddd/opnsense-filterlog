@@ -25,6 +25,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os/exec"
 	"testing"
@@ -53,7 +54,7 @@ func TestArgs(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.Command("../../"+meta.Name, tc.args...)
+			cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, tc.args...)
 			output, err := cmd.Output()
 			if tc.expectError {
 				if err == nil {
@@ -128,7 +129,7 @@ func TestFlags(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.Command("../../"+meta.Name, tc.args...)
+			cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, tc.args...)
 			output, err := cmd.CombinedOutput()
 			if tc.expectError {
 				if err == nil {

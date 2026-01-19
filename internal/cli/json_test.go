@@ -25,6 +25,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"testing"
@@ -65,7 +66,7 @@ func TestJSON(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.Command("../../"+meta.Name, tc.args...)
+			cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, tc.args...)
 			got, err := cmd.Output()
 			if tc.expectError {
 				if err == nil {
