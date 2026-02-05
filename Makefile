@@ -74,7 +74,7 @@ lint: ## format code and run linters
 	golangci-lint fmt
 	golangci-lint run
 
-release: clean build-release ## create release
+release: build-release ## create release
 	@git branch --show-current | grep -qx master || (printf 'error: not on master branch\n'; exit 1)
 	@git describe --exact-match HEAD >/dev/null 2>&1 || (printf 'error: HEAD not tagged\n'; exit 1)
 	@! git ls-remote -t --exit-code origin $(VERSION) >/dev/null 2>&1 || (printf 'error: tag $(VERSION) already exists\n'; exit 1)
