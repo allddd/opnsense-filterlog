@@ -34,7 +34,7 @@ You can download the pre-built binary along with its PGP-signed SHA256 checksum 
 
 ### Source
 
-Clone the repository (replace `<version>` with the actual version, e.g. `v0.3.0`):
+Clone the repository (replace `<version>` with the actual version, e.g. `v0.8.0`):
 
 ```sh
 git clone https://gitlab.com/allddd/opnsense-filterlog.git -b <version>
@@ -125,6 +125,7 @@ Fields:
 | `destination` | `dst`, `dest` | Destination IP address |
 | `direction` | `dir` | Direction (in, out, etc.) |
 | `dstport` | `dport` | Destination port |
+| `host` | - | Either source or destination IP address |
 | `interface` | `iface` | Network interface |
 | `ipversion` | `ip`, `ipver` | IP version (4 or 6) |
 | `label` | - | Rule label |

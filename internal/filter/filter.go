@@ -46,6 +46,7 @@ const (
 	fieldDestination
 	fieldDestinationPort
 	fieldDirection
+	fieldHost
 	fieldIPVersion
 	fieldInterface
 	fieldLabel
@@ -84,6 +85,8 @@ var (
 		// destination port
 		"dstport": fieldDestinationPort,
 		"dport":   fieldDestinationPort,
+		// host
+		"host": fieldHost,
 		// ip version
 		"ipversion": fieldIPVersion,
 		"ip":        fieldIPVersion,
@@ -367,6 +370,8 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 		return entry.DestinationPort == f.value
 	case fieldDirection:
 		return entry.Direction == f.value
+	case fieldHost:
+		return entry.Source == f.value || entry.Destination == f.value
 	case fieldInterface:
 		return entry.Interface == f.value
 	case fieldIPVersion:

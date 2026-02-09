@@ -214,6 +214,16 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
+			name:        "match source host",
+			filter:      "host 192.168.1.20",
+			expectMatch: true,
+		},
+		{
+			name:        "match destination host",
+			filter:      "host 192.168.1.10",
+			expectMatch: true,
+		},
+		{
 			name:        "match interface",
 			filter:      "interface eth0",
 			expectMatch: true,
@@ -321,6 +331,11 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: false,
 		},
 		{
+			name:        "do not match host partial",
+			filter:      "host 192.168",
+			expectMatch: false,
+		},
+		{
 			name:        "do not match label partial",
 			filter:      "label b031b57d",
 			expectMatch: false,
@@ -355,6 +370,11 @@ func TestFieldFilter(t *testing.T) {
 		{
 			name:        "do not match wrong direction",
 			filter:      "direction out",
+			expectMatch: false,
+		},
+		{
+			name:        "do not match wrong host",
+			filter:      "host 10.0.0.1",
 			expectMatch: false,
 		},
 		{
