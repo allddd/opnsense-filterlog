@@ -349,7 +349,6 @@ func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 		entry.ProtocolName,
 		entry.Reason,
 		entry.Source,
-		entry.Time.Format("Jan02-15:04:05"),
 	}
 	for _, field := range fields {
 		if strings.Contains(strings.ToLower(field), value) {

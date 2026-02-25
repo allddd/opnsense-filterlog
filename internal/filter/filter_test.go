@@ -137,11 +137,6 @@ func TestAnyFilter(t *testing.T) {
 			filter:      "192.168.1.20",
 			expectMatch: true,
 		},
-		{
-			name:        "match time",
-			filter:      "Jan02-15:04:05",
-			expectMatch: true,
-		},
 		// partial
 		{
 			name:        "match label partial",
@@ -151,11 +146,6 @@ func TestAnyFilter(t *testing.T) {
 		{
 			name:        "match source partial",
 			filter:      "192.168",
-			expectMatch: true,
-		},
-		{
-			name:        "match time partial",
-			filter:      "15:04",
 			expectMatch: true,
 		},
 		// case insensitive
