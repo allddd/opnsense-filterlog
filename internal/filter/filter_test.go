@@ -33,7 +33,7 @@ import (
 // defaultEntry is the default entry used for all tests.
 // If you need something special, use this as base and override fields.
 var defaultEntry = stream.LogEntry{
-	Time:              time.Date(2006, 1, 2, 15, 4, 5, 0, time.UTC),
+	Time:              time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC),
 	Label:             "02f4bab031b57d1e30553ce08e0ec131",
 	Action:            "block",
 	Reason:            "match",
@@ -411,12 +411,72 @@ func TestFieldFilter(t *testing.T) {
 	runTests(t, tests)
 }
 
+func TestTimeFilter(t *testing.T) {
+	tests := []test{
+		// since
+		{
+			name:        "match since before entry",
+			filter:      "since 2009-11-10T22:59:59Z",
+			expectMatch: true,
+		},
+		{
+			name:        "match since equal entry",
+			filter:      "since 2009-11-10T23:00:00Z",
+			expectMatch: true,
+		},
+		// until
+		{
+			name:        "match until after entry",
+			filter:      "until 2009-11-10T23:00:01Z",
+			expectMatch: true,
+		},
+		{
+			name:        "match until equal entry",
+			filter:      "until 2009-11-10T23:00:00Z",
+			expectMatch: true,
+		},
+		// no match
+		{
+			name:        "do not match since after entry",
+			filter:      "since 2009-11-10T23:00:01Z",
+			expectMatch: false,
+		},
+		{
+			name:        "do not match until before entry",
+			filter:      "until 2009-11-10T22:59:59Z",
+			expectMatch: false,
+		},
+		// errors
+		{
+			name:        "missing value after since",
+			filter:      "since",
+			expectError: true,
+		},
+		{
+			name:        "missing value after until",
+			filter:      "until",
+			expectError: true,
+		},
+		{
+			name:        "invalid time after since",
+			filter:      "since qwerty",
+			expectError: true,
+		},
+		{
+			name:        "invalid time after until",
+			filter:      "until qwerty",
+			expectError: true,
+		},
+	}
+	runTests(t, tests)
+}
+
 func TestAndOperator(t *testing.T) {
 	tests := []test{
 		// basic
 		{
 			name:        "match both",
-			filter:      "source 192.168.1.20 and proto tcp",
+			filter:      "since 2009-11-10T22:59:59Z and proto tcp",
 			expectMatch: true,
 		},
 		{
@@ -500,7 +560,7 @@ func TestOrOperator(t *testing.T) {
 		},
 		{
 			name:        "both match",
-			filter:      "action block or proto tcp",
+			filter:      "since 2009-11-10T23:00:01Z or proto tcp",
 			expectMatch: true,
 		},
 		{
@@ -564,7 +624,7 @@ func TestNotOperator(t *testing.T) {
 		},
 		{
 			name:        "invert no match",
-			filter:      "not action pass",
+			filter:      "not since 2009-11-10T23:00:01Z",
 			expectMatch: true,
 		},
 		{
@@ -603,7 +663,7 @@ func TestGrouping(t *testing.T) {
 		},
 		{
 			name:        "group with or",
-			filter:      "(source 192.168.1.20 or source 10.0.0.1) and proto tcp",
+			filter:      "since 2009-11-10T22:59:59Z and (src 192.168.1.20 or dst 192.168.1.10)",
 			expectMatch: true,
 		},
 		{

@@ -21,7 +21,7 @@
 .\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 .\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 9, 2026
+.Dd February 25, 2026
 .Dt OPNSENSE-FILTERLOG 8
 .Os
 .Sh NAME
@@ -140,6 +140,36 @@ Source IP address.
 .It Cm srcport , sport
 Source port.
 .El
+.Ss Time-based filtering
+Use
+.Ar since
+or
+.Ar until
+followed by a timestamp to filter entries by time:
+.Bd -literal
+since -30min
+since -1h
+since -2h and until -1h
+since yesterday
+until 14:00:00
+since 14:00 and until 15:16:17
+since 2009-11-10
+since 2009-11-10T23:00:00Z
+.Ed
+.Pp
+Timestamps are parsed using go-systemd-time, see
+<https://pkg.go.dev/gitlab.com/allddd/go-systemd-time#ParseTimestamp>
+for all supported timestamp formats.
+Note that the filter parser uses space as delimiter,
+so only timestamps without spaces are supported
+.Po
+e.g. use\&
+.Sy 2009-11-10T23:00:00
+.No
+instead of
+.Sy 2009-11-10 23:00:00
+.No
+.Pc
 .Ss Logical operators
 Combine filters with logical operators:
 .Pp

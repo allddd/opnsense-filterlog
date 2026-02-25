@@ -135,6 +135,23 @@ Fields:
 | `source` | `src` | Source IP address |
 | `srcport` | `sport` | Source port |
 
+#### Time-based filtering
+
+Use `since` or `until` followed by a timestamp to filter entries by time:
+
+```
+since -30min
+since -1h
+since -2h and until -1h
+since yesterday
+until 14:00:00
+since 14:00 and until 15:16:17
+since 2009-11-10
+since 2009-11-10T23:00:00Z
+```
+
+Timestamps are parsed using [go-systemd-time](https://gitlab.com/allddd/go-systemd-time), see [documentation](https://pkg.go.dev/gitlab.com/allddd/go-systemd-time#ParseTimestamp) for all supported timestamp formats. Note that the filter parser uses space as delimiter, so only timestamps without spaces are supported (e.g. use `2009-11-10T23:00:00` instead of `2009-11-10 23:00:00`).
+
 #### Logical operators
 
 Combine filters with logical operators:

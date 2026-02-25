@@ -26,19 +26,23 @@ package filter
 import (
 	"fmt"
 	"strings"
+	"time"
 
+	stime "gitlab.com/allddd/go-systemd-time"
 	"gitlab.com/allddd/opnsense-filterlog/internal/stream"
 )
 
 const (
-	tokenAnd    tokenTyp = iota // and operator
-	tokenEOF                    // eof
-	tokenField                  // field name
-	tokenNot                    // not operator
-	tokenOr                     // or operator
-	tokenParenL                 // left parenthesis
-	tokenParenR                 // right parenthesis
-	tokenValue                  // value
+	tokenAnd tokenTyp = iota
+	tokenEOF
+	tokenField
+	tokenNot
+	tokenOr
+	tokenParenL
+	tokenParenR
+	tokenSince
+	tokenUntil
+	tokenValue
 )
 
 const (
@@ -69,6 +73,9 @@ var (
 		// or
 		"or": tokenOr,
 		"||": tokenOr,
+		// time
+		"since": tokenSince,
+		"until": tokenUntil,
 	}
 
 	// fields maps field names (and their aliases) to field types.
@@ -165,6 +172,16 @@ type orFilter struct {
 // notFilter inverts the result of its child filter.
 type notFilter struct {
 	child FilterNode // filter expression to invert
+}
+
+// sinceFilter matches entries after or at a specific time.
+type sinceFilter struct {
+	time time.Time // time to compare against
+}
+
+// untilFilter matches entries before or at a specific time.
+type untilFilter struct {
+	time time.Time // time to compare against
 }
 
 // lexer
@@ -312,6 +329,24 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 		p.advance()
 		return node, nil
 	}
+	// handle time
+	if p.current.typ == tokenSince || p.current.typ == tokenUntil {
+		isSince := p.current.typ == tokenSince
+		token := p.current.value
+		p.advance()
+		if p.current.typ != tokenValue {
+			return nil, fmt.Errorf("error(filter): expected time value after %q but got %q", token, p.current.value)
+		}
+		timeParsed, err := stime.ParseTimestamp(p.current.value)
+		if err != nil {
+			return nil, fmt.Errorf("error(filter): invalid time: %w", err)
+		}
+		p.advance()
+		if isSince {
+			return &sinceFilter{time: timeParsed}, nil
+		}
+		return &untilFilter{time: timeParsed}, nil
+	}
 	// handle fields
 	if p.current.typ == tokenField {
 		field := p.current.value
@@ -404,6 +439,16 @@ func (f *orFilter) Matches(entry *stream.LogEntry) bool {
 // Matches (notFilter) returns the opposite of what the child filter returns.
 func (f *notFilter) Matches(entry *stream.LogEntry) bool {
 	return !f.child.Matches(entry)
+}
+
+// Matches (sinceFilter) returns true if the log entry time is after or equal to the filter time.
+func (f *sinceFilter) Matches(entry *stream.LogEntry) bool {
+	return entry.Time.After(f.time) || entry.Time.Equal(f.time)
+}
+
+// Matches (untilFilter) returns true if the log entry time is before or equal to the filter time.
+func (f *untilFilter) Matches(entry *stream.LogEntry) bool {
+	return entry.Time.Before(f.time) || entry.Time.Equal(f.time)
 }
 
 // public
