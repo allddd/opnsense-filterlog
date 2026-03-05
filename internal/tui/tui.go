@@ -32,10 +32,10 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"gitlab.com/allddd/opnsense-filterlog/internal/filter"
 	"gitlab.com/allddd/opnsense-filterlog/internal/meta"
@@ -237,7 +237,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.uiLoadingSpinner, cmd = m.uiLoadingSpinner.Update(msg)
 		return m, cmd
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		if !m.indexed {
 			return m, nil
 		}
@@ -444,7 +444,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
-		m.filterInput.Width = msg.Width - len(m.filterInput.Prompt) - 1 // -1 for cursor
+		m.filterInput.SetWidth(msg.Width - len(m.filterInput.Prompt) - 1) // -1 for cursor
 		m.uiHeight = msg.Height
 		m.uiWidth = msg.Width
 		// keep selected line visible after resize (+1 to keep selected line visible at bottom)
@@ -522,19 +522,26 @@ func (m model) visibleHeight() int {
 	return m.uiHeight - 3 // -3 for header, status, and help lines
 }
 
-// View renders the current state of the UI (as a string).
-func (m model) View() string {
+// View renders the current state of the UI.
+func (m model) View() tea.View {
+	var v tea.View
+	v.AltScreen = true
+
 	// show loading view during initialization or on request
 	if m.uiLoading || m.uiWidth == 0 || m.uiHeight == 0 {
 		loading := fmt.Sprintf("%s%s%s %s", m.uiLoadingSpinner.View(), "\n\n", meta.Name, meta.Version)
 		if m.uiWidth == 0 || m.uiHeight == 0 {
-			return loading
+			v.SetContent(loading)
+		} else {
+			v.SetContent(
+				lipgloss.NewStyle().
+					Height(m.uiHeight).
+					Width(m.uiWidth).
+					Align(lipgloss.Center, lipgloss.Center).
+					Render(loading),
+			)
 		}
-		return lipgloss.NewStyle().
-			Height(m.uiHeight).
-			Width(m.uiWidth).
-			Align(lipgloss.Center, lipgloss.Center).
-			Render(loading)
+		return v
 	}
 
 	var b strings.Builder
@@ -700,7 +707,8 @@ func (m model) View() string {
 	}
 	b.WriteString(helpLine)
 
-	return b.String()
+	v.SetContent(b.String())
+	return v
 }
 
 // async
@@ -905,9 +913,10 @@ func Display(s *stream.Stream) error {
 	// filterInput
 	ti := textinput.New()
 	ti.Prompt = "filter: "
-	ti.TextStyle = st.bar
-	ti.Cursor.Style = st.bar
-	ti.Cursor.TextStyle = st.bar
+	tis := ti.Styles()
+	tis.Focused.Prompt = st.bar
+	tis.Focused.Text = st.bar
+	ti.SetStyles(tis)
 	// model
 	m := model{
 		stream:           s,
@@ -922,7 +931,7 @@ func Display(s *stream.Stream) error {
 		uiStyles:         st,
 	}
 
-	p := tea.NewProgram(m, tea.WithAltScreen())
+	p := tea.NewProgram(m)
 	if _, err := p.Run(); err != nil {
 		return err
 	}
