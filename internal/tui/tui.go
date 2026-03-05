@@ -53,7 +53,7 @@ const (
 	widthAction    = 7
 	widthInterface = 10
 	widthProtocol  = 9
-	widthTime      = 15
+	widthTime      = 16
 )
 
 type model struct {
@@ -642,7 +642,7 @@ func (m model) View() tea.View {
 				destinationPort = fmt.Sprintf(formatPort, entry.DestinationPort)
 			}
 			line := fmt.Sprintf(formatLine,
-				styleString(entry.Time.Format("Jan02-15:04:05"), widthTime, m.uiStyles.plain),
+				styleString(entry.Time.Format("Jan 02 15:04:05"), widthTime, m.uiStyles.plain),
 				styleString(entry.Action, widthAction, actionStyle),
 				styleString(entry.ProtocolName, widthProtocol, m.uiStyles.plain),
 				styleString(iface, widthInterface, m.uiStyles.plain),
