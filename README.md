@@ -24,7 +24,9 @@ Features:
 - Self-contained binary with no external dependencies.
 - TUI with `vi`/`less`-style keybindings.
 
-![TUI Screenshot](./docs/demo.png)
+![TUI main view screenshot](./docs/demo_main.png)
+
+![TUI details view screenshot](./docs/demo_details.png)
 
 ## Installation
 
