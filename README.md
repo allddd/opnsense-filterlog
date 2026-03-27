@@ -16,13 +16,7 @@
 
 ## Overview
 
-`opnsense-filterlog` is a terminal-based viewer for [OPNsense](https://opnsense.org) firewall logs. It works similarly to a pager like `less`, but with filtering/searching capabilities built specifically for firewall logs.
-
-Features:
-- Fast and resource-efficient, can process large log files even on low-spec devices.
-- Filter syntax (similar to `tcpdump`) with field-based filters, logical operators and grouping.
-- Self-contained binary with no external dependencies.
-- TUI with `vi`/`less`-style keybindings.
+`opnsense-filterlog` is a terminal-based viewer for [OPNsense](https://opnsense.org) firewall logs. It works similarly to a pager like `less`, but with [filtering/searching capabilities](#filter) (similar to `tcpdump`) built specifically for firewall logs.
 
 ![TUI main view screenshot](./docs/demo_main.png)
 
@@ -32,7 +26,15 @@ Features:
 
 ### Binary
 
-You can download the pre-built binary along with its PGP-signed SHA256 checksum ([PGP key](https://gitlab.com/allddd.gpg)) from the [releases page](https://gitlab.com/allddd/opnsense-filterlog/-/releases/permalink/latest). All releases are reproducible, meaning you can compile the binary yourself and verify it matches the official release.
+`opnsense-filterlog` is available in the [main OPNsense repo](https://pkg.opnsense.org) as a binary package and can be [installed with `pkg`](https://docs.opnsense.org/manual/software_included.html#packages-pkg):
+
+```sh
+pkg install opnsense-filterlog
+```
+
+Alternatively, you can download a pre-built binary from the [releases page](https://gitlab.com/allddd/opnsense-filterlog/-/releases/permalink/latest) along with its PGP-signed SHA256 checksum ([PGP key](https://gitlab.com/allddd.gpg)). 
+
+All releases are reproducible, meaning you can compile the binary yourself and verify it matches the release binary.
 
 ### Source
 
@@ -48,6 +50,8 @@ Build the binary:
 cd ./opnsense-filterlog
 make
 ```
+
+Alternatively, you can build and install from the [OPNsense ports tree](https://docs.opnsense.org/manual/software_included.html#the-ports-tree).
 
 ## Usage
 
@@ -197,15 +201,15 @@ Before asking a question, please read the [documentation](https://gitlab.com/all
 
 ### Feedback
 
-Before reporting a bug or requesting a feature, make sure you're using the [latest version](https://gitlab.com/allddd/opnsense-filterlog/-/releases/permalink/latest) and have searched [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/issues). After confirming it hasn't been reported/requested, [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new) that includes as much detail as possible (for bugs: expected versus actual behavior, steps to reproduce, environment details, error messages, anonymized log files; for features: description, use cases, etc.).
+Before reporting a bug or requesting a feature, make sure you're using the [latest version](https://gitlab.com/allddd/opnsense-filterlog/-/releases/permalink/latest) and have searched [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/issues). After confirming it hasn't been fixed/reported/requested, [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new) that includes as much detail as possible (for bugs: expected versus actual behavior, steps to reproduce, environment details, error messages, anonymized log files; for features: description, use cases, etc.).
 
 ### Code
 
 Before opening a merge request, please [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new) to discuss the change you want to make.
 
-Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification (see `git log` for examples). Commits that affect functionality and should show up in the release notes need a [trailer](https://docs.gitlab.com/user/project/changelogs/#add-a-trailer-to-a-git-commit).
+Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification (see `git log` for examples). Commits that change what users see or how things behave and should show up in the release notes need a [trailer](https://docs.gitlab.com/user/project/changelogs/#add-a-trailer-to-a-git-commit).
 
-Before submitting a merge request, make sure `make test` passes, your code follows go conventions (`make lint`), new features have tests, and documentation is updated.
+Before submitting a merge request, make sure `make test` passes, `make lint` doesn’t complain, new features have tests, and documentation is updated.
 
 ## Copyright
 
