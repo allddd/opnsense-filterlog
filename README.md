@@ -38,20 +38,20 @@ All releases are reproducible, meaning you can compile the binary yourself and v
 
 ### Source
 
-Clone the repository (replace `<version>` with the actual version, e.g. `v0.8.0`):
+Clone the repo (replace `<version>` with the actual version, e.g. `v0.9.0`):
 
 ```sh
 git clone https://gitlab.com/allddd/opnsense-filterlog.git -b <version>
 ```
 
-Build the binary:
+Compile the binary:
 
 ```sh
 cd ./opnsense-filterlog
 make
 ```
 
-Alternatively, you can build and install from the [OPNsense ports tree](https://docs.opnsense.org/manual/software_included.html#the-ports-tree).
+Alternatively, you can compile and install from the [OPNsense ports tree](https://docs.opnsense.org/manual/software_included.html#the-ports-tree).
 
 ## Usage
 
@@ -197,15 +197,15 @@ not (action pass and proto udp)
 
 ### Questions
 
-Before asking a question, please read the [documentation](https://gitlab.com/allddd/opnsense-filterlog#opnsense-filterlog) and search for [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/issues). If those don't answer your question, [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new).
+Before asking a question, please read the [documentation](https://gitlab.com/allddd/opnsense-filterlog#opnsense-filterlog) and search for [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/work_items). If those don't answer your question, [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/work_items/new).
 
 ### Feedback
 
-Before reporting a bug or requesting a feature, make sure you're using the [latest version](https://gitlab.com/allddd/opnsense-filterlog/-/releases/permalink/latest) and have searched [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/issues). After confirming it hasn't been fixed/reported/requested, [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new) that includes as much detail as possible (for bugs: expected versus actual behavior, steps to reproduce, environment details, error messages, anonymized log files; for features: description, use cases, etc.).
+Before reporting a bug or requesting a feature, make sure you're using the [latest version](https://gitlab.com/allddd/opnsense-filterlog/-/releases/permalink/latest) and have searched [existing issues](https://gitlab.com/allddd/opnsense-filterlog/-/work_items). After confirming it hasn't been fixed/reported/requested, [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/work_items/new) that includes as much detail as possible (for bugs: expected versus actual behavior, steps to reproduce, environment details, error messages, anonymized log files; for features: description, use cases, etc.).
 
 ### Code
 
-Before opening a merge request, please [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/issues/new) to discuss the change you want to make.
+Before opening a merge request, please [open an issue](https://gitlab.com/allddd/opnsense-filterlog/-/work_items/new) to discuss the change you want to make.
 
 Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification (see `git log` for examples). Commits that change what users see or how things behave and should show up in the release notes need a [trailer](https://docs.gitlab.com/user/project/changelogs/#add-a-trailer-to-a-git-commit).
 
