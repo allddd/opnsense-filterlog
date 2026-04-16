@@ -141,16 +141,20 @@ type streamErrorMsg struct {
 
 // bubbletea
 
-// sliceString returns a substring starting at offset and up to width chars.
-func sliceString(s string, offset int, width int) string {
+// sliceString returns a substring starting at uiOffsetH and up to uiWidth chars.
+func (m model) sliceString(s string) string {
 	sw := ansi.StringWidth(s)
-	if offset <= 0 && width >= sw {
+	if m.uiOffsetH <= 0 && m.uiWidth >= sw {
 		return s
 	}
-	if offset >= sw {
+	if m.uiOffsetH >= sw {
 		return ""
 	}
-	return ansi.Cut(s, offset, offset+width)
+	end := m.uiOffsetH + m.uiWidth
+	if end < sw {
+		return ansi.Cut(s, m.uiOffsetH, end-1) + m.uiStyles.selected.Render(">")
+	}
+	return ansi.Cut(s, m.uiOffsetH, end)
 }
 
 // styleString truncates, styles, and pads a string.
@@ -556,7 +560,7 @@ func (m model) View() tea.View {
 
 		// main
 		for i := visibleStart; i < visibleEnd; i++ {
-			line := sliceString(m.details[i], m.uiOffsetH, m.uiWidth)
+			line := m.sliceString(m.details[i])
 			if i == m.uiSelected {
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(line)
 			}
@@ -574,7 +578,7 @@ func (m model) View() tea.View {
 
 		// main
 		for i := visibleStart; i < visibleEnd; i++ {
-			line := sliceString(m.errors[i], m.uiOffsetH, m.uiWidth)
+			line := m.sliceString(m.errors[i])
 			if i == m.uiSelected {
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(line)
 			}
@@ -597,7 +601,7 @@ func (m model) View() tea.View {
 			styleString("", 0, m.uiStyles.plain),
 			styleString("Destination", 0, m.uiStyles.plain),
 			styleString("", 0, m.uiStyles.plain))
-		headerLine = sliceString(headerLine, m.uiOffsetH, m.uiWidth)
+		headerLine = m.sliceString(headerLine)
 		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render(headerLine) + "\n")
 
 		// main
@@ -650,7 +654,7 @@ func (m model) View() tea.View {
 				styleString(sourcePort, 0, m.uiStyles.port),
 				styleString(entry.Destination, 0, m.uiStyles.ip),
 				styleString(destinationPort, 0, m.uiStyles.port))
-			line = sliceString(line, m.uiOffsetH, m.uiWidth)
+			line = m.sliceString(line)
 			if i == m.uiSelected {
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(ansi.Strip(line))
 			}
