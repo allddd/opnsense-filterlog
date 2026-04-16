@@ -45,11 +45,11 @@ GO_LDFLAGS ?= -X 'gitlab.com/allddd/opnsense-filterlog/internal/meta.Name=$(PROG
 all: build ## run build
 
 build: ## build binary
-	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="$(GO_LDFLAGS)" -o ./$(PROGRAM) ./
+	CGO_ENABLED=0 $(GO) build -trimpath -mod=readonly -ldflags="$(GO_LDFLAGS)" -o ./$(PROGRAM) ./
 
 build-release: clean ## build release binary
 	$(GO) mod verify
-	CGO_ENABLED=0 GOARCH=amd64 GOOS=freebsd $(GO) build -trimpath -buildvcs=false -ldflags="$(GO_LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
+	CGO_ENABLED=0 GOARCH=amd64 GOOS=freebsd $(GO) build -trimpath -buildvcs=false -mod=readonly -ldflags="$(GO_LDFLAGS) -s -w -buildid=" -o ./$(PROGRAM) ./
 
 clean: ## remove build artifacts
 	rm -f ./$(PROGRAM)
@@ -89,7 +89,7 @@ release: build-release ## create release
 	glab release upload --use-package-registry --package-name $(PROGRAM) $(VERSION) ./$(PROGRAM).sha256
 
 test: build ## run tests
-	$(GO) test -fullpath -shuffle=on ./...
+	$(GO) test -fullpath -mod=readonly -shuffle=on ./...
 
 uninstall: ## remove installed files
 	rm -f $(DESTDIR)$(SBINDIR)/$(PROGRAM)
