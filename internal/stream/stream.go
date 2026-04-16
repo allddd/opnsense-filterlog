@@ -327,24 +327,20 @@ func (s *Stream) BuildIndex() error {
 		return err
 	}
 	lineIndexed := 0
-	lineNum := 0
 	lineOffset := int64(0)
 	s.index = make([]indexEntry, 0)
-	// parse the file and add positions of valid entries to the index
-	scanner := bufio.NewScanner(s.file)
-	for scanner.Scan() {
-		if entry := s.parse(scanner.Text(), lineNum); entry != nil {
-			// it's valid, add to index
+	for s.scanner.Scan() {
+		if entry := s.parse(s.scanner.Text(), s.lineNum); entry != nil {
 			s.index = append(s.index, indexEntry{
 				lineNum:    lineIndexed,
 				lineOffset: lineOffset,
 			})
 			lineIndexed++
 		}
-		lineOffset += int64(len(scanner.Bytes()) + 1) // +1 for newline
-		lineNum++
+		lineOffset += int64(len(s.scanner.Bytes()) + 1) // +1 for newline
+		s.lineNum++
 	}
-	if err := scanner.Err(); err != nil {
+	if err := s.scanner.Err(); err != nil {
 		return fmt.Errorf("error(stream): could not build index due to scanner error: %w", err)
 	}
 	return s.reset()
