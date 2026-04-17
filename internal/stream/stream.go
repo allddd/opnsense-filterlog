@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -84,17 +85,18 @@ type LogEntry struct {
 
 // indexEntry represents an entry in the index.
 type indexEntry struct {
-	lineNum    int   // line number
-	lineOffset int64 // byte offset
+	fileNum    int   // index of file entry is in
+	lineOffset int64 // byte offset of entry
 }
 
 // Stream represents a streaming log parser.
 type Stream struct {
 	errors  []string       // parsing errors
 	file    *os.File       // file handle
+	fileNum int            // index of current file
 	index   []indexEntry   // index of line positions
 	lineNum int            // current line number
-	path    string         // file path
+	paths   []string       // file paths (sorted by first entry)
 	scanner *bufio.Scanner // file scanner
 }
 
@@ -123,7 +125,7 @@ func splitCSV(csv string) []string {
 }
 
 // parse parses a single line and returns a LogEntry.
-func (s *Stream) parse(line string, lineNum int) *LogEntry {
+func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 	var err error
 	entry := LogEntry{}
 
@@ -131,27 +133,27 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	timeStart := strings.IndexByte(line, ' ') + 1 // +1 for 1st space
 	timeEnd := strings.IndexByte(line[timeStart:], ' ')
 	if timeStart <= 0 || timeEnd == -1 {
-		s.addError(fmt.Sprintf("invalid timestamp on line %d", lineNum))
+		s.addError(fmt.Sprintf("invalid timestamp on line %d of %s", lineNum, path))
 		return nil
 	}
 	timeEnd += timeStart // make relative index absolute
 	entry.Time, err = time.Parse(time.RFC3339, line[timeStart:timeEnd])
 	if err != nil {
-		s.addError(fmt.Sprintf("invalid timestamp on line %d: %v", lineNum, err))
+		s.addError(fmt.Sprintf("invalid timestamp on line %d of %s: %v", lineNum, path, err))
 		return nil
 	}
 
 	// extract the csv string (after "] ") and split it into fields
 	_, csv, ok := strings.Cut(line, "] ")
 	if !ok {
-		s.addError(fmt.Sprintf("invalid csv on line %d", lineNum))
+		s.addError(fmt.Sprintf("invalid csv on line %d of %s", lineNum, path))
 		return nil
 	}
 	fields := splitCSV(csv)
 
 	// 3: label, 4: interface, 5: reason, 6: action, 7: direction, 8: ipversion
 	if len(fields) < 9 {
-		s.addError(fmt.Sprintf("invalid packetfilter section on line %d", lineNum))
+		s.addError(fmt.Sprintf("invalid packetfilter section on line %d of %s", lineNum, path))
 		return nil
 	}
 
@@ -167,7 +169,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	case "4":
 		// 9:dscp/tos, 10:ecn, 11:ttl, 12:id, 13:offset, 14:flags, 15:protonum, 16:protoname, 17:length, 18:src, 19:dst
 		if len(fields) < 20 {
-			s.addError(fmt.Sprintf("invalid ipv4 section on line %d", lineNum))
+			s.addError(fmt.Sprintf("invalid ipv4 section on line %d of %s", lineNum, path))
 			return nil
 		}
 
@@ -187,7 +189,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		case "udp":
 			// 20: srcport, 21: dstport, 22: datalen
 			if len(fields) < 23 {
-				s.addError(fmt.Sprintf("invalid udp4 section on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp4 section on line %d of %s", lineNum, path))
 				return nil
 			}
 			entry.SourcePort = fields[20]
@@ -198,7 +200,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		case "tcp":
 			// 20: srcport, 21: dstport, 22: datalen, 23: flags, 24: seq, 25: ack, 26: window, 27: urg, 28: options
 			if len(fields) < 29 {
-				s.addError(fmt.Sprintf("invalid tcp4 section on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp4 section on line %d of %s", lineNum, path))
 				return nil
 			}
 			entry.SourcePort = fields[20]
@@ -215,7 +217,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		case "carp":
 			// 20: type, 21: ttl, 22: vhid, 23: version, 24: advskew, 25: advbase
 			if len(fields) < 26 {
-				s.addError(fmt.Sprintf("invalid carp4 section on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid carp4 section on line %d of %s", lineNum, path))
 				return nil
 			}
 			entry.CARPType = fields[20]
@@ -233,7 +235,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 	case "6":
 		// 9:class, 10:flow, 11:hoplimit, 12:protoname, 13:protonum, 14:length, 15:src, 16:dst
 		if len(fields) < 17 {
-			s.addError(fmt.Sprintf("invalid ipv6 section on line %d", lineNum))
+			s.addError(fmt.Sprintf("invalid ipv6 section on line %d of %s", lineNum, path))
 			return nil
 		}
 
@@ -250,7 +252,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		case "udp":
 			// 17: srcport, 18: dstport, 19: datalen
 			if len(fields) < 20 {
-				s.addError(fmt.Sprintf("invalid udp6 section on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid udp6 section on line %d of %s", lineNum, path))
 				return nil
 			}
 			entry.SourcePort = fields[17]
@@ -261,7 +263,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		case "tcp":
 			// 17: srcport, 18: dstport, 19: datalen, 20: flags, 21: seq, 22: ack, 23: window, 24: urg, 25: options
 			if len(fields) < 26 {
-				s.addError(fmt.Sprintf("invalid tcp6 section on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid tcp6 section on line %d of %s", lineNum, path))
 				return nil
 			}
 			entry.SourcePort = fields[17]
@@ -278,7 +280,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		case "carp":
 			// 17: type, 18: ttl, 19: vhid, 20: version, 21: advskew, 22: advbase
 			if len(fields) < 23 {
-				s.addError(fmt.Sprintf("invalid carp6 section on line %d", lineNum))
+				s.addError(fmt.Sprintf("invalid carp6 section on line %d of %s", lineNum, path))
 				return nil
 			}
 			entry.CARPType = fields[17]
@@ -293,7 +295,7 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 		}
 
 	default:
-		s.addError(fmt.Sprintf("invalid ip version on line %d", lineNum))
+		s.addError(fmt.Sprintf("invalid ip version on line %d of %s", lineNum, path))
 		return nil
 	}
 
@@ -302,18 +304,19 @@ func (s *Stream) parse(line string, lineNum int) *LogEntry {
 
 // stream
 
-// reset repositions the stream to the start of the file.
+// reset repositions the stream to the start of the first file.
 func (s *Stream) reset() error {
 	if s.file != nil {
 		if err := s.file.Close(); err != nil {
 			return fmt.Errorf("error(stream): could not close file: %w", err)
 		}
 	}
-	file, err := os.Open(s.path)
+	file, err := os.Open(s.paths[0])
 	if err != nil {
-		return fmt.Errorf("error(stream): %w", err)
+		return fmt.Errorf("error(stream): could not open file: %w", err)
 	}
 	s.file = file
+	s.fileNum = 0
 	s.scanner = bufio.NewScanner(file)
 	s.lineNum = 0
 	return nil
@@ -321,27 +324,37 @@ func (s *Stream) reset() error {
 
 // public
 
-// BuildIndex builds an index of line positions in the file.
+// BuildIndex builds an index of line positions across all files.
 func (s *Stream) BuildIndex() error {
-	if err := s.reset(); err != nil {
-		return err
-	}
-	lineIndexed := 0
-	lineOffset := int64(0)
 	s.index = make([]indexEntry, 0)
-	for s.scanner.Scan() {
-		if entry := s.parse(s.scanner.Text(), s.lineNum); entry != nil {
-			s.index = append(s.index, indexEntry{
-				lineNum:    lineIndexed,
-				lineOffset: lineOffset,
-			})
-			lineIndexed++
+	for fileNum, path := range s.paths {
+		if s.file != nil {
+			if err := s.file.Close(); err != nil {
+				return fmt.Errorf("error(stream): could not close file: %w", err)
+			}
 		}
-		lineOffset += int64(len(s.scanner.Bytes()) + 1) // +1 for newline
-		s.lineNum++
-	}
-	if err := s.scanner.Err(); err != nil {
-		return fmt.Errorf("error(stream): could not build index due to scanner error: %w", err)
+		file, err := os.Open(path) //nolint:gosec
+		if err != nil {
+			return fmt.Errorf("error(stream): could not open file: %w", err)
+		}
+		s.file = file
+		s.fileNum = fileNum
+		s.scanner = bufio.NewScanner(file)
+		lineNum := 0
+		lineOffset := int64(0)
+		for s.scanner.Scan() {
+			if entry := s.parse(s.scanner.Text(), lineNum, path); entry != nil {
+				s.index = append(s.index, indexEntry{
+					fileNum:    fileNum,
+					lineOffset: lineOffset,
+				})
+			}
+			lineOffset += int64(len(s.scanner.Bytes()) + 1) // +1 for newline
+			lineNum++
+		}
+		if err := s.scanner.Err(); err != nil {
+			return fmt.Errorf("error(stream): could not build index: %w", err)
+		}
 	}
 	return s.reset()
 }
@@ -354,9 +367,9 @@ func (s *Stream) Close() error {
 	return nil
 }
 
-// GetPath returns the relative path of the log file.
-func (s Stream) GetPath() string {
-	return s.path
+// GetPaths returns the file paths of the log files.
+func (s Stream) GetPaths() []string {
+	return s.paths
 }
 
 // GetErrors returns all parsing errors encountered during parsing.
@@ -364,32 +377,84 @@ func (s Stream) GetErrors() []string {
 	return s.errors
 }
 
-// NewStream creates a new streaming parser for the given log file.
-func NewStream(path string) (*Stream, error) {
-	file, err := os.Open(path) //nolint:gosec
+// NewStream creates a new streaming parser for the given log files.
+func NewStream(paths []string) (*Stream, error) {
+	if len(paths) == 0 {
+		return nil, errors.New("error(stream): no path provided")
+	}
+	// sort paths by first entry timestamp
+	if len(paths) > 1 {
+		order := make(map[string]time.Time, len(paths))
+		tmp := &Stream{}
+		for _, path := range paths {
+			file, err := os.Open(path) //nolint:gosec
+			if err != nil {
+				return nil, fmt.Errorf("error(stream): could not open file: %w", err)
+			}
+			scanner := bufio.NewScanner(file)
+			lineNum := 0
+			for scanner.Scan() {
+				if entry := tmp.parse(scanner.Text(), lineNum, path); entry != nil {
+					order[path] = entry.Time
+					break
+				}
+				lineNum++
+			}
+			if err := file.Close(); err != nil {
+				return nil, fmt.Errorf("error(stream): could not close file: %w", err)
+			}
+			if _, ok := order[path]; !ok {
+				return nil, fmt.Errorf("error(stream): no valid entries in %s", path)
+			}
+		}
+		slices.SortFunc(paths, func(a, b string) int {
+			if c := order[a].Compare(order[b]); c != 0 {
+				return c
+			}
+			return strings.Compare(a, b)
+		})
+	}
+	file, err := os.Open(paths[0])
 	if err != nil {
-		return nil, fmt.Errorf("error(stream): %w", err)
+		return nil, fmt.Errorf("error(stream): could not open file: %w", err)
 	}
 	return &Stream{
 		errors:  make([]string, 0),
 		file:    file,
+		fileNum: 0,
 		index:   nil,
 		lineNum: 0,
-		path:    path,
+		paths:   paths,
 		scanner: bufio.NewScanner(file),
 	}, nil
 }
 
-// Next reads and parses the next log entry (returns nil when EOF is reached).
-func (s *Stream) Next() *LogEntry {
-	for s.scanner.Scan() {
-		s.lineNum++
-		if entry := s.parse(s.scanner.Text(), s.lineNum); entry != nil {
-			return entry
+// Next reads and parses the next log entry across all files.
+func (s *Stream) Next() (*LogEntry, error) {
+	for {
+		for s.scanner.Scan() {
+			s.lineNum++
+			if entry := s.parse(s.scanner.Text(), s.lineNum, s.paths[s.fileNum]); entry != nil {
+				return entry, nil
+			}
+			// if nil, continue to the next line
 		}
-		// if nil, continue to the next line
+		s.fileNum++
+		if s.fileNum >= len(s.paths) {
+			return nil, nil
+		}
+		if s.file != nil {
+			if err := s.file.Close(); err != nil {
+				return nil, fmt.Errorf("error(stream): could not close file: %w", err)
+			}
+		}
+		file, err := os.Open(s.paths[s.fileNum])
+		if err != nil {
+			return nil, fmt.Errorf("error(stream): could not open file: %w", err)
+		}
+		s.file = file
+		s.scanner = bufio.NewScanner(file)
 	}
-	return nil
 }
 
 // SeekToLine seeks to a specific line number using the index.
@@ -400,21 +465,23 @@ func (s *Stream) SeekToLine(lineNum int) error {
 	if lineNum < 0 || lineNum >= len(s.index) {
 		return fmt.Errorf("error(stream): could not seek: line %d out of range [0, %d)", lineNum, len(s.index))
 	}
+	entry := s.index[lineNum]
 	if s.file != nil {
 		if err := s.file.Close(); err != nil {
 			return fmt.Errorf("error(stream): could not close file: %w", err)
 		}
 	}
-	file, err := os.Open(s.path)
+	file, err := os.Open(s.paths[entry.fileNum])
 	if err != nil {
 		return fmt.Errorf("error(stream): could not seek to line %d: %w", lineNum, err)
 	}
-	_, err = file.Seek(s.index[lineNum].lineOffset, 0)
+	_, err = file.Seek(entry.lineOffset, 0)
 	if err != nil {
 		_ = file.Close()
 		return fmt.Errorf("error(stream): could not seek to line %d: %w", lineNum, err)
 	}
 	s.file = file
+	s.fileNum = entry.fileNum
 	s.scanner = bufio.NewScanner(file)
 	s.lineNum = lineNum
 	return nil

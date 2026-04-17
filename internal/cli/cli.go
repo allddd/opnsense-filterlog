@@ -26,6 +26,7 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strconv"
@@ -39,10 +40,10 @@ const defaultLogPath = "/var/log/filter/latest.log"
 const usageText = `terminal-based viewer for OPNsense firewall logs
 
 Usage:
-  %s [flag]... [path]
+  %s [flag]... [path]...
 
 Arguments:
-  path	filter log file to analyze, defaults to 'latest.log' if omitted
+  path	filter log file(s) to analyze, defaults to 'latest.log' if omitted
 
 Flags:
 `
@@ -74,7 +75,32 @@ func (f *flags) flagsDefine() {
 	}
 }
 
-func Execute() {
+func readStdin() (string, error) {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return "", fmt.Errorf("error(cli): could not stat stdin: %w", err)
+	}
+	if fi.Mode()&os.ModeCharDevice != 0 {
+		return "", nil
+	}
+	f, err := os.CreateTemp("", meta.Name+"_*")
+	if err != nil {
+		return "", fmt.Errorf("error(cli): could not create temp file: %w", err)
+	}
+	n := f.Name()
+	if _, err := io.Copy(f, os.Stdin); err != nil {
+		_ = f.Close()
+		_ = os.Remove(n)
+		return "", fmt.Errorf("error(cli): could not copy stdin: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(n)
+		return "", fmt.Errorf("error(cli): could not close temp file: %w", err)
+	}
+	return n, nil
+}
+
+func Execute() int {
 	var f flags
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, usageText, meta.Name)
@@ -89,55 +115,82 @@ func Execute() {
 			if count++; count > 1 {
 				fmt.Fprintln(os.Stderr, "error(cli): mutually exclusive flags")
 				flag.Usage()
-				os.Exit(1)
+				return 1
 			}
 		}
 	}
 	if !f.Json && f.Filter != "" {
 		fmt.Fprintln(os.Stderr, "error(cli): -f requires -j flag")
 		flag.Usage()
-		os.Exit(1)
+		return 1
 	}
 	// -h
 	if f.Help {
 		flag.Usage()
-		os.Exit(0)
+		return 0
 	}
 	// -V
 	if f.Version {
 		if _, err := fmt.Fprintln(os.Stdout, meta.Version); err != nil {
-			os.Exit(1)
+			return 1
 		}
-		os.Exit(0)
+		return 0
 	}
 	// args
 	args := flag.Args()
-	switch len(args) {
-	case 0:
-		args = []string{defaultLogPath}
-	case 1:
-		// skip
-	default:
-		fmt.Fprintln(os.Stderr, "error(cli): too many arguments")
-		flag.Usage()
-		os.Exit(1)
+	if len(args) == 0 {
+		path, err := readStdin()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		if path == "" {
+			path = defaultLogPath
+		} else {
+			defer os.Remove(path) //nolint:errcheck
+		}
+		args = []string{path}
+	} else {
+		count := 0
+		for i, arg := range args {
+			if arg != "-" {
+				continue
+			}
+			count++
+			if count > 1 {
+				fmt.Fprintln(os.Stderr, "error(cli): duplicate stdin arg")
+				return 1
+			}
+			path, err := readStdin()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+			if path == "" {
+				fmt.Fprintln(os.Stderr, "error(cli): no stdin data")
+				return 1
+			}
+			defer os.Remove(path) //nolint:errcheck
+			args[i] = path
+		}
 	}
 
-	s, err := stream.NewStream(args[0])
+	s, err := stream.NewStream(args)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
 	// -j
 	if f.Json {
 		if err := displayJSON(s, f.Filter); err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return 1
 		}
 	} else {
 		if err := tui.Display(s); err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return 1
 		}
 	}
+	return 0
 }

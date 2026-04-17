@@ -1,4 +1,4 @@
-// Copyright (c) 2025 allddd <me@allddd.onl>
+// Copyright (c) 2025, 2026 allddd <me@allddd.onl>
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -33,10 +33,10 @@ import (
 )
 
 type jsonObjMeta struct {
-	Entries int    `json:"entries"`          // count of entries in entries array
-	Errors  int    `json:"errors,omitempty"` // number of parse errors
-	Filter  string `json:"filter,omitempty"` // filter expression
-	Source  string `json:"source"`           // file path (absolute if possible)
+	Entries int      `json:"entries"`          // count of entries in entries array
+	Errors  int      `json:"errors,omitempty"` // number of parse errors
+	Filter  string   `json:"filter,omitempty"` // filter expression
+	Sources []string `json:"sources"`          // file path(s) (absolute if possible)
 }
 
 // jsonObj represents the complete JSON output structure (used only for tests and docs).
@@ -62,7 +62,14 @@ func displayJSON(s *stream.Stream, filterValue string) error {
 	}
 	// stream entries and count
 	entries := 0
-	for entry := s.Next(); entry != nil; entry = s.Next() {
+	for {
+		entry, err := s.Next()
+		if err != nil {
+			return err
+		}
+		if entry == nil {
+			break
+		}
 		// skip entries that don't match filter
 		if compiled != nil && !compiled.Matches(entry) {
 			continue
@@ -91,7 +98,7 @@ func displayJSON(s *stream.Stream, filterValue string) error {
 		Entries: entries,
 		Errors:  len(errors),
 		Filter:  filterValue,
-		Source:  s.GetPath(),
+		Sources: s.GetPaths(),
 	}
 	jsonMeta, err := json.Marshal(meta)
 	if err != nil {

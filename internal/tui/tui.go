@@ -740,9 +740,11 @@ func loadEntries(s *stream.Stream, startLine int, count int) tea.Cmd {
 		}
 		entries := make([]stream.LogEntry, 0, count)
 		for i := 0; i < count && startLine+i < totalLines; i++ {
-			entry := s.Next()
+			entry, err := s.Next()
+			if err != nil {
+				return streamErrorMsg{err: err}
+			}
 			if entry == nil {
-				// EOF
 				break
 			}
 			entries = append(entries, *entry)
@@ -763,7 +765,10 @@ func loadEntriesFiltered(s *stream.Stream, lineNums []int, entriesFilteredStart,
 			if err := s.SeekToLine(lineNum); err != nil {
 				continue
 			}
-			entry := s.Next()
+			entry, err := s.Next()
+			if err != nil {
+				return streamErrorMsg{err: err}
+			}
 			if entry != nil {
 				entries[lineNum] = *entry
 			}
@@ -872,7 +877,10 @@ func (m model) scanAndFilter() tea.Cmd {
 			return streamErrorMsg{err: err}
 		}
 		for i := range m.entriesTotal {
-			entry := m.stream.Next()
+			entry, err := m.stream.Next()
+			if err != nil {
+				return streamErrorMsg{err: err}
+			}
 			if entry == nil {
 				break
 			}

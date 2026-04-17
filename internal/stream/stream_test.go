@@ -60,13 +60,20 @@ func TestSplit(t *testing.T) {
 }
 
 func TestValidLog(t *testing.T) {
-	s, err := NewStream("testdata/valid.log")
+	s, err := NewStream([]string{"testdata/valid.log"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
 	valid := 0
-	for entry := s.Next(); entry != nil; entry = s.Next() {
+	for {
+		entry, err := s.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry == nil {
+			break
+		}
 		valid++
 	}
 	if valid != 20 {
@@ -79,13 +86,20 @@ func TestValidLog(t *testing.T) {
 }
 
 func TestMixedLog(t *testing.T) {
-	s, err := NewStream("testdata/mixed.log")
+	s, err := NewStream([]string{"testdata/mixed.log"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
 	valid := 0
-	for entry := s.Next(); entry != nil; entry = s.Next() {
+	for {
+		entry, err := s.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry == nil {
+			break
+		}
 		valid++
 	}
 	if valid != 20 {
@@ -98,13 +112,20 @@ func TestMixedLog(t *testing.T) {
 }
 
 func TestCorruptLog(t *testing.T) {
-	s, err := NewStream("testdata/corrupt.log")
+	s, err := NewStream([]string{"testdata/corrupt.log"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
 	valid := 0
-	for entry := s.Next(); entry != nil; entry = s.Next() {
+	for {
+		entry, err := s.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry == nil {
+			break
+		}
 		valid++
 	}
 	if valid != 1 {
@@ -117,7 +138,7 @@ func TestCorruptLog(t *testing.T) {
 }
 
 func TestBuildIndex(t *testing.T) {
-	s, err := NewStream("testdata/valid.log")
+	s, err := NewStream([]string{"testdata/valid.log"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +153,7 @@ func TestBuildIndex(t *testing.T) {
 }
 
 func TestSeekToLine(t *testing.T) {
-	s, err := NewStream("testdata/valid.log")
+	s, err := NewStream([]string{"testdata/valid.log"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +169,10 @@ func TestSeekToLine(t *testing.T) {
 	if err := s.SeekToLine(0); err != nil {
 		t.Fatal(err)
 	}
-	entry := s.Next()
+	entry, err := s.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if entry == nil {
 		t.Fatal("expected entry at line 0, got nil")
 	}
@@ -159,7 +183,10 @@ func TestSeekToLine(t *testing.T) {
 	if err := s.SeekToLine(10); err != nil {
 		t.Fatal(err)
 	}
-	entry = s.Next()
+	entry, err = s.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if entry == nil {
 		t.Fatal("expected entry at line 10, got nil")
 	}
@@ -167,7 +194,10 @@ func TestSeekToLine(t *testing.T) {
 	if err := s.SeekToLine(19); err != nil {
 		t.Fatal(err)
 	}
-	entry = s.Next()
+	entry, err = s.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if entry == nil {
 		t.Fatal("expected entry at line 19, got nil")
 	}
@@ -181,13 +211,16 @@ func TestSeekToLine(t *testing.T) {
 }
 
 func TestParsedValues(t *testing.T) {
-	s, err := NewStream("testdata/valid.log")
+	s, err := NewStream([]string{"testdata/valid.log"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
 	// 1st entry
-	entry := s.Next()
+	entry, err := s.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if entry == nil {
 		t.Fatal("expected entry 1, got nil")
 	}
@@ -206,7 +239,7 @@ func TestParsedValues(t *testing.T) {
 	if entry.SourcePort != "63511" || entry.DestinationPort != "53" {
 		t.Fatalf("entry 1: expected ports 63511:53, got %s:%s", entry.SourcePort, entry.DestinationPort)
 	}
-	expectedTime := time.Date(2025, 10, 10, 0, 0, 0, 0, time.FixedZone("", 2*60*60))
+	expectedTime := time.Date(2025, 10, 11, 0, 0, 0, 0, time.FixedZone("", 2*60*60))
 	if !entry.Time.Equal(expectedTime) {
 		t.Fatalf("entry 1: expected time %v, got %v", expectedTime, entry.Time)
 	}
@@ -229,7 +262,10 @@ func TestParsedValues(t *testing.T) {
 		t.Fatalf("entry 1: expected datalen 60, got %s", entry.DataLength)
 	}
 	// 2nd entry
-	entry = s.Next()
+	entry, err = s.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if entry == nil {
 		t.Fatal("expected entry 2, got nil")
 	}
@@ -267,8 +303,14 @@ func TestParsedValues(t *testing.T) {
 		t.Fatalf("entry 2: expected datalen 60, got %s", entry.DataLength)
 	}
 	// 4th entry
-	s.Next() // skip 3rd entry
-	entry = s.Next()
+	// skip 3rd entry
+	if _, err = s.Next(); err != nil {
+		t.Fatal(err)
+	}
+	entry, err = s.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
 	if entry == nil {
 		t.Fatal("expected entry 4, got nil")
 	}
@@ -315,7 +357,7 @@ func TestParsedValues(t *testing.T) {
 }
 
 func TestTotalLines(t *testing.T) {
-	s, err := NewStream("testdata/valid.log")
+	s, err := NewStream([]string{"testdata/valid.log"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,10 +375,113 @@ func TestTotalLines(t *testing.T) {
 	}
 }
 
+func TestMultiFile(t *testing.T) {
+	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	valid := 0
+	for {
+		entry, err := s.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry == nil {
+			break
+		}
+		valid++
+	}
+	if valid != 40 {
+		t.Fatalf("expected 40 valid entries, got %d", valid)
+	}
+	errors := len(s.GetErrors())
+	if errors != 30 {
+		t.Fatalf("expected 30 errors, got %d", errors)
+	}
+}
+
+func TestMultiFileSort(t *testing.T) {
+	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	entry, err := s.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry == nil {
+		t.Fatal("expected entry, got nil")
+	}
+	if entry.IPVersion != "4" {
+		t.Fatalf("expected ipv4, got ipv%s", entry.IPVersion)
+	}
+}
+
+func TestMultiFileBuildIndex(t *testing.T) {
+	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err := s.BuildIndex(); err != nil {
+		t.Fatal(err)
+	}
+	total := s.TotalLines()
+	if total != 40 {
+		t.Fatalf("expected 40 indexed lines, got %d", total)
+	}
+}
+
+func TestMultiFileSeekToLine(t *testing.T) {
+	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if err := s.BuildIndex(); err != nil {
+		t.Fatal(err)
+	}
+	// seek to first entry in second file (line 20)
+	if err := s.SeekToLine(20); err != nil {
+		t.Fatal(err)
+	}
+	entry, err := s.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry == nil {
+		t.Fatal("expected entry at line 20, got nil")
+	}
+	if entry.IPVersion != "6" {
+		t.Fatalf("expected ipv6 at line 20, got ipv%s", entry.IPVersion)
+	}
+}
+
+func TestMultiFileGetPaths(t *testing.T) {
+	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	paths := s.GetPaths()
+	if len(paths) != 2 {
+		t.Fatalf("expected 2 paths, got %d", len(paths))
+	}
+}
+
+func TestNewStreamEmpty(t *testing.T) {
+	_, err := NewStream([]string{})
+	if err == nil {
+		t.Fatal("expected error for empty paths")
+	}
+}
+
 func BenchmarkParse(b *testing.B) {
 	s := &Stream{}
 	line := `<134>1 2025-10-10T00:00:00+02:00 opnsense.filter.log filterlog 86605 - [meta sequenceId="4"] 68,,,4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a,eth1,match,pass,out,4,0x0,,127,17785,0,DF,6,tcp,52,192.168.1.100,10.0.0.5,46376,80,0,S,1356197145,,64480,,mss;nop;wscale;nop;nop;sackOK` //nolint:lll
 	for b.Loop() {
-		s.parse(line, 1)
+		s.parse(line, 1, "")
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 allddd <me@allddd.onl>
+// Copyright (c) 2025, 2026 allddd <me@allddd.onl>
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are met:
@@ -24,9 +24,11 @@
 package main
 
 import (
+	"os"
+
 	"gitlab.com/allddd/opnsense-filterlog/internal/cli"
 )
 
 func main() {
-	cli.Execute()
+	os.Exit(cli.Execute())
 }

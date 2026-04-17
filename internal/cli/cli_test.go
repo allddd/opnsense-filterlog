@@ -24,10 +24,11 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"gitlab.com/allddd/opnsense-filterlog/internal/meta"
@@ -35,27 +36,28 @@ import (
 
 func TestArgs(t *testing.T) {
 	tests := []struct {
-		name           string
-		args           []string
-		expectError    bool
-		expectedSource string
+		name            string
+		args            []string
+		expectError     bool
+		expectedSources string
 	}{
 		{
-			name:           "one arg",
-			args:           []string{"-j", "testdata/valid.log"},
-			expectError:    false,
-			expectedSource: "testdata/valid.log",
+			name:            "single",
+			args:            []string{"-j", "testdata/valid.log"},
+			expectError:     false,
+			expectedSources: "testdata/valid.log",
 		},
 		{
-			name:        "multiple args",
-			args:        []string{"-j", "testdata/valid.log", "testdata/invalid.log"},
-			expectError: true,
+			name:            "multiple",
+			args:            []string{"-j", "testdata/valid.log", "testdata/invalid.log"},
+			expectError:     true,
+			expectedSources: "testdata/invalid.log,testdata/valid.log",
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, tc.args...)
-			output, err := cmd.Output()
+			got, err := cmd.Output()
 			if tc.expectError {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -64,14 +66,15 @@ func TestArgs(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
-				if tc.expectedSource != "" {
-					var result jsonObj
-					if err := json.Unmarshal(output, &result); err != nil {
-						t.Fatal(err)
-					}
-					if result.Meta.Source != tc.expectedSource {
-						t.Fatalf("expected source %q, got %q", tc.expectedSource, result.Meta.Source)
-					}
+			}
+			if tc.expectedSources != "" {
+				var result jsonObj
+				if err := json.Unmarshal(got, &result); err != nil {
+					t.Fatal(err)
+				}
+				got := strings.Join(result.Meta.Sources, ",")
+				if got != tc.expectedSources {
+					t.Fatalf("expected sources %q, got %q", tc.expectedSources, got)
 				}
 			}
 		})
@@ -97,31 +100,31 @@ func TestFlags(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:           "mutually exclusive help and json",
+			name:           "exclusive help json",
 			args:           []string{"-h", "-j", "testdata/valid.log"},
 			expectError:    true,
 			expectedOutput: "mutually exclusive",
 		},
 		{
-			name:           "mutually exclusive help and version",
+			name:           "exclusive help version",
 			args:           []string{"-h", "-V"},
 			expectError:    true,
 			expectedOutput: "mutually exclusive",
 		},
 		{
-			name:           "mutually exclusive json and version",
+			name:           "exclusive json version",
 			args:           []string{"-j", "-V", "testdata/valid.log"},
 			expectError:    true,
 			expectedOutput: "mutually exclusive",
 		},
 		{
-			name:           "mutually exclusive all",
+			name:           "exclusive all",
 			args:           []string{"-h", "-j", "-V", "testdata/valid.log"},
 			expectError:    true,
 			expectedOutput: "mutually exclusive",
 		},
 		{
-			name:           "filter requires json",
+			name:           "filter no json",
 			args:           []string{"-f", "proto tcp", "testdata/valid.log"},
 			expectError:    true,
 			expectedOutput: "requires",
@@ -130,7 +133,7 @@ func TestFlags(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, tc.args...)
-			output, err := cmd.CombinedOutput()
+			got, err := cmd.CombinedOutput()
 			if tc.expectError {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -141,8 +144,88 @@ func TestFlags(t *testing.T) {
 				}
 			}
 			if tc.expectedOutput != "" {
-				if !bytes.Contains(output, []byte(tc.expectedOutput)) {
-					t.Fatalf("missing %q in output", tc.expectedOutput)
+				if !strings.Contains(string(got), tc.expectedOutput) {
+					t.Fatal("output mismatch")
+				}
+			}
+		})
+	}
+}
+
+func TestStdin(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		stdin          string
+		expectError    bool
+		expectedOutput string
+		expectedCount  int
+	}{
+		{
+			name:          "pipe",
+			args:          []string{"-j"},
+			stdin:         "testdata/valid.log",
+			expectedCount: 9,
+		},
+		{
+			name:          "pipe dash",
+			args:          []string{"-j", "-"},
+			stdin:         "testdata/valid.log",
+			expectedCount: 9,
+		},
+		{
+			name:           "no pipe",
+			args:           []string{"-j", "-"},
+			expectError:    true,
+			expectedOutput: "no stdin data",
+		},
+		{
+			name:           "dash duplicate",
+			args:           []string{"-j", "-", "-"},
+			stdin:          "testdata/valid.log",
+			expectError:    true,
+			expectedOutput: "duplicate stdin arg",
+		},
+		{
+			name:          "file dash",
+			args:          []string{"-j", "testdata/valid.log", "-"},
+			stdin:         "testdata/valid.log",
+			expectedCount: 18,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, tc.args...)
+			if tc.stdin != "" {
+				f, err := os.Open(tc.stdin)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer f.Close()
+				cmd.Stdin = f
+			}
+			got, err := cmd.CombinedOutput()
+			if tc.expectError {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+			if tc.expectedOutput != "" {
+				if !strings.Contains(string(got), tc.expectedOutput) {
+					t.Fatal("output mismatch")
+				}
+			}
+			if tc.expectedCount > 0 {
+				var result jsonObj
+				if err := json.Unmarshal(got, &result); err != nil {
+					t.Fatal(err)
+				}
+				if result.Meta.Entries != tc.expectedCount {
+					t.Fatalf("expected %d entries, got %d", tc.expectedCount, result.Meta.Entries)
 				}
 			}
 		})
