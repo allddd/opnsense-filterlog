@@ -418,7 +418,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.detailsView = false
 				m.uiOffsetV = m.uiOffsetVPrev
 				m.uiSelected = m.uiSelectedPrev
-				m.uiStatusMsg = ""
 				return m, nil
 			}
 			if m.errorsView {
