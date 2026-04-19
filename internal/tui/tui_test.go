@@ -55,8 +55,8 @@ func newTerm(t *testing.T, path string, width, height int) *term {
 	cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, path)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 	if err := pty.Start(cmd); err != nil {
-		pty.Close()
 		vterm.Close()
+		pty.Close()
 		t.Fatal(err)
 	}
 	p := &term{
