@@ -1,7 +1,7 @@
 Time             Action  Protocol  Interface  Source > Destination
-Oct 11 00:00:00  pass    udp       I eth0     fd00:1234:5678:9abc::1 63511 > fd00:1234:5678:9abc::2 53
+Oct 11 00:00:00  pass    udp       I eth0     fd00:1234:5678:9abc::1 63511 > fd00:1234:5678:9abc::2>
 Oct 11 00:00:00  pass    udp       O eth1     192.168.1.100 12162 > 192.168.1.1 53
-Oct 11 00:00:00  pass    udp       I eth0     fd00:abcd:ef01:2345:6789:abcd:ef01:2345 51091 > fd00:1111:2222:3333:4444:>
+Oct 11 00:00:00  pass    udp       I eth0     fd00:abcd:ef01:2345:6789:abcd:ef01:2345 51091 > fd00:>
 Oct 11 00:00:00  pass    tcp       O eth1     192.168.1.100 46376 > 10.0.0.5 80
 Oct 11 00:00:00  pass    tcp       O eth1     192.168.1.100 51645 > 172.16.0.50 443
 Oct 11 00:00:00  pass    tcp       O eth1     192.168.1.100 46649 > 172.16.0.50 443
