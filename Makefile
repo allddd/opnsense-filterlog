@@ -21,7 +21,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-.PHONY: all build build-release clean deps help install lint release test uninstall
+.PHONY: all build build-release clean deps help install lint release test test-gen uninstall
 
 GO ?= go
 INSTALL ?= install
@@ -90,6 +90,9 @@ release: build-release ## create release
 
 test: build ## run tests
 	$(GO) test -fullpath -mod=readonly -shuffle=on ./...
+
+test-gen: build ## generate golden files for tui tests
+	$(GO) test -fullpath -mod=readonly ./internal/tui/ -update
 
 uninstall: ## remove installed files
 	rm -f $(DESTDIR)$(SBINDIR)/$(PROGRAM)
