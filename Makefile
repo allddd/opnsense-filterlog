@@ -89,10 +89,10 @@ release: build-release ## create release
 	glab release upload --use-package-registry --package-name $(PROGRAM) $(VERSION) ./$(PROGRAM).sha256
 
 test: build ## run tests
-	$(GO) test -fullpath -mod=readonly -shuffle=on ./...
+	$(GO) test -fullpath -mod=readonly -timeout=60s -shuffle=on ./...
 
 test-gen: build ## generate golden files for tui tests
-	$(GO) test -fullpath -mod=readonly ./internal/tui/ -update
+	$(GO) test -fullpath -mod=readonly -timeout=60s ./internal/tui/ -update
 
 uninstall: ## remove installed files
 	rm -f $(DESTDIR)$(SBINDIR)/$(PROGRAM)
