@@ -38,18 +38,18 @@ import (
 	"gitlab.com/allddd/opnsense-filterlog/internal/meta"
 )
 
-type term struct {
+type terminal struct {
 	t     *testing.T
 	cmd   *exec.Cmd
 	pty   xpty.Pty
 	vterm *vt.SafeEmulator
 }
 
-func newTerm(t *testing.T, path string, width, height int) *term {
+func newTerminal(t *testing.T, path string, width, height int) *terminal {
 	t.Helper()
 	pty, err := xpty.NewPty(width, height)
 	if err != nil {
-		t.Skip(err)
+		t.Fatal(err)
 	}
 	vterm := vt.NewSafeEmulator(width, height)
 	cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, path)
@@ -59,7 +59,7 @@ func newTerm(t *testing.T, path string, width, height int) *term {
 		pty.Close()
 		t.Fatal(err)
 	}
-	p := &term{
+	term := &terminal{
 		t:     t,
 		cmd:   cmd,
 		pty:   pty,
@@ -68,24 +68,24 @@ func newTerm(t *testing.T, path string, width, height int) *term {
 	go io.Copy(vterm, pty)
 	go io.Copy(pty, vterm)
 	t.Cleanup(func() {
-		_ = p.cmd.Process.Kill()
-		_ = p.cmd.Wait()
+		_ = term.cmd.Process.Kill()
+		_ = term.cmd.Wait()
 		vterm.Close()
 		pty.Close()
 	})
-	return p
+	return term
 }
 
-func (p *term) wait(text string) {
-	p.t.Helper()
+func (term *terminal) wait(text string) {
+	term.t.Helper()
 	timeout := time.After(2 * time.Second)
 	for {
 		select {
 		case <-timeout:
-			p.t.Fatalf("timeout waiting for %q\nscreen:\n%s", text, p.vterm.String())
+			term.t.Fatalf("timeout waiting for %q:\n\n%s", text, term.vterm.String())
 		default:
 		}
-		if strings.Contains(p.vterm.String(), text) {
+		if strings.Contains(term.vterm.String(), text) {
 			time.Sleep(100 * time.Millisecond)
 			return
 		}
@@ -93,141 +93,141 @@ func (p *term) wait(text string) {
 	}
 }
 
-func (p *term) check(name string) {
-	p.t.Helper()
-	p.t.Run(name, func(t *testing.T) {
+func (term *terminal) check(name string) {
+	term.t.Helper()
+	term.t.Run(name, func(t *testing.T) {
 		t.Helper()
-		golden.RequireEqual(t, []byte(p.vterm.String()))
+		golden.RequireEqual(t, []byte(term.vterm.String()))
 	})
 }
 
 func TestNoValidEntries(t *testing.T) {
-	p := newTerm(t, "/dev/null", 80, 10)
-	p.wait("no valid entries")
-	golden.RequireEqual(t, []byte(p.vterm.String()))
+	term := newTerminal(t, "/dev/null", 80, 10)
+	term.wait("no valid entries")
+	golden.RequireEqual(t, []byte(term.vterm.String()))
 }
 
 func TestNormal(t *testing.T) {
-	p := newTerm(t, "../stream/testdata/valid.log", 100, 24)
-	p.wait("position:")
+	term := newTerminal(t, "../stream/testdata/valid.log", 100, 24)
+	term.wait("position:")
 
-	p.check("default")
+	term.check("default")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'j'})
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyDown})
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'j'})
-	p.wait("position:")
-	p.check("scroll down")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'j'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyDown})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'j'})
+	term.wait("position:")
+	term.check("scroll down")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'k'})
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyUp})
-	p.wait("position:")
-	p.check("scroll up")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'k'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyUp})
+	term.wait("position:")
+	term.check("scroll up")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'd'})
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyPgDown})
-	p.wait("position:")
-	p.check("page down")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'd'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyPgDown})
+	term.wait("position:")
+	term.check("page down")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'u'})
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyPgUp})
-	p.wait("position:")
-	p.check("page up")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'u'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyPgUp})
+	term.wait("position:")
+	term.check("page up")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnd})
-	p.wait("position:")
-	p.check("jump to end")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnd})
+	term.wait("position:")
+	term.check("jump to end")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyHome})
-	p.wait("position:")
-	p.check("jump to top")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyHome})
+	term.wait("position:")
+	term.check("jump to top")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyRight})
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'l'})
-	p.wait("position:")
-	p.check("horizontal scroll right")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyRight})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'l'})
+	term.wait("position:")
+	term.check("horizontal scroll right")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'h'})
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyLeft})
-	p.wait("position:")
-	p.check("horizontal scroll left")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'h'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyLeft})
+	term.wait("position:")
+	term.check("horizontal scroll left")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnter})
-	p.wait("esc: back")
-	p.check("details")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnter})
+	term.wait("esc: back")
+	term.check("details")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'j'})
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyDown})
-	p.wait("esc: back")
-	p.check("details scroll")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'j'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyDown})
+	term.wait("esc: back")
+	term.check("details scroll")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'G'})
-	p.wait("esc: back")
-	p.check("details end")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'G'})
+	term.wait("esc: back")
+	term.check("details end")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
-	p.wait("position:")
-	p.check("details back")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
+	term.wait("position:")
+	term.check("details back")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: '/'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: '/'})
 	time.Sleep(100 * time.Millisecond)
-	p.vterm.SendText("invalid")
+	term.vterm.SendText("invalid")
 	time.Sleep(50 * time.Millisecond)
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
-	p.wait("position:")
-	p.check("filter cancel")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
+	term.wait("position:")
+	term.check("filter cancel")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: '/'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: '/'})
 	time.Sleep(100 * time.Millisecond)
-	p.vterm.SendText("proto tcp")
+	term.vterm.SendText("proto tcp")
 	time.Sleep(50 * time.Millisecond)
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnter})
-	p.wait("position:")
-	p.check("filter apply")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnter})
+	term.wait("position:")
+	term.check("filter apply")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
-	p.wait("position:")
-	p.check("filter clear")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
+	term.wait("position:")
+	term.check("filter clear")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: '/'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: '/'})
 	time.Sleep(100 * time.Millisecond)
-	p.vterm.SendText("proto and")
+	term.vterm.SendText("proto and")
 	time.Sleep(50 * time.Millisecond)
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnter})
-	p.wait("position:")
-	p.check("filter invalid")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnter})
+	term.wait("position:")
+	term.check("filter invalid")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
-	p.wait("position:")
-	p.vterm.SendKey(vt.KeyPressEvent{Code: '/'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
+	term.wait("position:")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: '/'})
 	time.Sleep(100 * time.Millisecond)
-	p.vterm.SendText("proto icmp")
+	term.vterm.SendText("proto icmp")
 	time.Sleep(50 * time.Millisecond)
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnter})
-	p.wait("position:")
-	p.check("filter no matches")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEnter})
+	term.wait("position:")
+	term.check("filter no matches")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
-	p.wait("position:")
-	p.check("filter no matches clear")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
+	term.wait("position:")
+	term.check("filter no matches clear")
 }
 
 func TestError(t *testing.T) {
-	p := newTerm(t, "../stream/testdata/mixed.log", 120, 12)
-	p.wait("position:")
+	term := newTerminal(t, "../stream/testdata/mixed.log", 120, 12)
+	term.wait("position:")
 
-	p.check("default")
+	term.check("default")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'e'})
-	p.wait("esc: back")
-	p.check("errors")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'e'})
+	term.wait("esc: back")
+	term.check("errors")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: 'j'})
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyDown})
-	p.wait("esc: back")
-	p.check("errors scroll")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: 'j'})
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyDown})
+	term.wait("esc: back")
+	term.check("errors scroll")
 
-	p.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
-	p.wait("position:")
-	p.check("errors back")
+	term.vterm.SendKey(vt.KeyPressEvent{Code: vt.KeyEscape})
+	term.wait("position:")
+	term.check("errors back")
 }
