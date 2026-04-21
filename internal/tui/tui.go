@@ -43,9 +43,8 @@ import (
 )
 
 const (
-	formatDetail = "%-14s%s"
-	formatLine   = "%s %s %s %s %s%s > %s%s"
-	formatPort   = " %s"
+	formatLine = "%s %s %s %s %s%s > %s%s"
+	formatPort = " %s"
 
 	loadEntriesMax       = 600
 	loadEntriesThreshold = 200
@@ -212,7 +211,10 @@ func (m *model) scrollDown(n int) {
 	default:
 		lines = len(m.entriesAvailable)
 	}
-	m.uiSelected = min(m.uiSelected+n, lines-1)
+	if lines > 0 {
+		lines -= 1
+	}
+	m.uiSelected = min(m.uiSelected+n, lines)
 	m.uiOffsetV = max(m.uiOffsetV, m.uiSelected-m.visibleHeight()+1) // +1 to keep selected line visible at bottom
 }
 
@@ -678,7 +680,11 @@ func (m model) View() tea.View {
 		default:
 			lines = len(m.entriesAvailable)
 		}
-		statusLine = fmt.Sprintf("position: %d/%d", m.uiSelected+1, lines)
+		position := m.uiSelected
+		if lines > 0 {
+			position += 1
+		}
+		statusLine = fmt.Sprintf("position: %d/%d", position, lines)
 		if m.errorsView {
 			statusLine += fmt.Sprintf(" (limit: %d)", stream.MaxErrorsInMemory)
 		}

@@ -20,5 +20,5 @@ Time             Action  Protocol  Interface  Source > Destination
 
 
 
-position: 1/0 | error(filter): expected value after field "proto" but got "and"
+position: 0/0 | error(filter): expected value after field "proto" but got "and"
 q: quit | hjkl: move | ud: page | gG: jump | enter: details | /: filter | esc: clear
