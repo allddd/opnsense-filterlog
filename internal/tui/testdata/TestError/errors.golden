@@ -1,12 +1,12 @@
 Error
-invalid timestamp on line 1 of ../stream/testdata/mixed.log: parsing time "filterlog" as "2006-01-02T15:04:05Z07:00": c>
-invalid timestamp on line 2 of ../stream/testdata/mixed.log: parsing time "2025-10-10" as "2006-01-02T15:04:05Z07:00": >
-invalid timestamp on line 4 of ../stream/testdata/mixed.log: parsing time "notavalidtimestamp" as "2006-01-02T15:04:05Z>
-invalid csv on line 5 of ../stream/testdata/mixed.log
-invalid packetfilter section on line 6 of ../stream/testdata/mixed.log
-invalid packetfilter section on line 8 of ../stream/testdata/mixed.log
-invalid packetfilter section on line 9 of ../stream/testdata/mixed.log
-invalid packetfilter section on line 11 of ../stream/testdata/mixed.log
-invalid ip version on line 12 of ../stream/testdata/mixed.log
+invalid timestamp on line 1 of testdata/mixed.log: parsing time "filterlog" as "2006-01-02T15:04:05Z07:00": cannot pars>
+invalid timestamp on line 2 of testdata/mixed.log: parsing time "2025-10-10" as "2006-01-02T15:04:05Z07:00": cannot par>
+invalid timestamp on line 4 of testdata/mixed.log: parsing time "notavalidtimestamp" as "2006-01-02T15:04:05Z07:00": ca>
+invalid csv on line 5 of testdata/mixed.log
+invalid packetfilter section on line 6 of testdata/mixed.log
+invalid packetfilter section on line 8 of testdata/mixed.log
+invalid packetfilter section on line 9 of testdata/mixed.log
+invalid packetfilter section on line 11 of testdata/mixed.log
+invalid ip version on line 12 of testdata/mixed.log
 position: 1/30 (limit: 1000)
 q: quit | hjkl: move | ud: page | gG: jump | esc: back

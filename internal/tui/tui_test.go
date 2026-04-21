@@ -108,7 +108,7 @@ func TestNoValidEntries(t *testing.T) {
 }
 
 func TestNormal(t *testing.T) {
-	term := newTerminal(t, "../stream/testdata/valid.log", 100, 24)
+	term := newTerminal(t, "testdata/valid.log", 100, 24)
 	term.wait("position:")
 
 	term.check("default")
@@ -213,7 +213,7 @@ func TestNormal(t *testing.T) {
 }
 
 func TestError(t *testing.T) {
-	term := newTerminal(t, "../stream/testdata/mixed.log", 120, 12)
+	term := newTerminal(t, "testdata/mixed.log", 120, 12)
 	term.wait("position:")
 
 	term.check("default")
