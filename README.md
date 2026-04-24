@@ -1,6 +1,9 @@
 # opnsense-filterlog
 
-- [Overview](#overview)
+`opnsense-filterlog` is a command-line tool and terminal-based viewer for analyzing [OPNsense](https://opnsense.org) firewall logs. It can be used either as an interactive TUI or to output log entries in JSON format for automation, etc. Both CLI and TUI support filtering using a `tcpdump`-like syntax with field- and time-based filters, logical operators, and grouping.
+
+![TUI demo GIF](./docs/demo.gif)
+
 - [Installation](#installation)
 - [Usage](#usage)
 - [Contributing](#contributing)
@@ -8,12 +11,6 @@
   - [Feedback](#feedback)
   - [Code](#code)
 - [Copyright](#copyright)
-
-## Overview
-
-`opnsense-filterlog` is a command-line tool and terminal-based viewer for analyzing [OPNsense](https://opnsense.org) firewall logs. It can be used either as an interactive TUI or to output log entries in JSON format for automation, etc. Both CLI and TUI support filtering using a `tcpdump`-like syntax with field- and time-based filters, logical operators, and grouping.
-
-![TUI demo GIF](./docs/demo.gif)
 
 ## Installation
 
