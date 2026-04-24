@@ -4,8 +4,7 @@ default:
     interruptible: true
 
 stages:
-    - lint
-    - test
+    - check
     - build
     - publish
 
@@ -22,24 +21,24 @@ stages:
             - .go/pkg/mod/
 
 lint:
-    stage: lint
+    stage: check
     image: golangci/golangci-lint:latest
     script:
         - golangci-lint fmt -d
         - golangci-lint run
+        - go run github.com/bobg/mingo/cmd/mingo@latest -v -check -tests
 
 test:
-    stage: test
+    stage: check
     extends: .go-cache
     script:
         - make test
-        - go run github.com/bobg/mingo/cmd/mingo@latest -v -check -tests
 
 build:
     stage: build
     extends: .go-cache
     script:
-        - make VERSION="${CI_COMMIT_TAG:-$CI_PIPELINE_ID}" build-release
+        - make PROGRAM="$CI_PROJECT_NAME" VERSION="${CI_COMMIT_TAG:-$CI_PIPELINE_ID}" build-release
     artifacts:
         paths:
             - $CI_PROJECT_NAME
