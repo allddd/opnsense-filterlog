@@ -37,20 +37,20 @@ import (
 )
 
 const defaultLogPath = "/var/log/filter/latest.log"
-const usageText = `terminal-based viewer for OPNsense firewall logs
+const usageText = `command-line tool and terminal-based viewer for OPNsense firewall logs
 
 Usage:
-  %s [flag]... [path]...
+  %s [flag]... [file]...
 
 Arguments:
-  path	filter log file(s) to analyze, defaults to 'latest.log' if omitted
+  file	filter log file(s) to analyze, defaults to 'latest.log' if omitted
 
 Flags:
 `
 
 type flags struct {
 	Filter  string `name:"f" usage:"filter expression (requires -j)"`
-	Help    bool   `name:"h" usage:"display this help message and exit"`
+	Help    bool   `name:"h" usage:"display usage information and exit"`
 	Json    bool   `name:"j" usage:"display entries as JSON and exit"`
 	Version bool   `name:"V" usage:"display version information and exit"`
 }
