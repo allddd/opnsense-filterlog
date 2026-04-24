@@ -4,14 +4,6 @@
 
 ![TUI demo GIF](./docs/demo.gif)
 
-- [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-  - [Questions](#questions)
-  - [Feedback](#feedback)
-  - [Code](#code)
-- [Copyright](#copyright)
-
 ## Installation
 
 `opnsense-filterlog` is available in the [main OPNsense repo](https://pkg.opnsense.org) as a binary package and can be [installed with `pkg`](https://docs.opnsense.org/manual/software_included.html#packages-pkg):
