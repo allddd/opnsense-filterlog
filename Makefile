@@ -86,7 +86,7 @@ release: build-release ## create release
 	@! git ls-remote -t --exit-code origin $(VERSION) >/dev/null 2>&1 || (printf 'error: tag $(VERSION) already exists\n'; exit 1)
 	@curl -fsSL 'https://go.dev/dl/?mode=json' | jq -r '.[0].version' | grep -qx "$$($(GO) version -m -json $$(which $(GO)) | jq -r '.GoVersion')" || (printf 'error: not using latest go version\n'; exit 1)
 	git push origin $(VERSION)
-	sleep 10
+	sleep 30
 	glab ci status -lb $(VERSION)
 	glab job artifact -p ./artifacts/ $(VERSION) build
 	cmp ./$(PROGRAM) ./artifacts/$(PROGRAM) || (rm -rf ./artifacts; exit 1)
