@@ -21,7 +21,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-.PHONY: all build build-release clean deps help install lint release test test-gen uninstall
+.PHONY: all build build-release clean deps docs help install lint release test test-gen uninstall
 
 GO ?= go
 INSTALL ?= install
@@ -36,11 +36,12 @@ MANDIR ?= $(DATAROOTDIR)/man
 MAN8DIR ?= $(MANDIR)/man8
 
 PROGRAM ?= opnsense-filterlog
+REPO ?= gitlab.com/allddd/$(PROGRAM)
 VERSION != git describe --tags 2>/dev/null || printf 'unknown'
 # needed for gmake < 4.0
 VERSION ?= $(shell git describe --tags 2>/dev/null || printf 'unknown')
-GO_LDFLAGS ?= -X 'gitlab.com/allddd/opnsense-filterlog/internal/meta.Name=$(PROGRAM)' \
-              -X 'gitlab.com/allddd/opnsense-filterlog/internal/meta.Version=$(VERSION)'
+GO_LDFLAGS ?= -X '$(REPO)/internal/meta.Name=$(PROGRAM)' \
+              -X '$(REPO)/internal/meta.Version=$(VERSION)'
 
 all: build ## run build
 
@@ -59,6 +60,11 @@ deps: ## update dependencies
 	$(GO) get -u ./...
 	$(GO) mod tidy
 	$(GO) mod verify
+
+docs: ## generate manpage
+	sed -e 's|@PROGRAM@|$(PROGRAM)|g' \
+	    -e 's|@REPO@|https://$(REPO)|g' \
+	    ./docs/manpage.md | $(GO) tool go-md2man -out ./docs/$(PROGRAM).8
 
 help: ## display help message
 	@printf 'available targets:\n'

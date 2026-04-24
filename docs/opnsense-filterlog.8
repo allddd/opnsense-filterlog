@@ -1,106 +1,82 @@
-.\" Copyright (c) 2025, 2026 allddd <me@allddd.onl>
-.\"
-.\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions are met:
-.\"
-.\" 1. Redistributions of source code must retain the above copyright notice, this
-.\"    list of conditions and the following disclaimer.
-.\"
-.\" 2. Redistributions in binary form must reproduce the above copyright notice,
-.\"    this list of conditions and the following disclaimer in the documentation
-.\"    and/or other materials provided with the distribution.
-.\"
-.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-.\" DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-.\" CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-.\" OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-.\" OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.\"
-.Dd February 25, 2026
-.Dt OPNSENSE-FILTERLOG 8
-.Os
-.Sh NAME
-.Nm opnsense-filterlog
-.Nd terminal-based viewer for OPNsense firewall logs
-.Sh SYNOPSIS
-.Nm
-.Op Fl f Ar expression
-.Op Fl h
-.Op Fl j
-.Op Fl V
-.Op Ar file
-.Sh DESCRIPTION
-The
-.Nm
-utility is a terminal-based viewer for OPNsense firewall logs.
-It works similarly to a pager like
-.Xr less 1 ,
-but with filtering and searching capabilities built specifically for firewall logs.
-.Pp
-Filter syntax is similar to
-.Xr tcpdump 1
-with field-based filters, logical operators, and grouping.
-.Sh OPTIONS
-The optional
-.Ar file
-argument specifies the path to the filter log file to analyze.
-If omitted, defaults to
-.Pa /var/log/filter/latest.log .
-.Pp
+'\" t
+.nh
+.TH opnsense-filterlog 8 "April 24, 2026" "FreeBSD" "FreeBSD System Manager's Manual"
+
+.SH NAME
+opnsense-filterlog \- command-line tool and terminal-based viewer for OPNsense firewall logs
+
+
+.SH SYNOPSIS
+\fBopnsense-filterlog\fP [\fB-f\fP \fIexpression\fP] [\fB-h\fP] [\fB-j\fP] [\fB-V\fP] [\fIfile\fP]
+
+
+.SH DESCRIPTION
+\fBopnsense-filterlog\fP is a command-line tool and terminal-based viewer for
+analyzing OPNsense firewall logs. It can be used either as an interactive TUI
+or to output log entries in JSON format for automation, etc. Both CLI and TUI
+support filtering using a \fBtcpdump\fP(1)-like syntax with field- and time-based
+filters, logical operators, and grouping.
+
+
+.SH OPTIONS
+The optional \fIfile\fP argument specifies the path to the filter log file to
+analyze. If omitted, defaults to \fI/var/log/filter/latest.log\fP\&.
+
+.PP
 The options are as follows:
-.Bl -tag
-.It Fl f Ar expression
-Filter expression (requires
-.Fl j ) .
-.It Fl h
+.TP
+\fB-f\fP \fIexpression\fP
+Filter expression (requires \fB-j\fP).
+
+.TP
+\fB-h\fP
 Display usage information and exit.
-.It Fl j
+
+.TP
+\fB-j\fP
 Display entries as JSON and exit.
-.It Fl V
+
+.TP
+\fB-V\fP
 Display version information and exit.
-.El
-.Sh COMMANDS
-You can interact with the TUI using:
-.Bl -tag
-.It Ic k , Up , g , Home
-Scroll or jump up.
-.It Ic j , Down , G , End
-Scroll or jump down.
-.It Ic h , Left
-Scroll left.
-.It Ic l , Right
-Scroll right.
-.It Ic u , Page Up
-Scroll one page up.
-.It Ic d , Page Down
-Scroll one page down.
-.It Ic Enter
-View details.
-.It Ic /
-Enter filter mode.
-.It Ic q
-Quit.
-.El
-.Sh FILTER
-.Ss Simple search
+
+
+.SH COMMANDS
+The following keys are available in the TUI:
+
+.TS
+allbox;
+l l 
+l l .
+\fBKey(s)\fP	\fBAction\fP
+\fBk\fR or \fB▲\fR	Scroll up
+\fBj\fR or \fB▼\fR	Scroll down
+\fBh\fR or \fB◄\fR	Scroll left
+\fBl\fR or \fB►\fR	Scroll right
+\fBu\fR or \fBPgUp\fR	Page up
+\fBd\fR or \fBPgDn\fR	Page down
+\fBg\fR or \fBHome\fR	Jump to top
+\fBG\fR or \fBEnd\fR	Jump to bottom
+\fBEnter\fR	View details
+\fB/\fR	Enter filter mode
+\fBq\fR	Quit
+.TE
+
+
+.SH FILTER
+.SH Simple search
 Type a value without a field name to search across all fields:
-.Bd -literal
+
+.EX
 192.168
 block
 tcp
-.Ed
-.Ss Field-based filtering
-Use the
-.Ar field
-.Ar value
-syntax to target specific fields:
-.Pp
-.Bd -literal
+.EE
+
+.SH Field-based filtering
+Use the \fIfield\fP \fIvalue\fP syntax to target specific fields:
+
+.EX
 action block
 dst 10.0.0.1
 iface eth0
@@ -109,44 +85,41 @@ label 02f4bab031b57d1e30553ce08e0ec131
 port 443
 proto tcp
 src 192.168.1.1
-.Ed
-.Pp
-Available fields:
-.Bl -tag
-.It Cm action
-Action (block, pass, etc.).
-.It Cm destination , dst , dest
-Destination IP address.
-.It Cm direction , dir
-Direction (in or out).
-.It Cm dstport , dport
-Destination port.
-.It Cm host
-Either source or destination IP address.
-.It Cm interface , iface
-Network interface.
-.It Cm ipversion , ip , ipver
-IP version (4 or 6).
-.It Cm label
-Rule label.
-.It Cm port
-Either source or destination port.
-.It Cm protocol , proto
-Protocol (tcp, udp, icmp, etc.).
-.It Cm reason
-Reason (match, fragment, etc.).
-.It Cm source , src
-Source IP address.
-.It Cm srcport , sport
-Source port.
-.El
-.Ss Time-based filtering
-Use
-.Ar since
-or
-.Ar until
-followed by a timestamp to filter entries by time:
-.Bd -literal
+.EE
+
+.PP
+Fields:
+
+.TS
+allbox;
+l l l 
+l l l .
+\fBField\fP	\fBAlias(es)\fP	\fBDescription\fP
+\fBaction\fR	-	Action (block, pass, etc.)
+\fBdestination\fR	\fBdst\fR, \fBdest\fR	Destination IP address
+\fBdirection\fR	\fBdir\fR	Direction (in or out)
+\fBdstport\fR	\fBdport\fR	Destination port
+\fBhost\fR	-	T{
+Either source or destination IP address
+T}
+\fBinterface\fR	\fBiface\fR	Network interface
+\fBipversion\fR	\fBip\fR, \fBipver\fR	IP version (4 or 6)
+\fBlabel\fR	-	Rule label
+\fBport\fR	-	T{
+Either source or destination port
+T}
+\fBprotocol\fR	\fBproto\fR	T{
+Protocol (tcp, udp, icmp, etc.)
+T}
+\fBreason\fR	-	Reason (match, fragment, etc.)
+\fBsource\fR	\fBsrc\fR	Source IP address
+\fBsrcport\fR	\fBsport\fR	Source port
+.TE
+
+.SH Time-based filtering
+Use \fBsince\fR or \fBuntil\fR followed by a timestamp to filter entries by time:
+
+.EX
 since -30min
 since -1h
 since -2h and until -1h
@@ -155,61 +128,97 @@ until 14:00:00
 since 14:00 and until 15:16:17
 since 2009-11-10
 since 2009-11-10T23:00:00Z
-.Ed
-.Pp
+.EE
+
+.PP
 Timestamps are parsed using go-systemd-time, see
-<https://pkg.go.dev/gitlab.com/allddd/go-systemd-time#ParseTimestamp>
-for all supported timestamp formats.
-Note that the filter parser uses space as delimiter,
-so only timestamps without spaces are supported
-.Po
-e.g. use\&
-.Sy 2009-11-10T23:00:00
-.No
-instead of
-.Sy 2009-11-10 23:00:00
-.No
-.Pc
-.Ss Logical operators
+
+\[la]https://pkg.go.dev/gitlab.com/allddd/go\-systemd\-time#ParseTimestamp\[ra] for all
+supported timestamp formats. Note that the filter parser uses space as
+delimiter, so only timestamps without spaces are supported (e.g. use
+\fB2009-11-10T23:00:00\fR instead of \fB2009-11-10 23:00:00\fR).
+
+.SH Logical operators
 Combine filters with logical operators:
-.Pp
-.Sy AND
-.Pq Cm and No or Cm &&
-\(en Both conditions must match:
-.Bd -literal
+
+.SS AND (\fBand\fR or \fB&&\fR)
+Both conditions must match:
+
+.EX
 src 192.168.1.1 and action block
 proto tcp && port 443
-.Ed
-.Pp
-.Sy OR
-.Pq Cm or No or Cm ||
-\(en Either condition must match:
-.Bd -literal
+.EE
+
+.SS OR (\fBor\fR or \fB||\fR)
+Either condition must match:
+
+.EX
 src 192.168.1.1 or src 192.168.1.2
 port 80 || port 443
-.Ed
-.Pp
-.Sy NOT
-.Pq Cm not No or Cm \&!
-\(en Inverts the condition:
-.Bd -literal
+.EE
+
+.SS NOT (\fBnot\fR or \fB!\fR)
+Inverts the condition:
+
+.EX
 not action block
 ! src 192.168.1.1
-.Ed
-.Ss Grouping
+.EE
+
+.SH Grouping
 Use parentheses to group filters and control evaluation order:
-.Bd -literal
+
+.EX
 (src 192.168.1.1 or src 192.168.1.2) and action block
 proto tcp and (port 80 or port 443)
 not (action pass and proto udp)
-.Ed
-.Sh EXIT STATUS
-.Ex -std
-.Sh SEE ALSO
-.Xr less 1 ,
-.Xr tcpdump 1
-.Sh AUTHORS
-.An allddd Aq Mt me@allddd.onl
-.Pp
-Report bugs at:
-.Lk https://gitlab.com/allddd/opnsense-filterlog#contributing
+.EE
+
+
+.SH EXAMPLES
+View the default log file (\fI/var/log/filter/latest.log\fP):
+
+.EX
+opnsense-filterlog
+.EE
+
+.PP
+View a specific log file:
+
+.EX
+opnsense-filterlog /path/to/filter.log
+.EE
+
+.PP
+Output blocked TCP traffic on port 443 as JSON:
+
+.EX
+opnsense-filterlog -j -f 'action block and proto tcp and port 443'
+.EE
+
+.PP
+Output entries from the last hour as JSON:
+
+.EX
+opnsense-filterlog -j -f 'since -1h'
+.EE
+
+.PP
+Output entries from a specific source IP in a specific log file as JSON:
+
+.EX
+opnsense-filterlog -j -f 'src 192.168.1.1' /path/to/filter.log
+.EE
+
+
+.SH EXIT STATUS
+Exits 0 on success, and >0 if an error occurs.
+
+
+.SH AUTHORS
+allddd me@allddd.onl
+\[la]mailto:me@allddd.onl\[ra]
+
+.PP
+Report bugs at: 
+\[la]https://gitlab.com/allddd/opnsense\-filterlog\[ra]
