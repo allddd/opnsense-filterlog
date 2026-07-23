@@ -27,6 +27,8 @@ linters:
         - funlen
         # same as cyclop
         - gocognit
+        # it's more irritating than helpful
+        - goconst
         # same as cyclop
         - gocyclo
         # can't live without todo comments
