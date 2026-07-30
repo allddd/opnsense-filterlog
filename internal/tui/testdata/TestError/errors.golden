@@ -1,12 +1,12 @@
 Error
-invalid timestamp on line 1 of testdata/mixed.log: parsing time "filterlog" as "2006-01-02T15:04:05Z07:00": cannot pars>
-invalid timestamp on line 2 of testdata/mixed.log: parsing time "2025-10-10" as "2006-01-02T15:04:05Z07:00": cannot par>
-invalid timestamp on line 4 of testdata/mixed.log: parsing time "notavalidtimestamp" as "2006-01-02T15:04:05Z07:00": ca>
-invalid csv on line 5 of testdata/mixed.log
-invalid packetfilter section on line 6 of testdata/mixed.log
-invalid packetfilter section on line 8 of testdata/mixed.log
-invalid packetfilter section on line 9 of testdata/mixed.log
-invalid packetfilter section on line 11 of testdata/mixed.log
-invalid ip version on line 12 of testdata/mixed.log
+testdata/mixed.log: invalid timestamp in `<134>12025-10-10T00:00:00+02:00opnsense.filter.log filterlog 86605 - [meta se>
+testdata/mixed.log: invalid timestamp in `<134>1 2025-10-10 00:00:00 opnsense.filter.log filterlog 86605 - [meta sequen>
+testdata/mixed.log: invalid timestamp in `<134>1 notavalidtimestamp opnsense.filter.log filterlog 86605 - [meta sequenc>
+testdata/mixed.log: invalid csv in `<134>1 2025-10-10T00:00:00+02:00 opnsense.filter.log filterlog 86605 - 68,,,missing>
+testdata/mixed.log: invalid packetfilter section in `<134>1 2025-10-10T00:00:00+02:00 opnsense.filter.log filterlog 866>
+testdata/mixed.log: invalid packetfilter section in `<134>1 2025-10-10T00:00:01+02:00 opnsense.filter.log filterlog 866>
+testdata/mixed.log: invalid packetfilter section in `<134>1 2025-10-10T00:00:01+02:00 opnsense.filter.log filterlog 866>
+testdata/mixed.log: invalid packetfilter section in `<134>1 2025-10-10T00:00:01+02:00 opnsense.filter.log filterlog 866>
+testdata/mixed.log: invalid ip version in `<134>1 2025-10-10T00:00:02+02:00 opnsense.filter.log filterlog 86605 - [meta>
 position: 1/30 (limit: 1000)
 q: quit | hjkl: move | ud: page | gG: jump | esc: back

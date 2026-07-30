@@ -125,7 +125,7 @@ func splitCSV(csv string) []string {
 }
 
 // parse parses a single line and returns a LogEntry.
-func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
+func (s *Stream) parse(line string, path string) *LogEntry {
 	var err error
 	entry := LogEntry{}
 
@@ -133,27 +133,27 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 	timeStart := strings.IndexByte(line, ' ') + 1 // +1 for 1st space
 	timeEnd := strings.IndexByte(line[timeStart:], ' ')
 	if timeStart <= 0 || timeEnd == -1 {
-		s.addError(fmt.Sprintf("invalid timestamp on line %d of %s", lineNum, path))
+		s.addError(fmt.Sprintf("%s: invalid timestamp in %#q", path, line))
 		return nil
 	}
 	timeEnd += timeStart // make relative index absolute
 	entry.Time, err = time.Parse(time.RFC3339, line[timeStart:timeEnd])
 	if err != nil {
-		s.addError(fmt.Sprintf("invalid timestamp on line %d of %s: %v", lineNum, path, err))
+		s.addError(fmt.Sprintf("%s: invalid timestamp in %#q: %v", path, line, err))
 		return nil
 	}
 
 	// extract the csv string (after "] ") and split it into fields
 	_, csv, ok := strings.Cut(line, "] ")
 	if !ok {
-		s.addError(fmt.Sprintf("invalid csv on line %d of %s", lineNum, path))
+		s.addError(fmt.Sprintf("%s: invalid csv in %#q", path, line))
 		return nil
 	}
 	fields := splitCSV(csv)
 
 	// 3: label, 4: interface, 5: reason, 6: action, 7: direction, 8: ipversion
 	if len(fields) < 9 {
-		s.addError(fmt.Sprintf("invalid packetfilter section on line %d of %s", lineNum, path))
+		s.addError(fmt.Sprintf("%s: invalid packetfilter section in %#q", path, line))
 		return nil
 	}
 
@@ -169,7 +169,7 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 	case "4":
 		// 9:dscp/tos, 10:ecn, 11:ttl, 12:id, 13:offset, 14:flags, 15:protonum, 16:protoname, 17:length, 18:src, 19:dst
 		if len(fields) < 20 {
-			s.addError(fmt.Sprintf("invalid ipv4 section on line %d of %s", lineNum, path))
+			s.addError(fmt.Sprintf("%s: invalid ipv4 section in %#q", path, line))
 			return nil
 		}
 
@@ -189,7 +189,7 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 		case "udp":
 			// 20: srcport, 21: dstport, 22: datalen
 			if len(fields) < 23 {
-				s.addError(fmt.Sprintf("invalid udp4 section on line %d of %s", lineNum, path))
+				s.addError(fmt.Sprintf("%s: invalid udp4 section in %#q", path, line))
 				return nil
 			}
 			entry.SourcePort = fields[20]
@@ -200,7 +200,7 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 		case "tcp":
 			// 20: srcport, 21: dstport, 22: datalen, 23: flags, 24: seq, 25: ack, 26: window, 27: urg, 28: options
 			if len(fields) < 29 {
-				s.addError(fmt.Sprintf("invalid tcp4 section on line %d of %s", lineNum, path))
+				s.addError(fmt.Sprintf("%s: invalid tcp4 section in %#q", path, line))
 				return nil
 			}
 			entry.SourcePort = fields[20]
@@ -217,7 +217,7 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 		case "carp":
 			// 20: type, 21: ttl, 22: vhid, 23: version, 24: advskew, 25: advbase
 			if len(fields) < 26 {
-				s.addError(fmt.Sprintf("invalid carp4 section on line %d of %s", lineNum, path))
+				s.addError(fmt.Sprintf("%s: invalid carp4 section in %#q", path, line))
 				return nil
 			}
 			entry.CARPType = fields[20]
@@ -235,7 +235,7 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 	case "6":
 		// 9:class, 10:flow, 11:hoplimit, 12:protoname, 13:protonum, 14:length, 15:src, 16:dst
 		if len(fields) < 17 {
-			s.addError(fmt.Sprintf("invalid ipv6 section on line %d of %s", lineNum, path))
+			s.addError(fmt.Sprintf("%s: invalid ipv6 section in %#q", path, line))
 			return nil
 		}
 
@@ -252,7 +252,7 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 		case "udp":
 			// 17: srcport, 18: dstport, 19: datalen
 			if len(fields) < 20 {
-				s.addError(fmt.Sprintf("invalid udp6 section on line %d of %s", lineNum, path))
+				s.addError(fmt.Sprintf("%s: invalid udp6 section in %#q", path, line))
 				return nil
 			}
 			entry.SourcePort = fields[17]
@@ -263,7 +263,7 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 		case "tcp":
 			// 17: srcport, 18: dstport, 19: datalen, 20: flags, 21: seq, 22: ack, 23: window, 24: urg, 25: options
 			if len(fields) < 26 {
-				s.addError(fmt.Sprintf("invalid tcp6 section on line %d of %s", lineNum, path))
+				s.addError(fmt.Sprintf("%s: invalid tcp6 section in %#q", path, line))
 				return nil
 			}
 			entry.SourcePort = fields[17]
@@ -280,7 +280,7 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 		case "carp":
 			// 17: type, 18: ttl, 19: vhid, 20: version, 21: advskew, 22: advbase
 			if len(fields) < 23 {
-				s.addError(fmt.Sprintf("invalid carp6 section on line %d of %s", lineNum, path))
+				s.addError(fmt.Sprintf("%s: invalid carp6 section in %#q", path, line))
 				return nil
 			}
 			entry.CARPType = fields[17]
@@ -295,7 +295,7 @@ func (s *Stream) parse(line string, lineNum int, path string) *LogEntry {
 		}
 
 	default:
-		s.addError(fmt.Sprintf("invalid ip version on line %d of %s", lineNum, path))
+		s.addError(fmt.Sprintf("%s: invalid ip version in %#q", path, line))
 		return nil
 	}
 
@@ -343,7 +343,7 @@ func (s *Stream) BuildIndex() error {
 		lineNum := 0
 		lineOffset := int64(0)
 		for s.scanner.Scan() {
-			if entry := s.parse(s.scanner.Text(), lineNum, path); entry != nil {
+			if entry := s.parse(s.scanner.Text(), path); entry != nil {
 				s.index = append(s.index, indexEntry{
 					fileNum:    fileNum,
 					lineOffset: lineOffset,
@@ -394,7 +394,7 @@ func NewStream(paths []string) (*Stream, error) {
 			scanner := bufio.NewScanner(file)
 			lineNum := 0
 			for scanner.Scan() {
-				if entry := tmp.parse(scanner.Text(), lineNum, path); entry != nil {
+				if entry := tmp.parse(scanner.Text(), path); entry != nil {
 					order[path] = entry.Time
 					break
 				}
@@ -434,7 +434,7 @@ func (s *Stream) Next() (*LogEntry, error) {
 	for {
 		for s.scanner.Scan() {
 			s.lineNum++
-			if entry := s.parse(s.scanner.Text(), s.lineNum, s.paths[s.fileNum]); entry != nil {
+			if entry := s.parse(s.scanner.Text(), s.paths[s.fileNum]); entry != nil {
 				return entry, nil
 			}
 			// if nil, continue to the next line

@@ -482,6 +482,6 @@ func BenchmarkParse(b *testing.B) {
 	s := &Stream{}
 	line := `<134>1 2025-10-10T00:00:00+02:00 opnsense.filter.log filterlog 86605 - [meta sequenceId="4"] 68,,,4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a,eth1,match,pass,out,4,0x0,,127,17785,0,DF,6,tcp,52,192.168.1.100,10.0.0.5,46376,80,0,S,1356197145,,64480,,mss;nop;wscale;nop;nop;sackOK` //nolint:lll
 	for b.Loop() {
-		s.parse(line, 1, "")
+		s.parse(line, "")
 	}
 }
