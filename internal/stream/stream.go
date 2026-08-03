@@ -340,7 +340,6 @@ func (s *Stream) BuildIndex() error {
 		s.file = file
 		s.fileNum = fileNum
 		s.scanner = bufio.NewScanner(file)
-		lineNum := 0
 		lineOffset := int64(0)
 		for s.scanner.Scan() {
 			if entry := s.parse(s.scanner.Text(), path); entry != nil {
@@ -350,7 +349,6 @@ func (s *Stream) BuildIndex() error {
 				})
 			}
 			lineOffset += int64(len(s.scanner.Bytes()) + 1) // +1 for newline
-			lineNum++
 		}
 		if err := s.scanner.Err(); err != nil {
 			return fmt.Errorf("error(stream): could not build index: %w", err)
@@ -392,13 +390,11 @@ func NewStream(paths []string) (*Stream, error) {
 				return nil, fmt.Errorf("error(stream): could not open file: %w", err)
 			}
 			scanner := bufio.NewScanner(file)
-			lineNum := 0
 			for scanner.Scan() {
 				if entry := tmp.parse(scanner.Text(), path); entry != nil {
 					order[path] = entry.Time
 					break
 				}
-				lineNum++
 			}
 			if err := file.Close(); err != nil {
 				return nil, fmt.Errorf("error(stream): could not close file: %w", err)
