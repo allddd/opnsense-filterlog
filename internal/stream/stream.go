@@ -399,9 +399,6 @@ func NewStream(paths []string) (*Stream, error) {
 			if err := file.Close(); err != nil {
 				return nil, fmt.Errorf("error(stream): could not close file: %w", err)
 			}
-			if _, ok := order[path]; !ok {
-				return nil, fmt.Errorf("error(stream): no valid entries in %s", path)
-			}
 		}
 		slices.SortFunc(paths, func(a, b string) int {
 			if c := order[a].Compare(order[b]); c != 0 {
