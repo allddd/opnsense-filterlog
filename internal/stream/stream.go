@@ -112,7 +112,7 @@ func (s *Stream) addError(msg string) {
 // splitCSV splits a csv string into fields
 // This is similar to strings.Split but optimized for this use case (almost 2x faster).
 func splitCSV(csv string) []string {
-	fields := make([]string, 0, 30) // preallocate for worst case
+	fields := make([]string, 0, 29) // preallocate for worst case (tcp4)
 	start := 0
 	for i := range len(csv) {
 		if csv[i] == ',' {
