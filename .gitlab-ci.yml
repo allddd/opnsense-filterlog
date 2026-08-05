@@ -10,7 +10,7 @@ stages:
 
 .go-cache:
     variables:
-        GOPATH: $CI_PROJECT_DIR/.go
+        GOPATH: "$CI_PROJECT_DIR/.go"
     before_script:
         - mkdir -p .go
     cache:
@@ -48,10 +48,10 @@ publish:
     stage: publish
     image: registry.gitlab.com/gitlab-org/cli:latest
     interruptible: false
+    variables:
+        GLAB_ENABLE_CI_AUTOLOGIN: "true"
     rules:
         - if: $CI_COMMIT_TAG
-    before_script:
-        - glab auth login -j $CI_JOB_TOKEN
     script:
         - glab changelog generate -v $CI_COMMIT_TAG > ./description.md
     after_script:
