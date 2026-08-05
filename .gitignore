@@ -1,3 +1,4 @@
 *.bak
+/*.log
 opnsense-filterlog
 opnsense-filterlog.sha256
