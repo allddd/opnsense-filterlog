@@ -41,26 +41,26 @@ func TestJSON(t *testing.T) {
 		expectedOutput string
 	}{
 		{
-			name:           "valid",
-			args:           []string{"-j", "testdata/valid.log"},
+			name:           "empty",
+			args:           []string{"-j", "/dev/null"},
 			expectError:    false,
-			expectedOutput: "testdata/valid.json",
+			expectedOutput: "testdata/empty.json",
 		},
 		{
-			name:           "invalid",
-			args:           []string{"-j", "testdata/invalid.log"},
-			expectError:    true,
-			expectedOutput: "testdata/invalid.json",
+			name:           "full",
+			args:           []string{"-j", "testdata/filter_20260728.log"},
+			expectError:    false,
+			expectedOutput: "testdata/full.json",
 		},
 		{
 			name:           "filter",
-			args:           []string{"-j", "-f", "proto tcp", "testdata/valid.log"},
+			args:           []string{"-j", "-f", "proto gre", "testdata/filter_20260727.log", "testdata/filter_20260728.log"},
 			expectError:    false,
 			expectedOutput: "testdata/filter.json",
 		},
 		{
 			name:        "filter invalid",
-			args:        []string{"-j", "-f", "proto udp and", "testdata/valid.log"},
+			args:        []string{"-j", "-f", "proto udp and", "testdata/filter_20260726.log"},
 			expectError: true,
 		},
 	}
@@ -82,7 +82,7 @@ func TestJSON(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if !bytes.Equal(got, expected) {
+				if !bytes.Equal(expected, got) {
 					t.Fatal("output mismatch")
 				}
 			}

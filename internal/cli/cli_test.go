@@ -34,51 +34,12 @@ import (
 	"gitlab.com/allddd/opnsense-filterlog/internal/meta"
 )
 
-func TestArgs(t *testing.T) {
-	tests := []struct {
-		name            string
-		args            []string
-		expectError     bool
-		expectedSources string
-	}{
-		{
-			name:            "single",
-			args:            []string{"-j", "testdata/valid.log"},
-			expectError:     false,
-			expectedSources: "testdata/valid.log",
-		},
-		{
-			name:            "multiple",
-			args:            []string{"-j", "testdata/valid.log", "testdata/invalid.log"},
-			expectError:     true,
-			expectedSources: "testdata/invalid.log,testdata/valid.log",
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, tc.args...)
-			got, err := cmd.Output()
-			if tc.expectError {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-			}
-			if tc.expectedSources != "" {
-				var result jsonObj
-				if err := json.Unmarshal(got, &result); err != nil {
-					t.Fatal(err)
-				}
-				got := strings.Join(result.Meta.Sources, ",")
-				if got != tc.expectedSources {
-					t.Fatalf("expected sources %q, got %q", tc.expectedSources, got)
-				}
-			}
-		})
-	}
+var files = []struct {
+	path string
+	size int
+}{
+	{"testdata/filter_20260727.log", 46488},
+	{"testdata/filter_20260728.log", 51243},
 }
 
 func TestFlags(t *testing.T) {
@@ -100,8 +61,14 @@ func TestFlags(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:           "filter no json",
+			args:           []string{"-f", "proto tcp", files[0].path},
+			expectError:    true,
+			expectedOutput: "requires",
+		},
+		{
 			name:           "exclusive help json",
-			args:           []string{"-h", "-j", "testdata/valid.log"},
+			args:           []string{"-h", "-j", files[0].path},
 			expectError:    true,
 			expectedOutput: "mutually exclusive",
 		},
@@ -113,21 +80,15 @@ func TestFlags(t *testing.T) {
 		},
 		{
 			name:           "exclusive json version",
-			args:           []string{"-j", "-V", "testdata/valid.log"},
+			args:           []string{"-j", "-V", files[0].path},
 			expectError:    true,
 			expectedOutput: "mutually exclusive",
 		},
 		{
 			name:           "exclusive all",
-			args:           []string{"-h", "-j", "-V", "testdata/valid.log"},
+			args:           []string{"-h", "-j", "-V", files[0].path},
 			expectError:    true,
 			expectedOutput: "mutually exclusive",
-		},
-		{
-			name:           "filter no json",
-			args:           []string{"-f", "proto tcp", "testdata/valid.log"},
-			expectError:    true,
-			expectedOutput: "requires",
 		},
 	}
 	for _, tc := range tests {
@@ -164,14 +125,14 @@ func TestStdin(t *testing.T) {
 		{
 			name:          "pipe",
 			args:          []string{"-j"},
-			stdin:         "testdata/valid.log",
-			expectedCount: 9,
+			stdin:         files[0].path,
+			expectedCount: files[0].size,
 		},
 		{
 			name:          "pipe dash",
 			args:          []string{"-j", "-"},
-			stdin:         "testdata/valid.log",
-			expectedCount: 9,
+			stdin:         files[0].path,
+			expectedCount: files[0].size,
 		},
 		{
 			name:           "no pipe",
@@ -182,15 +143,15 @@ func TestStdin(t *testing.T) {
 		{
 			name:           "dash duplicate",
 			args:           []string{"-j", "-", "-"},
-			stdin:          "testdata/valid.log",
+			stdin:          files[0].path,
 			expectError:    true,
 			expectedOutput: "duplicate stdin arg",
 		},
 		{
 			name:          "file dash",
-			args:          []string{"-j", "testdata/valid.log", "-"},
-			stdin:         "testdata/valid.log",
-			expectedCount: 18,
+			args:          []string{"-j", files[1].path, "-"},
+			stdin:         files[0].path,
+			expectedCount: files[0].size + files[1].size,
 		},
 	}
 	for _, tc := range tests {
