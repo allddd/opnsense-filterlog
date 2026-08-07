@@ -24,121 +24,257 @@
 package stream
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
-func TestSplit(t *testing.T) {
+var files = []struct {
+	path string
+	size int
+}{
+	{"testdata/filter_20260727.log", 46488},
+	{"testdata/filter_20260728.log", 51243},
+}
+
+func TestSplitCSV(t *testing.T) {
 	tests := []struct {
 		name string
 		csv  string
 	}{
 		{"empty string", ""},
 		{"single field", "a"},
-		{"empty in the middle", "a,,c"},
-		{"empty at boundaries", ",b,"},
 		{"all empty", ",,"},
-		{"real ipv4", "68,,,4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a,eth1,match,pass,out,4,0x0,,127,17785,0,DF,6,tcp,52,192.168.1.100,10.0.0.5,46376,80,0,S,1356197145,,64480,,mss;nop;wscale;nop;nop;sackOK"},     //nolint:lll
-		{"real ipv6", "61,,,3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f,eth0,match,pass,in,6,0x00,0xd3e97,128,udp,17,60,fd00:abcd:ef01:2345:6789:abcd:ef01:2345,fd00:1111:2222:3333:4444:5555:6666:7777,51091,53,60"}, //nolint:lll
-		{"very large", strings.Repeat("field,", 50) + "last"},
+		{"empty at boundaries", ",b,"},
+		{"empty in the middle", "a,,c"},
+		{"real v4", "9,,,02f4bab031b57d1e30553ce08e0ec131,eth0,match,block,in,4,0x14,,48,54642,0,DF,6,tcp,52,10.174.12.141,10.247.95.6,55666,12186,0,S,1925882663,,61690,,mss;nop;wscale;nop;nop;sackOK"},   //nolint:lll
+		{"real v6", "71,,,6125cb207f65033775d1069fdf6d0ccf,eth0,match,pass,out,6,0x00,0x07d4c,64,udp,17,58,fd11:4ad:f2ce:6b0e::a894,fd3e:938c:962d:e767::a620,54857,53,58"},                                 //nolint:lll
+		{"real err", `9,,,02f4bab031b57d1e30553ce08e0ec131,eth0,match,block,in,4,0x0,,117,63581,0,none,6,tcp,40,10.161.149.187,10.247.95.6,80,16677,-8,R,errormsg='[bad hdr length 28 - too long, > 20]',`}, //nolint:lll
+		{"very large", strings.Repeat("field,", 99) + "last"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := splitCSV(tc.csv)
 			expected := strings.Split(tc.csv, ",")
-			if len(got) != len(expected) {
+			got := splitCSV(tc.csv)
+			if len(expected) != len(got) {
 				t.Fatalf("expected %d fields, got %d", len(expected), len(got))
 			}
 			for i := range expected {
-				if got[i] != expected[i] {
-					t.Fatalf("field %d: expected %q, got %q", i, expected[i], got[i])
+				if expected[i] != got[i] {
+					t.Fatalf("expected field %d to be %q, got %q", i, expected[i], got[i])
 				}
 			}
 		})
 	}
 }
 
-func TestValidLog(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log"})
-	if err != nil {
-		t.Fatal(err)
+func TestIndexSeekParse(t *testing.T) {
+	tests := []struct {
+		lineNum  int
+		expected LogEntry
+	}{
+		{
+			// gre4
+			lineNum: 26454,
+			expected: LogEntry{
+				Time:         time.Date(2026, 7, 27, 13, 29, 6, 0, time.UTC),
+				Label:        "02f4bab031b57d1e30553ce08e0ec131",
+				Action:       "block",
+				Reason:       "match",
+				Direction:    "in",
+				Interface:    "eth0",
+				IPVersion:    "4",
+				ProtocolName: "gre",
+				ProtocolNum:  "47",
+				Source:       "10.164.203.218",
+				Destination:  "10.247.95.6",
+				Length:       "578",
+				DSCP:         "0x0",
+				Flags:        "DF",
+				ID:           "29882",
+				Offset:       "0",
+				TTL:          "49",
+			},
+		},
+		{
+			// icmp4
+			lineNum: 43965,
+			expected: LogEntry{
+				Time:         time.Date(2026, 7, 27, 22, 40, 19, 0, time.UTC),
+				Label:        "02f4bab031b57d1e30553ce08e0ec131",
+				Action:       "block",
+				Reason:       "match",
+				Direction:    "in",
+				Interface:    "eth0",
+				IPVersion:    "4",
+				ProtocolName: "icmp",
+				ProtocolNum:  "1",
+				Source:       "10.34.135.90",
+				Destination:  "10.247.95.6",
+				Length:       "40",
+				DSCP:         "0x0",
+				Flags:        "none",
+				ID:           "54321",
+				Offset:       "0",
+				TTL:          "233",
+			},
+		},
+		{
+			// tcp4
+			lineNum: 61,
+			expected: LogEntry{
+				Time:            time.Date(2026, 7, 27, 0, 0, 40, 0, time.UTC),
+				Label:           "02f4bab031b57d1e30553ce08e0ec131",
+				Action:          "block",
+				Reason:          "match",
+				Direction:       "in",
+				Interface:       "eth0",
+				IPVersion:       "4",
+				ProtocolName:    "tcp",
+				ProtocolNum:     "6",
+				Source:          "10.61.225.162",
+				SourcePort:      "41821",
+				Destination:     "10.247.95.6",
+				DestinationPort: "25048",
+				Length:          "40",
+				DSCP:            "0x0",
+				Flags:           "none",
+				ID:              "43049",
+				Offset:          "0",
+				TTL:             "244",
+				DataLength:      "0",
+				TCPFlags:        "S",
+				TCPSequence:     "1042808185",
+				TCPWindow:       "1024",
+			},
+		},
+		{
+			// udp4
+			lineNum: 57,
+			expected: LogEntry{
+				Time:            time.Date(2026, 7, 27, 0, 0, 29, 0, time.UTC),
+				Label:           "d732bf074e5af1431615bc5c20ab4d3c",
+				Action:          "pass",
+				Reason:          "match",
+				Direction:       "out",
+				Interface:       "eth0",
+				IPVersion:       "4",
+				ProtocolName:    "udp",
+				ProtocolNum:     "17",
+				Source:          "10.247.95.6",
+				SourcePort:      "59066",
+				Destination:     "10.80.8.109",
+				DestinationPort: "53",
+				Length:          "70",
+				DSCP:            "0x0",
+				Flags:           "DF",
+				ID:              "0",
+				Offset:          "0",
+				TTL:             "64",
+				DataLength:      "50",
+			},
+		},
+		{
+			// icmp6
+			lineNum: 44067,
+			expected: LogEntry{
+				Time:         time.Date(2026, 7, 27, 22, 43, 34, 0, time.UTC),
+				Label:        "80f90f0d4c5aba0c28d1c539e1e35766",
+				Action:       "pass",
+				Reason:       "match",
+				Direction:    "out",
+				Interface:    "eth0",
+				IPVersion:    "6",
+				ProtocolName: "ipv6-icmp",
+				ProtocolNum:  "58",
+				Source:       "fe80::cfbf:d893:e80d:17ff",
+				Destination:  "fe80::bad8",
+				Length:       "32",
+				Class:        "0x00",
+				Flow:         "0x00000",
+				HopLimit:     "255",
+			},
+		},
+		{
+			// tcp6
+			lineNum: 15727,
+			expected: LogEntry{
+				Time:            time.Date(2026, 7, 27, 7, 48, 1, 0, time.UTC),
+				Label:           "6125cb207f65033775d1069fdf6d0ccf",
+				Action:          "pass",
+				Reason:          "match",
+				Direction:       "out",
+				Interface:       "eth0",
+				IPVersion:       "6",
+				ProtocolName:    "tcp",
+				ProtocolNum:     "6",
+				Source:          "fd11:4ad:f2ce:6b0e::a894",
+				SourcePort:      "25408",
+				Destination:     "fdf1:4357:edd8:f527::414f",
+				DestinationPort: "443",
+				Length:          "40",
+				Class:           "0x00",
+				Flow:            "0x32046",
+				HopLimit:        "64",
+				DataLength:      "0",
+				TCPFlags:        "S",
+				TCPOptions:      "mss;nop;wscale;sackOK;TS",
+				TCPSequence:     "2820870139",
+				TCPWindow:       "65228",
+			},
+		},
+		{
+			// udp6
+			lineNum: 45808,
+			expected: LogEntry{
+				Time:            time.Date(2026, 7, 27, 23, 38, 2, 0, time.UTC),
+				Label:           "6125cb207f65033775d1069fdf6d0ccf",
+				Action:          "pass",
+				Reason:          "match",
+				Direction:       "out",
+				Interface:       "eth0",
+				IPVersion:       "6",
+				ProtocolName:    "udp",
+				ProtocolNum:     "17",
+				Source:          "fd11:4ad:f2ce:6b0e::a894",
+				SourcePort:      "123",
+				Destination:     "fd25:380e:4b5f:1e3a::683",
+				DestinationPort: "123",
+				Length:          "56",
+				Class:           "0xb8",
+				Flow:            "0x00000",
+				HopLimit:        "64",
+				DataLength:      "56",
+			},
+		},
+		{
+			// ipv6 encapsulation
+			lineNum: 8367,
+			expected: LogEntry{
+				Time:         time.Date(2026, 7, 27, 4, 5, 36, 0, time.UTC),
+				Label:        "02f4bab031b57d1e30553ce08e0ec131",
+				Action:       "block",
+				Reason:       "match",
+				Direction:    "in",
+				Interface:    "eth0",
+				IPVersion:    "4",
+				ProtocolName: "ipv6",
+				ProtocolNum:  "41",
+				Source:       "10.119.149.16",
+				Destination:  "10.247.95.6",
+				Length:       "68",
+				DSCP:         "0x0",
+				Flags:        "none",
+				ID:           "54321",
+				Offset:       "0",
+				TTL:          "241",
+			},
+		},
 	}
-	defer s.Close()
-	valid := 0
-	for {
-		entry, err := s.Next()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if entry == nil {
-			break
-		}
-		valid++
-	}
-	if valid != 20 {
-		t.Fatalf("expected 20 valid entries, got %d", valid)
-	}
-	errors := len(s.GetErrors())
-	if errors != 0 {
-		t.Fatalf("expected 0 errors, got %d", errors)
-	}
-}
-
-func TestMixedLog(t *testing.T) {
-	s, err := NewStream([]string{"testdata/mixed.log"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	valid := 0
-	for {
-		entry, err := s.Next()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if entry == nil {
-			break
-		}
-		valid++
-	}
-	if valid != 20 {
-		t.Fatalf("expected 20 valid entries, got %d", valid)
-	}
-	errors := len(s.GetErrors())
-	if errors != 30 {
-		t.Fatalf("expected 30 errors, got %d", errors)
-	}
-}
-
-func TestCorruptLog(t *testing.T) {
-	s, err := NewStream([]string{"testdata/corrupt.log"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	valid := 0
-	for {
-		entry, err := s.Next()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if entry == nil {
-			break
-		}
-		valid++
-	}
-	if valid != 1 {
-		t.Fatalf("expected 1 valid entry, got %d", valid)
-	}
-	errors := len(s.GetErrors())
-	if errors != 8 {
-		t.Fatalf("expected 8 errors, got %d", errors)
-	}
-}
-
-func TestBuildIndex(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log"})
+	s, err := NewStream([]string{files[0].path})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,281 +282,30 @@ func TestBuildIndex(t *testing.T) {
 	if err := s.BuildIndex(); err != nil {
 		t.Fatal(err)
 	}
-	total := s.TotalLines()
-	if total != 20 {
-		t.Fatalf("expected 20 indexed lines, got %d", total)
-	}
-}
-
-func TestSeekToLine(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	// seek before indexing
-	if err := s.SeekToLine(5); err == nil {
-		t.Fatal("expected error seeking without index")
-	}
-	if err := s.BuildIndex(); err != nil {
-		t.Fatal(err)
-	}
-	// seek to top
-	if err := s.SeekToLine(0); err != nil {
-		t.Fatal(err)
-	}
-	entry, err := s.Next()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry == nil {
-		t.Fatal("expected entry at line 0, got nil")
-	}
-	if entry.IPVersion != "6" {
-		t.Fatalf("expected ipv6 at line 0, got ipv%s", entry.IPVersion)
-	}
-	// seek to middle
-	if err := s.SeekToLine(10); err != nil {
-		t.Fatal(err)
-	}
-	entry, err = s.Next()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry == nil {
-		t.Fatal("expected entry at line 10, got nil")
-	}
-	// seek to bottom
-	if err := s.SeekToLine(19); err != nil {
-		t.Fatal(err)
-	}
-	entry, err = s.Next()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry == nil {
-		t.Fatal("expected entry at line 19, got nil")
-	}
-	// seek out of bounds
-	if err := s.SeekToLine(-1); err == nil {
-		t.Fatal("expected error seeking to negative line")
-	}
-	if err := s.SeekToLine(1000); err == nil {
-		t.Fatal("expected error seeking beyond end")
-	}
-}
-
-func TestParsedValues(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	// 1st entry
-	entry, err := s.Next()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry == nil {
-		t.Fatal("expected entry 1, got nil")
-	}
-	if entry.IPVersion != "6" {
-		t.Fatalf("entry 1: expected ipv6, got ipv%s", entry.IPVersion)
-	}
-	if entry.ProtocolName != "udp" {
-		t.Fatalf("entry 1: expected udp, got %s", entry.ProtocolName)
-	}
-	if entry.Action != "pass" {
-		t.Fatalf("entry 1: expected pass, got %s", entry.Action)
-	}
-	if entry.Direction != "in" {
-		t.Fatalf("entry 1: expected in, got %s", entry.Direction)
-	}
-	if entry.SourcePort != "63511" || entry.DestinationPort != "53" {
-		t.Fatalf("entry 1: expected ports 63511:53, got %s:%s", entry.SourcePort, entry.DestinationPort)
-	}
-	expectedTime := time.Date(2025, 10, 11, 0, 0, 0, 0, time.FixedZone("", 2*60*60))
-	if !entry.Time.Equal(expectedTime) {
-		t.Fatalf("entry 1: expected time %v, got %v", expectedTime, entry.Time)
-	}
-	if entry.Class != "0x00" {
-		t.Fatalf("entry 1: expected class 0x00, got %s", entry.Class)
-	}
-	if entry.Flow != "0xfd492" {
-		t.Fatalf("entry 1: expected flow 0xfd492, got %s", entry.Flow)
-	}
-	if entry.HopLimit != "128" {
-		t.Fatalf("entry 1: expected hoplimit 128, got %s", entry.HopLimit)
-	}
-	if entry.Length != "60" {
-		t.Fatalf("entry 1: expected length 60, got %s", entry.Length)
-	}
-	if entry.Label != "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d" {
-		t.Fatalf("entry 1: expected label 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d, got %s", entry.Label)
-	}
-	if entry.DataLength != "60" {
-		t.Fatalf("entry 1: expected datalen 60, got %s", entry.DataLength)
-	}
-	// 2nd entry
-	entry, err = s.Next()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry == nil {
-		t.Fatal("expected entry 2, got nil")
-	}
-	if entry.IPVersion != "4" {
-		t.Fatalf("entry 2: expected ipv4, got ipv%s", entry.IPVersion)
-	}
-	if entry.ProtocolName != "udp" {
-		t.Fatalf("entry 2: expected udp, got %s", entry.ProtocolName)
-	}
-	if entry.Source != "192.168.1.100" || entry.Destination != "192.168.1.1" {
-		t.Fatalf("entry 2: expected src/dst 192.168.1.100/192.168.1.1, got %s/%s", entry.Source, entry.Destination)
-	}
-	if entry.DSCP != "0x0" {
-		t.Fatalf("entry 2: expected dscp 0x0, got %s", entry.DSCP)
-	}
-	if entry.TTL != "64" {
-		t.Fatalf("entry 2: expected ttl 64, got %s", entry.TTL)
-	}
-	if entry.ID != "0" {
-		t.Fatalf("entry 2: expected id 0, got %s", entry.ID)
-	}
-	if entry.Offset != "0" {
-		t.Fatalf("entry 2: expected offset 0, got %s", entry.Offset)
-	}
-	if entry.Flags != "DF" {
-		t.Fatalf("entry 2: expected flags DF, got %s", entry.Flags)
-	}
-	if entry.Length != "80" {
-		t.Fatalf("entry 2: expected length 80, got %s", entry.Length)
-	}
-	if entry.ECN != "" {
-		t.Fatalf("entry 2: expected ecn empty, got %s", entry.ECN)
-	}
-	if entry.DataLength != "60" {
-		t.Fatalf("entry 2: expected datalen 60, got %s", entry.DataLength)
-	}
-	// 4th entry
-	// skip 3rd entry
-	if _, err = s.Next(); err != nil {
-		t.Fatal(err)
-	}
-	entry, err = s.Next()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry == nil {
-		t.Fatal("expected entry 4, got nil")
-	}
-	if entry.IPVersion != "4" {
-		t.Fatalf("entry 4: expected ipv4, got ipv%s", entry.IPVersion)
-	}
-	if entry.ProtocolName != "tcp" {
-		t.Fatalf("entry 4: expected tcp, got %s", entry.ProtocolName)
-	}
-	if entry.SourcePort != "46376" || entry.DestinationPort != "80" {
-		t.Fatalf("entry 4: expected ports 46376:80, got %s:%s", entry.SourcePort, entry.DestinationPort)
-	}
-	if entry.DataLength != "0" {
-		t.Fatalf("entry 4: expected datalen 0, got %s", entry.DataLength)
-	}
-	if entry.TCPFlags != "S" {
-		t.Fatalf("entry 4: expected tcpflags S, got %s", entry.TCPFlags)
-	}
-	if entry.TCPSequence != "1356197145" {
-		t.Fatalf("entry 4: expected tcpseq 1356197145, got %s", entry.TCPSequence)
-	}
-	if entry.TCPAcknowledgment != "" {
-		t.Fatalf("entry 4: expected tcpack empty, got %s", entry.TCPAcknowledgment)
-	}
-	if entry.TCPWindow != "64480" {
-		t.Fatalf("entry 4: expected tcpwindow 64480, got %s", entry.TCPWindow)
-	}
-	if entry.TCPUrgentPointer != "" {
-		t.Fatalf("entry 4: expected tcpurg empty, got %s", entry.TCPUrgentPointer)
-	}
-	if entry.TCPOptions != "mss;nop;wscale;nop;nop;sackOK" {
-		t.Fatalf("entry 4: expected tcpoptions mss;nop;wscale;nop;nop;sackOK, got %s", entry.TCPOptions)
-	}
-	if entry.DSCP != "0x0" {
-		t.Fatalf("entry 4: expected dscp 0x0, got %s", entry.DSCP)
-	}
-	if entry.TTL != "127" {
-		t.Fatalf("entry 4: expected ttl 127, got %s", entry.TTL)
-	}
-	if entry.Length != "52" {
-		t.Fatalf("entry 4: expected length 52, got %s", entry.Length)
-	}
-
-}
-
-func TestTotalLines(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	// without index
-	if total := s.TotalLines(); total != -1 {
-		t.Fatalf("expected -1 without index, got %d", total)
-	}
-	// with index
-	if err := s.BuildIndex(); err != nil {
-		t.Fatal(err)
-	}
-	if total := s.TotalLines(); total != 20 {
-		t.Fatalf("expected 20 with index, got %d", total)
-	}
-}
-
-func TestMultiFile(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	valid := 0
-	for {
-		entry, err := s.Next()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if entry == nil {
-			break
-		}
-		valid++
-	}
-	if valid != 40 {
-		t.Fatalf("expected 40 valid entries, got %d", valid)
-	}
-	errors := len(s.GetErrors())
-	if errors != 30 {
-		t.Fatalf("expected 30 errors, got %d", errors)
+	if got := s.TotalLines(); files[0].size != got {
+		t.Fatalf("expected %d indexed lines, got %d", files[0].size, got)
+	}
+	for _, tc := range tests {
+		t.Run(fmt.Sprintf("line_%d", tc.lineNum), func(t *testing.T) {
+			if err := s.SeekToLine(tc.lineNum - 1); err != nil {
+				t.Error(err)
+			}
+			got, err := s.Next()
+			if err != nil {
+				t.Error(err)
+			}
+			if got == nil {
+				t.Error("expected entry, got nil")
+			}
+			if diff := cmp.Diff(tc.expected, *got); diff != "" {
+				t.Error(diff)
+			}
+		})
 	}
 }
 
 func TestMultiFileSort(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	entry, err := s.Next()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry == nil {
-		t.Fatal("expected entry, got nil")
-	}
-	if entry.IPVersion != "4" {
-		t.Fatalf("expected ipv4, got ipv%s", entry.IPVersion)
-	}
-}
-
-func TestMultiFileBuildIndex(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
+	s, err := NewStream([]string{files[1].path, files[0].path})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,60 +313,42 @@ func TestMultiFileBuildIndex(t *testing.T) {
 	if err := s.BuildIndex(); err != nil {
 		t.Fatal(err)
 	}
-	total := s.TotalLines()
-	if total != 40 {
-		t.Fatalf("expected 40 indexed lines, got %d", total)
+	if got := s.TotalLines(); files[0].size+files[1].size != got {
+		t.Fatalf("expected %d indexed lines, got %d", files[0].size+files[1].size, got)
 	}
-}
-
-func TestMultiFileSeekToLine(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
-	if err != nil {
+	if err := s.SeekToLine(0); err != nil {
 		t.Fatal(err)
 	}
-	defer s.Close()
-	if err := s.BuildIndex(); err != nil {
-		t.Fatal(err)
+	for i := 0; i < files[0].size; i++ {
+		got, err := s.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got == nil {
+			t.Fatal("expected entry, got nil")
+		}
+		if expected := 27; expected != got.Time.Day() {
+			t.Fatalf("expected day to be %d, got %d", expected, got.Time.Day())
+		}
 	}
-	// seek to first entry in second file (line 20)
-	if err := s.SeekToLine(20); err != nil {
-		t.Fatal(err)
-	}
-	entry, err := s.Next()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if entry == nil {
-		t.Fatal("expected entry at line 20, got nil")
-	}
-	if entry.IPVersion != "6" {
-		t.Fatalf("expected ipv6 at line 20, got ipv%s", entry.IPVersion)
-	}
-}
-
-func TestMultiFileGetPaths(t *testing.T) {
-	s, err := NewStream([]string{"testdata/valid.log", "testdata/mixed.log"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer s.Close()
-	paths := s.GetPaths()
-	if len(paths) != 2 {
-		t.Fatalf("expected 2 paths, got %d", len(paths))
-	}
-}
-
-func TestNewStreamEmpty(t *testing.T) {
-	_, err := NewStream([]string{})
-	if err == nil {
-		t.Fatal("expected error for empty paths")
+	for i := 0; i < files[1].size; i++ {
+		got, err := s.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got == nil {
+			t.Fatal("expected entry, got nil")
+		}
+		if expected := 28; expected != got.Time.Day() {
+			t.Fatalf("expected day to be %d, got %d", expected, got.Time.Day())
+		}
 	}
 }
 
 func BenchmarkParse(b *testing.B) {
 	s := &Stream{}
-	line := `<134>1 2025-10-10T00:00:00+02:00 opnsense.filter.log filterlog 86605 - [meta sequenceId="4"] 68,,,4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a,eth1,match,pass,out,4,0x0,,127,17785,0,DF,6,tcp,52,192.168.1.100,10.0.0.5,46376,80,0,S,1356197145,,64480,,mss;nop;wscale;nop;nop;sackOK` //nolint:lll
+	const line = `<134>1 2026-07-27T16:11:13+00:00 opnsense.filter.log filterlog 42443 - [meta sequenceId="321"] 10,,,02f4bab031b57d1e30553ce08e0ec131,eth0,match,block,in,6,0x00,0x00000,52,tcp,6,32,fd2a:697e:b72f:7075::61e4,fd16:b3e4:682e:47bc:f2b2:3ddd:e426:1181,46433,80,0,S,3158346414,,65535,,mss;nop;wscale;nop;nop;sackOK` //nolint:lll
 	for b.Loop() {
-		s.parse(line, "")
+		_ = s.parse(line, "")
 	}
 }

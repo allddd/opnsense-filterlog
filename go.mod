@@ -10,6 +10,7 @@ require (
 	github.com/charmbracelet/x/exp/golden v0.0.0-20250806222409-83e3a29d542f
 	github.com/charmbracelet/x/vt v0.0.0-20260413165052-6921c759c913
 	github.com/charmbracelet/x/xpty v0.1.3
+	github.com/google/go-cmp v0.7.0
 	gitlab.com/allddd/go-systemd-time v0.2.1
 )
 
