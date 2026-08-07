@@ -319,7 +319,7 @@ func TestMultiFileSort(t *testing.T) {
 	if err := s.SeekToLine(0); err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < files[0].size; i++ {
+	for range files[0].size {
 		got, err := s.Next()
 		if err != nil {
 			t.Fatal(err)
@@ -331,7 +331,7 @@ func TestMultiFileSort(t *testing.T) {
 			t.Fatalf("expected day to be %d, got %d", expected, got.Time.Day())
 		}
 	}
-	for i := 0; i < files[1].size; i++ {
+	for range files[1].size {
 		got, err := s.Next()
 		if err != nil {
 			t.Fatal(err)
