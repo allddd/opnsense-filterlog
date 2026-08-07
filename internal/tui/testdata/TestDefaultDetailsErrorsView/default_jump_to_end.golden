@@ -1,0 +1,24 @@
+Time             Action  Protocol  Interface  Source > Destination
+Jul 28 23:59:32  pass    udp       O eth0     10.66.25.58 123 > 10.202.174.62 123
+Jul 28 23:59:33  pass    udp       O eth0     fd2a:f43f:da11:3c7f::9744 123 > fd07:4b4a:bce6:d519::>
+Jul 28 23:59:34  pass    udp       O eth0     fd2a:f43f:da11:3c7f::9744 123 > fd32:52f1:1232:b783::>
+Jul 28 23:59:34  pass    udp       O eth0     10.66.25.58 123 > 10.110.23.200 123
+Jul 28 23:59:34  pass    udp       O eth0     10.66.25.58 123 > 10.181.228.227 123
+Jul 28 23:59:37  pass    ipv6-icmp O eth0     fe80::1f5a:7cb8:245c:8d9 > fe80::5631
+Jul 28 23:59:37  pass    ipv6-icmp I eth0     fe80::5631 > fe80::1f5a:7cb8:245c:8d9
+Jul 28 23:59:38  pass    udp       O eth0     10.66.25.58 123 > 10.64.220.59 123
+Jul 28 23:59:39  pass    udp       O eth0     10.66.25.58 123 > 10.118.11.88 123
+Jul 28 23:59:39  pass    udp       O eth0     10.66.25.58 123 > 10.252.119.235 123
+Jul 28 23:59:40  block   tcp       I eth0     10.221.186.174 21345 > 10.66.25.58 23
+Jul 28 23:59:40  pass    udp       O eth0     10.66.25.58 123 > 10.244.63.42 123
+Jul 28 23:59:42  pass    udp       O eth0     10.66.25.58 123 > 10.207.14.249 123
+Jul 28 23:59:42  pass    udp       O eth0     10.66.25.58 123 > 10.139.239.20 123
+Jul 28 23:59:44  pass    udp       O eth0     10.66.25.58 123 > 10.132.142.80 123
+Jul 28 23:59:45  block   tcp       I eth0     10.183.133.99 51347 > 10.66.25.58 1455
+Jul 28 23:59:46  pass    udp       O eth0     10.66.25.58 123 > 10.235.163.64 123
+Jul 28 23:59:48  block   gre       I eth0     10.239.7.131 > 10.66.25.58
+Jul 28 23:59:50  block   tcp       I eth0     10.59.184.34 36242 > 10.66.25.58 8728
+Jul 28 23:59:53  pass    udp       O eth0     10.66.25.58 123 > 10.52.183.170 123
+Jul 28 23:59:58  block   icmp      I eth0     10.246.53.241 > 10.66.25.58
+position: 144675/144675
+q: quit | hjkl: move | ud: page | gG: jump | enter: details | /: filter | e: show 7 errors

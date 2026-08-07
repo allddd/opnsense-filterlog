@@ -1,0 +1,24 @@
+Details
+Action:           block
+Reason:           match
+Direction:        in
+Interface:        eth0
+IPVersion:        4
+ProtocolName:     tcp
+ProtocolNum:      6
+Source:           10.13.56.76
+SourcePort:       34380
+Destination:      10.43.222.20
+DestinationPort:  6009
+Length:           40
+DSCP:             0x0
+Flags:            none
+ID:               0
+Offset:           0
+TTL:              56
+DataLength:       0
+TCPFlags:         S
+TCPSequence:      3480526800
+TCPWindow:        65535
+position: 23/23
+q: quit | hjkl: move | ud: page | gG: jump | esc: back

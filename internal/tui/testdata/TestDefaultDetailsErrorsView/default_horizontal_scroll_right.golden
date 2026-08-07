@@ -1,0 +1,24 @@
+ion  Protocol  Interface  Source > Destination
+ck   tcp       I eth0     10.13.56.76 34380 > 10.43.222.20 6009
+ck   tcp       I eth0     10.211.163.155 45982 > 10.43.222.20 61616
+s    udp       O eth0     10.43.222.20 54873 > 10.152.75.25 53
+s    udp       O eth0     fd26:693:e7:4a::ea77 31786 > fd4d:6fa7:f5cf:9ac7::2592 53
+s    udp       O eth0     10.43.222.20 41467 > 10.73.135.38 53
+s    udp       O eth0     10.43.222.20 28291 > 10.28.107.94 53
+s    udp       O eth0     fd26:693:e7:4a::ea77 28431 > fdb5:1472:26c6:a405:cfb4:5842:bc88:51e7 53
+s    udp       O eth0     10.43.222.20 123 > 10.248.213.140 123
+s    udp       O eth0     10.43.222.20 123 > 10.100.190.17 123
+s    udp       O eth0     10.43.222.20 25202 > 10.20.167.233 53
+s    udp       O eth0     fd26:693:e7:4a::ea77 25349 > fdc5:9998:8bf:f2df::483c 53
+s    udp       O eth0     10.43.222.20 123 > 10.78.52.238 123
+s    udp       O eth0     10.43.222.20 123 > 10.0.14.113 123
+s    udp       O eth0     10.43.222.20 123 > 10.119.203.248 123
+s    udp       O eth0     10.43.222.20 34571 > 10.55.43.71 53
+s    udp       O eth0     fd26:693:e7:4a::ea77 62660 > fdff:89a2:6c82:b3cb::63b8 53
+s    udp       O eth0     fd26:693:e7:4a::ea77 123 > fd89:a457:743f:4b85::a9df 123
+s    udp       O eth0     fd26:693:e7:4a::ea77 123 > fdcc:6e1b:1fb9:ce2c::388e 123
+s    udp       O eth0     10.43.222.20 123 > 10.205.164.252 123
+s    udp       O eth0     10.43.222.20 123 > 10.136.254.239 123
+s    udp       O eth0     10.43.222.20 33661 > 10.64.88.63 53
+position: 1/144675
+q: quit | hjkl: move | ud: page | gG: jump | enter: details | /: filter | e: show 7 errors

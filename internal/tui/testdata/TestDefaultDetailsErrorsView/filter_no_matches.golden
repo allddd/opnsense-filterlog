@@ -1,0 +1,24 @@
+Time             Action  Protocol  Interface  Source > Destination
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+position: 0/0 | filter: "proto random"
+q: quit | hjkl: move | ud: page | gG: jump | enter: details | /: filter | esc: clear | e: show 7 err

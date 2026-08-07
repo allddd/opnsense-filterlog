@@ -1,0 +1,24 @@
+Error
+testdata/filter_20260726.log: invalid timestamp in `<134>1 2026_07_26T01_00_14+00:00 opnsense.filte>
+testdata/filter_20260726.log: invalid packetfilter section in `<134>1 2026-07-26T05:20:12+00:00 opn>
+testdata/filter_20260726.log: invalid ip version in `<134>1 2026-07-26T06:01:40+00:00 opnsense.filt>
+testdata/filter_20260726.log: invalid csv in `<134>1 2026-07-26T11:09:17+00:00 opnsense.filter.log >
+testdata/filter_20260726.log: invalid timestamp in `2026-07-26T12:51:02+00:00 opnsense.filter.log f>
+testdata/filter_20260726.log: invalid timestamp in `random line`
+testdata/filter_20260726.log: invalid csv in `ERROR: 2026-07-26T21:13:47+00:00 this is not a filter>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+position: 1/7 (limit: 1000)
+q: quit | hjkl: move | ud: page | gG: jump | esc: back
