@@ -108,7 +108,14 @@ func TestEmptyView(t *testing.T) {
 }
 
 func TestDefaultDetailsErrorsView(t *testing.T) {
-	term := newTerminal(t, 100, 24, "testdata/filter_20260726.log", "testdata/filter_20260727.log", "testdata/filter_20260728.log")
+	term := newTerminal(
+		t,
+		100,
+		24,
+		"testdata/filter_20260726.log",
+		"testdata/filter_20260727.log",
+		"testdata/filter_20260728.log",
+	)
 	term.wait("position:")
 	term.check("default")
 
