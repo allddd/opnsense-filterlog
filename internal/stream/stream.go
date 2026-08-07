@@ -81,6 +81,8 @@ type LogEntry struct {
 	TCPSequence       string `json:"tcpseq,omitempty"`
 	TCPUrgentPointer  string `json:"tcpurg,omitempty"`
 	TCPWindow         string `json:"tcpwin,omitempty"`
+	// common
+	ErrMsg string `json:"errmsg,omitempty"`
 }
 
 // indexEntry represents an entry in the index.
@@ -127,6 +129,7 @@ func splitCSV(csv string) []string {
 // parse parses a single line and returns a LogEntry.
 func (s *Stream) parse(line string, path string) *LogEntry {
 	var err error
+	var getErrMsg bool
 	entry := LogEntry{}
 
 	// extract the timestamp (between 1st and 2nd space)
@@ -189,8 +192,8 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		case "udp":
 			// 20: srcport, 21: dstport, 22: datalen
 			if len(fields) < 23 {
-				s.addError(fmt.Sprintf("%s: invalid udp4 section in %#q", path, line))
-				return nil
+				getErrMsg = true
+				break
 			}
 			entry.SourcePort = fields[20]
 			entry.DestinationPort = fields[21]
@@ -200,8 +203,8 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		case "tcp":
 			// 20: srcport, 21: dstport, 22: datalen, 23: flags, 24: seq, 25: ack, 26: window, 27: urg, 28: options
 			if len(fields) < 29 {
-				s.addError(fmt.Sprintf("%s: invalid tcp4 section in %#q", path, line))
-				return nil
+				getErrMsg = true
+				break
 			}
 			entry.SourcePort = fields[20]
 			entry.DestinationPort = fields[21]
@@ -217,8 +220,8 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		case "carp":
 			// 20: type, 21: ttl, 22: vhid, 23: version, 24: advskew, 25: advbase
 			if len(fields) < 26 {
-				s.addError(fmt.Sprintf("%s: invalid carp4 section in %#q", path, line))
-				return nil
+				getErrMsg = true
+				break
 			}
 			entry.CARPType = fields[20]
 			entry.CARPTTL = fields[21]
@@ -252,8 +255,8 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		case "udp":
 			// 17: srcport, 18: dstport, 19: datalen
 			if len(fields) < 20 {
-				s.addError(fmt.Sprintf("%s: invalid udp6 section in %#q", path, line))
-				return nil
+				getErrMsg = true
+				break
 			}
 			entry.SourcePort = fields[17]
 			entry.DestinationPort = fields[18]
@@ -263,8 +266,8 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		case "tcp":
 			// 17: srcport, 18: dstport, 19: datalen, 20: flags, 21: seq, 22: ack, 23: window, 24: urg, 25: options
 			if len(fields) < 26 {
-				s.addError(fmt.Sprintf("%s: invalid tcp6 section in %#q", path, line))
-				return nil
+				getErrMsg = true
+				break
 			}
 			entry.SourcePort = fields[17]
 			entry.DestinationPort = fields[18]
@@ -280,8 +283,8 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		case "carp":
 			// 17: type, 18: ttl, 19: vhid, 20: version, 21: advskew, 22: advbase
 			if len(fields) < 23 {
-				s.addError(fmt.Sprintf("%s: invalid carp6 section in %#q", path, line))
-				return nil
+				getErrMsg = true
+				break
 			}
 			entry.CARPType = fields[17]
 			entry.CARPTTL = fields[18]
@@ -297,6 +300,21 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 	default:
 		s.addError(fmt.Sprintf("%s: invalid ip version in %#q", path, line))
 		return nil
+	}
+
+	if getErrMsg {
+		errMsg := "malformed entry; error message not found"
+		errMsgPrefix := "errormsg='["
+		errMsgStart := strings.Index(line, errMsgPrefix)
+		if errMsgStart >= 0 {
+			errMsgStart += len(errMsgPrefix)
+			errMsgEnd := strings.Index(line[errMsgStart:], "]'")
+			if errMsgEnd >= 0 {
+				errMsgEnd += errMsgStart // make relative index absolute
+				errMsg = line[errMsgStart:errMsgEnd]
+			}
+		}
+		entry.ErrMsg = errMsg
 	}
 
 	return &entry
