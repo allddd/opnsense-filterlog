@@ -48,6 +48,7 @@ type LogEntry struct {
 	Interface       string    `json:"iface"`
 	IPVersion       string    `json:"ipver"`
 	ProtocolName    string    `json:"proto"`
+	ProtocolNum     string    `json:"protonum"`
 	Source          string    `json:"src"`
 	SourcePort      string    `json:"sport,omitempty"`
 	Destination     string    `json:"dst"`
@@ -182,6 +183,7 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.ID = fields[12]
 		entry.Offset = fields[13]
 		entry.Flags = fields[14]
+		entry.ProtocolNum = fields[15]
 		entry.ProtocolName = fields[16]
 		entry.Length = fields[17]
 		entry.Source = fields[18]
@@ -246,6 +248,7 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.Flow = fields[10]
 		entry.HopLimit = fields[11]
 		entry.ProtocolName = fields[12]
+		entry.ProtocolNum = fields[13]
 		entry.Length = fields[14]
 		entry.Source = fields[15]
 		entry.Destination = fields[16]
