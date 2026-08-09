@@ -1,4 +1,4 @@
-@PROGRAM@ 8 "August 9, 2026" "FreeBSD" "FreeBSD System Manager's Manual"
+@PROGRAM@ 8 "@DATE@" "FreeBSD" "FreeBSD System Manager's Manual"
 ===
 
 # NAME

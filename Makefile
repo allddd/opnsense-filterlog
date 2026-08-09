@@ -62,7 +62,8 @@ deps: ## update dependencies
 	$(GO) mod verify
 
 docs: ## generate manpage
-	sed -e 's|@PROGRAM@|$(PROGRAM)|g' \
+	sed -e 's|@DATE@|'"$$(LC_ALL=C date '+%B %-d, %Y')"'|g' \
+	    -e 's|@PROGRAM@|$(PROGRAM)|g' \
 	    -e 's|@REPO@|https://$(REPO)|g' \
 	    ./docs/manpage.md | $(GO) tool go-md2man -out ./docs/$(PROGRAM).8
 
