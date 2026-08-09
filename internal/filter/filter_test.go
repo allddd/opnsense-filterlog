@@ -30,9 +30,7 @@ import (
 	"gitlab.com/allddd/opnsense-filterlog/internal/stream"
 )
 
-// defaultEntry is the default entry used for all tests.
-// If you need something special, use this as base and override fields.
-var defaultEntry = stream.LogEntry{
+var logEntry = stream.LogEntry{
 	Time:              time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC),
 	Label:             "02f4bab031b57d1e30553ce08e0ec131",
 	Action:            "block",
@@ -41,6 +39,7 @@ var defaultEntry = stream.LogEntry{
 	Interface:         "eth0",
 	IPVersion:         "4",
 	ProtocolName:      "tcp",
+	ProtocolNum:       "6",
 	Source:            "192.168.1.20",
 	SourcePort:        "51234",
 	Destination:       "192.168.1.10",
@@ -73,7 +72,7 @@ func runTests(t *testing.T, tests []test) {
 		t.Run(tc.name, func(t *testing.T) {
 			entry := tc.entry
 			if (entry == stream.LogEntry{}) {
-				entry = defaultEntry
+				entry = logEntry
 			}
 			filter, err := Compile(tc.filter)
 			if tc.expectError {
@@ -123,7 +122,7 @@ func TestAnyFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "match protocol",
+			name:        "match protocol name",
 			filter:      "tcp",
 			expectMatch: true,
 		},
@@ -239,8 +238,13 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "match protocol",
+			name:        "match protocol name",
 			filter:      "protocol tcp",
+			expectMatch: true,
+		},
+		{
+			name:        "match protocol number",
+			filter:      "protocolnum 6",
 			expectMatch: true,
 		},
 		{
@@ -295,8 +299,13 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "match protocol alias",
+			name:        "match protocol name alias",
 			filter:      "proto tcp",
+			expectMatch: true,
+		},
+		{
+			name:        "match protocol number alias",
+			filter:      "protonum 6",
 			expectMatch: true,
 		},
 		{
@@ -337,7 +346,7 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: false,
 		},
 		{
-			name:        "do not match protocol case insensitive",
+			name:        "do not match protocol name case insensitive",
 			filter:      "protocol TCP",
 			expectMatch: false,
 		},
@@ -388,8 +397,13 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: false,
 		},
 		{
-			name:        "do not match wrong protocol",
+			name:        "do not match wrong protocol name",
 			filter:      "protocol udp",
+			expectMatch: false,
+		},
+		{
+			name:        "do not match wrong protocol number",
+			filter:      "protocolnum 1",
 			expectMatch: false,
 		},
 		{

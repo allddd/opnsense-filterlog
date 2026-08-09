@@ -1,6 +1,6 @@
 '\" t
 .nh
-.TH opnsense-filterlog 8 "April 24, 2026" "FreeBSD" "FreeBSD System Manager's Manual"
+.TH opnsense-filterlog 8 "August 9, 2026" "FreeBSD" "FreeBSD System Manager's Manual"
 
 .SH NAME
 opnsense-filterlog \- command-line tool and terminal-based viewer for OPNsense firewall logs
@@ -84,6 +84,7 @@ ip 4
 label 02f4bab031b57d1e30553ce08e0ec131
 port 443
 proto tcp
+protonum 6
 src 192.168.1.1
 .EE
 
@@ -109,7 +110,10 @@ T}
 Either source or destination port
 T}
 \fBprotocol\fR	\fBproto\fR	T{
-Protocol (tcp, udp, icmp, etc.)
+Protocol name (tcp, udp, icmp, etc.)
+T}
+\fBprotocolnum\fR	\fBprotonum\fR	T{
+Protocol number (6, 17, 1, etc.)
 T}
 \fBreason\fR	-	Reason (match, fragment, etc.)
 \fBsource\fR	\fBsrc\fR	Source IP address

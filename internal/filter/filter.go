@@ -56,6 +56,7 @@ const (
 	fieldLabel
 	fieldPort
 	fieldProtocolName
+	fieldProtocolNum
 	fieldReason
 	fieldSource
 	fieldSourcePort
@@ -105,9 +106,12 @@ var (
 		"label": fieldLabel,
 		// port
 		"port": fieldPort,
-		// protocol
+		// protocol name
 		"protocol": fieldProtocolName,
 		"proto":    fieldProtocolName,
+		// protocol number
+		"protocolnum": fieldProtocolNum,
+		"protonum":    fieldProtocolNum,
 		// reason
 		"reason": fieldReason,
 		// source
@@ -416,6 +420,8 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 		return entry.SourcePort == f.value || entry.DestinationPort == f.value
 	case fieldProtocolName:
 		return entry.ProtocolName == f.value
+	case fieldProtocolNum:
+		return entry.ProtocolNum == f.value
 	case fieldReason:
 		return entry.Reason == f.value
 	case fieldSource:

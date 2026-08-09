@@ -1,4 +1,4 @@
-@PROGRAM@ 8 "April 24, 2026" "FreeBSD" "FreeBSD System Manager's Manual"
+@PROGRAM@ 8 "August 9, 2026" "FreeBSD" "FreeBSD System Manager's Manual"
 ===
 
 # NAME
@@ -71,6 +71,7 @@ ip 4
 label 02f4bab031b57d1e30553ce08e0ec131
 port 443
 proto tcp
+protonum 6
 src 192.168.1.1
 ```
 
@@ -87,7 +88,8 @@ Fields:
 | `ipversion` | `ip`, `ipver` | IP version (4 or 6) |
 | `label` | - | Rule label |
 | `port` | - | Either source or destination port |
-| `protocol` | `proto` | Protocol (tcp, udp, icmp, etc.) |
+| `protocol` | `proto` | Protocol name (tcp, udp, icmp, etc.) |
+| `protocolnum` | `protonum` | Protocol number (6, 17, 1, etc.) |
 | `reason` | - | Reason (match, fragment, etc.) |
 | `source` | `src` | Source IP address |
 | `srcport` | `sport` | Source port |
