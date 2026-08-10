@@ -97,13 +97,18 @@ func TestAnyFilter(t *testing.T) {
 	tests := []test{
 		// exact
 		{
+			name:        "match label",
+			filter:      "02f4bab031b57d1e30553ce08e0ec131",
+			expectMatch: true,
+		},
+		{
 			name:        "match action",
 			filter:      "block",
 			expectMatch: true,
 		},
 		{
-			name:        "match destination",
-			filter:      "192.168.1.10",
+			name:        "match reason",
+			filter:      "match",
 			expectMatch: true,
 		},
 		{
@@ -117,23 +122,23 @@ func TestAnyFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "match label",
-			filter:      "02f4bab031b57d1e30553ce08e0ec131",
-			expectMatch: true,
-		},
-		{
 			name:        "match protocol name",
 			filter:      "tcp",
 			expectMatch: true,
 		},
 		{
-			name:        "match reason",
-			filter:      "match",
+			name:        "match source",
+			filter:      "192.168.1.20",
 			expectMatch: true,
 		},
 		{
-			name:        "match source",
-			filter:      "192.168.1.20",
+			name:        "match destination",
+			filter:      "192.168.1.10",
+			expectMatch: true,
+		},
+		{
+			name:        "match tcp acknowledgment",
+			filter:      "3456789012",
 			expectMatch: true,
 		},
 		// partial
@@ -147,6 +152,11 @@ func TestAnyFilter(t *testing.T) {
 			filter:      "192.168",
 			expectMatch: true,
 		},
+		{
+			name:        "match tcp options partial",
+			filter:      "wscale",
+			expectMatch: true,
+		},
 		// case insensitive
 		{
 			name:        "match action case insensitive",
@@ -158,18 +168,12 @@ func TestAnyFilter(t *testing.T) {
 			filter:      "Eth0",
 			expectMatch: true,
 		},
-		// not searched
-		{
-			name:        "do not match source port",
-			filter:      "51234",
-			expectMatch: false,
-		},
-		{
-			name:        "do not match destination port",
-			filter:      "443",
-			expectMatch: false,
-		},
 		// no match
+		{
+			name:        "do not match empty string",
+			filter:      "",
+			expectMatch: false,
+		},
 		{
 			name:        "do not match random string",
 			filter:      "random",

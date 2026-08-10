@@ -25,6 +25,7 @@ package filter
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -366,7 +367,7 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 	}
 	// handle bare values
 	if p.current.typ == tokenValue {
-		value := p.current.value
+		value := strings.ToLower(p.current.value)
 		p.advance()
 		return &anyFilter{value: value}, nil
 	}
@@ -378,19 +379,13 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 
 // Matches (anyFilter) returns true if any field in the log entry contains the filter value.
 func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
-	value := strings.ToLower(f.value)
-	fields := []string{
-		entry.Action,
-		entry.Destination,
-		entry.Direction,
-		entry.Interface,
-		entry.Label,
-		entry.ProtocolName,
-		entry.Reason,
-		entry.Source,
-	}
-	for _, field := range fields {
-		if strings.Contains(strings.ToLower(field), value) {
+	v := reflect.ValueOf(entry).Elem()
+	for i := range v.NumField() {
+		fv := v.Field(i)
+		if fv.IsZero() || fv.Kind() != reflect.String {
+			continue
+		}
+		if strings.Contains(strings.ToLower(fv.String()), f.value) {
 			return true
 		}
 	}
