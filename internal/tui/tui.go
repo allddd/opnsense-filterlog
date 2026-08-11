@@ -557,7 +557,8 @@ func (m model) View() tea.View {
 	if m.detailsView { //nolint:gocritic // details view
 		visibleEnd = min(visibleStart+visibleHeight, len(m.details))
 		// header
-		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render("Details") + "\n")
+		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render("Details"))
+		b.WriteByte('\n')
 
 		// main
 		for i := visibleStart; i < visibleEnd; i++ {
@@ -565,17 +566,19 @@ func (m model) View() tea.View {
 			if i == m.uiSelected {
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(line)
 			}
-			b.WriteString(line + "\n")
+			b.WriteString(line)
+			b.WriteByte('\n')
 		}
 		for i := visibleEnd - visibleStart; i < visibleHeight; i++ {
-			b.WriteString("\n") // fill remaining space
+			b.WriteByte('\n') // fill remaining space
 		}
 
 	} else if m.errorsView { // error view
 		visibleEnd = min(visibleStart+visibleHeight, len(m.errors))
 
 		// header
-		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render("Error") + "\n")
+		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render("Error"))
+		b.WriteByte('\n')
 
 		// main
 		for i := visibleStart; i < visibleEnd; i++ {
@@ -583,10 +586,11 @@ func (m model) View() tea.View {
 			if i == m.uiSelected {
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(line)
 			}
-			b.WriteString(line + "\n")
+			b.WriteString(line)
+			b.WriteByte('\n')
 		}
 		for i := visibleEnd - visibleStart; i < visibleHeight; i++ {
-			b.WriteString("\n") // fill remaining space
+			b.WriteByte('\n') // fill remaining space
 		}
 
 	} else { // default view
@@ -603,7 +607,8 @@ func (m model) View() tea.View {
 			styleString("Destination", 0, m.uiStyles.plain),
 			styleString("", 0, m.uiStyles.plain))
 		headerLine = m.sliceString(headerLine)
-		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render(headerLine) + "\n")
+		b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render(headerLine))
+		b.WriteByte('\n')
 
 		// main
 		for i := visibleStart; i < visibleEnd; i++ {
@@ -613,7 +618,8 @@ func (m model) View() tea.View {
 			entry := m.getEntryAtLine(m.entriesAvailable[i])
 			if entry == nil {
 				// entry not loaded in memory
-				b.WriteString(m.uiStyles.bold.Render("loading...") + "\n")
+				b.WriteString(m.uiStyles.bold.Render("loading..."))
+				b.WriteByte('\n')
 				continue
 			}
 			// action
@@ -659,10 +665,11 @@ func (m model) View() tea.View {
 			if i == m.uiSelected {
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(ansi.Strip(line))
 			}
-			b.WriteString(line + "\n")
+			b.WriteString(line)
+			b.WriteByte('\n')
 		}
 		for i := visibleEnd - visibleStart; i < visibleHeight; i++ {
-			b.WriteString("\n") // fill remaining space
+			b.WriteByte('\n') // fill remaining space
 		}
 	}
 
@@ -692,7 +699,8 @@ func (m model) View() tea.View {
 			statusLine += " | " + m.uiStatusMsg
 		}
 	}
-	b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render(statusLine) + "\n")
+	b.WriteString(m.uiStyles.bar.Width(m.uiWidth).Render(statusLine))
+	b.WriteByte('\n')
 
 	// help
 	helpLine := "q: quit | hjkl: move | ud: page | gG: jump"
