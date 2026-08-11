@@ -101,6 +101,7 @@ type styles struct {
 	bar      lipgloss.Style
 	barAlert lipgloss.Style
 	bold     lipgloss.Style
+	italic   lipgloss.Style
 	ip       lipgloss.Style
 	plain    lipgloss.Style
 	port     lipgloss.Style
@@ -662,8 +663,11 @@ func (m model) View() tea.View {
 				styleString(entry.Destination, 0, m.uiStyles.ip),
 				styleString(destinationPort, 0, m.uiStyles.port))
 			line = m.sliceString(line)
-			if i == m.uiSelected {
+			switch {
+			case i == m.uiSelected:
 				line = m.uiStyles.selected.Width(m.uiWidth).Render(ansi.Strip(line))
+			case entry.ErrMsg != "":
+				line = m.uiStyles.italic.Render(ansi.Strip(line))
 			}
 			b.WriteString(line)
 			b.WriteByte('\n')
@@ -923,6 +927,8 @@ func Display(s *stream.Stream) error {
 			Foreground(lipgloss.Color("231")),
 		bold: lipgloss.NewStyle().
 			Bold(true),
+		italic: lipgloss.NewStyle().
+			Italic(true),
 		plain: lipgloss.NewStyle(),
 		ip: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("2")),
