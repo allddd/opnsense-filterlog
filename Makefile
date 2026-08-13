@@ -82,10 +82,9 @@ lint: ## format code and run linters
 	golangci-lint run
 
 release: build-release ## create release
-	@git branch --show-current | grep -qx master || (printf 'error: not on master branch\n'; exit 1)
-	@git describe --exact-match HEAD >/dev/null 2>&1 || (printf 'error: HEAD not tagged\n'; exit 1)
-	@! git ls-remote -t --exit-code origin $(VERSION) >/dev/null 2>&1 || (printf 'error: tag $(VERSION) already exists\n'; exit 1)
 	@curl -fsSL 'https://go.dev/VERSION?m=text' | head -n1 | grep -qx "$$($(GO) version -m -json $$(which $(GO)) | jq -r '.GoVersion')" || (printf 'error: not using latest go version\n'; exit 1)
+	@git rev-parse master origin/master development origin/development $(VERSION)^{commit} | sort -u | awk 'END { if (NR != 1) { print "error: refs point to different commits"; exit 1 } }'
+	@! git ls-remote -t --exit-code origin $(VERSION) >/dev/null 2>&1 || (printf 'error: tag $(VERSION) already exists\n'; exit 1)
 	git push origin $(VERSION)
 	sleep 30
 	glab ci status -lb $(VERSION)
