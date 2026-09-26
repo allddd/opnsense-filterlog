@@ -24,7 +24,7 @@
 package cli
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 
@@ -33,10 +33,10 @@ import (
 )
 
 type jsonObjMeta struct {
-	Entries int      `json:"entries"`          // count of entries in entries array
-	Errors  int      `json:"errors,omitempty"` // number of parse errors
-	Filter  string   `json:"filter,omitempty"` // filter expression
-	Sources []string `json:"sources"`          // file path(s) (absolute if possible)
+	Entries int      `json:"entries"`         // count of entries in entries array
+	Errors  int      `json:"errors,omitzero"` // number of parse errors
+	Filter  string   `json:"filter,omitzero"` // filter expression
+	Sources []string `json:"sources"`         // file path(s) (absolute if possible)
 }
 
 // jsonObj represents the complete JSON output structure (used only for tests and docs).

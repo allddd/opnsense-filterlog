@@ -50,40 +50,40 @@ type LogEntry struct {
 	ProtocolName    string    `json:"proto"`
 	ProtocolNum     string    `json:"protonum"`
 	Source          string    `json:"src"`
-	SourcePort      string    `json:"sport,omitempty"`
+	SourcePort      string    `json:"sport,omitzero"`
 	Destination     string    `json:"dst"`
-	DestinationPort string    `json:"dport,omitempty"`
+	DestinationPort string    `json:"dport,omitzero"`
 	// ip
-	Length string `json:"length,omitempty"`
+	Length string `json:"length,omitzero"`
 	// ipv4
-	DSCP   string `json:"dscp,omitempty"`
-	ECN    string `json:"ecn,omitempty"`
-	Flags  string `json:"flags,omitempty"`
-	ID     string `json:"id,omitempty"`
-	Offset string `json:"offset,omitempty"`
-	TTL    string `json:"ttl,omitempty"`
+	DSCP   string `json:"dscp,omitzero"`
+	ECN    string `json:"ecn,omitzero"`
+	Flags  string `json:"flags,omitzero"`
+	ID     string `json:"id,omitzero"`
+	Offset string `json:"offset,omitzero"`
+	TTL    string `json:"ttl,omitzero"`
 	// ipv6
-	Class    string `json:"class,omitempty"`
-	Flow     string `json:"flow,omitempty"`
-	HopLimit string `json:"hoplimit,omitempty"`
+	Class    string `json:"class,omitzero"`
+	Flow     string `json:"flow,omitzero"`
+	HopLimit string `json:"hoplimit,omitzero"`
 	// carp
-	CARPAdvBase string `json:"carpabase,omitempty"`
-	CARPAdvSkew string `json:"carpaskew,omitempty"`
-	CARPTTL     string `json:"carpttl,omitempty"`
-	CARPType    string `json:"carptype,omitempty"`
-	CARPVHID    string `json:"carpvhid,omitempty"`
-	CARPVersion string `json:"carpver,omitempty"`
+	CARPAdvBase string `json:"carpabase,omitzero"`
+	CARPAdvSkew string `json:"carpaskew,omitzero"`
+	CARPTTL     string `json:"carpttl,omitzero"`
+	CARPType    string `json:"carptype,omitzero"`
+	CARPVHID    string `json:"carpvhid,omitzero"`
+	CARPVersion string `json:"carpver,omitzero"`
 	// tcp/udp
-	DataLength string `json:"datalen,omitempty"`
+	DataLength string `json:"datalen,omitzero"`
 	// tcp
-	TCPAcknowledgment string `json:"tcpack,omitempty"`
-	TCPFlags          string `json:"tcpflags,omitempty"`
-	TCPOptions        string `json:"tcpopts,omitempty"`
-	TCPSequence       string `json:"tcpseq,omitempty"`
-	TCPUrgentPointer  string `json:"tcpurg,omitempty"`
-	TCPWindow         string `json:"tcpwin,omitempty"`
+	TCPAcknowledgment string `json:"tcpack,omitzero"`
+	TCPFlags          string `json:"tcpflags,omitzero"`
+	TCPOptions        string `json:"tcpopts,omitzero"`
+	TCPSequence       string `json:"tcpseq,omitzero"`
+	TCPUrgentPointer  string `json:"tcpurg,omitzero"`
+	TCPWindow         string `json:"tcpwin,omitzero"`
 	// common
-	ErrMsg string `json:"errmsg,omitempty"`
+	ErrMsg string `json:"errmsg,omitzero"`
 }
 
 // indexEntry represents an entry in the index.
