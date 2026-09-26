@@ -380,8 +380,7 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 // Matches (anyFilter) returns true if any field in the log entry contains the filter value.
 func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
 	v := reflect.ValueOf(entry).Elem()
-	for i := range v.NumField() {
-		fv := v.Field(i)
+	for _, fv := range v.Fields() {
 		if fv.IsZero() || fv.Kind() != reflect.String {
 			continue
 		}
