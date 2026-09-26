@@ -20,6 +20,7 @@ linters:
         - depguard
         # wants every struct field initialized, even when it makes zero sense
         - exhaustruct
+        - exhaustruct_v5
         # styling/formatting with no impact on functionality
         - funcorder
         # complains about function length. breaking up a clean 100 line function
