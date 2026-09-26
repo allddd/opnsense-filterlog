@@ -1,6 +1,6 @@
 module gitlab.com/allddd/opnsense-filterlog
 
-go 1.25.0
+go 1.27.0
 
 require (
 	charm.land/bubbles/v2 v2.1.1
