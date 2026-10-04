@@ -97,8 +97,8 @@ release: build-release ## create release
 test: build ## run tests
 	$(GO) test -fullpath -mod=readonly -timeout=60s -shuffle=on ./...
 
-test-gen: build ## generate golden files for tui tests
-	$(GO) test -fullpath -mod=readonly -timeout=60s ./internal/tui/ -update
+test-gen: build ## generate golden files for cli and tui tests
+	$(GO) test -fullpath -mod=readonly -timeout=60s ./internal/cli/ ./internal/tui/ -update
 
 uninstall: ## remove installed files
 	rm -f $(DESTDIR)$(SBINDIR)/$(PROGRAM)
