@@ -50,7 +50,7 @@ type LogEntry struct {
 	Interface       string     `json:"iface"`
 	IPVersion       uint8      `json:"ipver"`
 	ProtocolName    string     `json:"proto"`
-	ProtocolNum     string     `json:"protonum"`
+	ProtocolNum     uint8      `json:"protonum"`
 	Source          netip.Addr `json:"src"`
 	SourcePort      uint16     `json:"sport,omitzero"`
 	Destination     netip.Addr `json:"dst"`
@@ -193,7 +193,12 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.ID = fields[12]
 		entry.Offset = fields[13]
 		entry.Flags = fields[14]
-		entry.ProtocolNum = fields[15]
+		pn, err := strconv.ParseUint(fields[15], 10, 8)
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid protocol number in %#q: %v", path, line, err))
+			return nil
+		}
+		entry.ProtocolNum = uint8(pn)
 		entry.ProtocolName = fields[16]
 		entry.Length = fields[17]
 		entry.Source, err = netip.ParseAddr(fields[18])
@@ -286,7 +291,12 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.Flow = fields[10]
 		entry.HopLimit = fields[11]
 		entry.ProtocolName = fields[12]
-		entry.ProtocolNum = fields[13]
+		pn, err := strconv.ParseUint(fields[13], 10, 8)
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid protocol number in %#q: %v", path, line, err))
+			return nil
+		}
+		entry.ProtocolNum = uint8(pn)
 		entry.Length = fields[14]
 		entry.Source, err = netip.ParseAddr(fields[15])
 		if err != nil {

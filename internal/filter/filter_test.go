@@ -40,7 +40,7 @@ var logEntry = stream.LogEntry{
 	Interface:         "eth0",
 	IPVersion:         4,
 	ProtocolName:      "tcp",
-	ProtocolNum:       "6",
+	ProtocolNum:       6,
 	Source:            netip.MustParseAddr("192.168.1.20"),
 	SourcePort:        51234,
 	Destination:       netip.MustParseAddr("192.168.1.10"),

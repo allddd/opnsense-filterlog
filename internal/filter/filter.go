@@ -398,7 +398,7 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 				value:  value,
 				parsed: fieldValueParsed{u16: uint16(parsed)},
 			}, nil
-		case fieldIPVersion:
+		case fieldIPVersion, fieldProtocolNum:
 			parsed, err := strconv.ParseUint(value, 10, 8)
 			if err != nil {
 				return nil, fmt.Errorf("error(filter): invalid %s: %w", field, err)
@@ -442,7 +442,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldProtocolName:
 		return entry.ProtocolName == f.value
 	case fieldProtocolNum:
-		return entry.ProtocolNum == f.value
+		return entry.ProtocolNum == f.parsed.u8
 	case fieldReason:
 		return entry.Reason == f.value
 	case fieldSource:
