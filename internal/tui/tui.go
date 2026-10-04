@@ -199,6 +199,8 @@ func formatEntry(entry *stream.LogEntry) ([]string, error) {
 			if _, err := fmt.Fprintf(tw, "%s:\t%s\n", ft.Name, v.Format(time.RFC1123Z)); err != nil {
 				return nil, err
 			}
+		default:
+			return nil, fmt.Errorf("unhandled field %q of type %q", ft.Name, ft.Type)
 		}
 	}
 	if err := tw.Flush(); err != nil {
