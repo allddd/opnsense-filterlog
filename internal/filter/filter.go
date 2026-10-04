@@ -162,6 +162,7 @@ type anyFilter struct {
 type fieldValueParsed struct {
 	prefix netip.Prefix
 	u8     uint8
+	u16    uint16
 }
 
 // fieldFilter matches a specific field against a value.
@@ -393,6 +394,16 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 				value:  value,
 				parsed: fieldValueParsed{prefix: parsed},
 			}, nil
+		case fieldDestinationPort, fieldPort, fieldSourcePort:
+			parsed, err := strconv.ParseUint(value, 10, 16)
+			if err != nil {
+				return nil, fmt.Errorf("error(filter): invalid %s: %w", field, err)
+			}
+			return &fieldFilter{
+				field:  fields[field],
+				value:  value,
+				parsed: fieldValueParsed{u16: uint16(parsed)},
+			}, nil
 		case fieldIPVersion:
 			parsed, err := strconv.ParseUint(value, 10, 8)
 			if err != nil {
@@ -442,7 +453,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldDestination:
 		return f.parsed.prefix.Contains(entry.Destination)
 	case fieldDestinationPort:
-		return entry.DestinationPort == f.value
+		return entry.DestinationPort == f.parsed.u16
 	case fieldDirection:
 		return entry.Direction == f.value
 	case fieldHost:
@@ -454,7 +465,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldLabel:
 		return entry.Label == f.value
 	case fieldPort:
-		return entry.SourcePort == f.value || entry.DestinationPort == f.value
+		return entry.DestinationPort == f.parsed.u16 || entry.SourcePort == f.parsed.u16
 	case fieldProtocolName:
 		return entry.ProtocolName == f.value
 	case fieldProtocolNum:
@@ -464,7 +475,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldSource:
 		return f.parsed.prefix.Contains(entry.Source)
 	case fieldSourcePort:
-		return entry.SourcePort == f.value
+		return entry.SourcePort == f.parsed.u16
 	}
 	return false
 }

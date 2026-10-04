@@ -45,7 +45,7 @@ import (
 
 const (
 	formatLine = "%s %s %s %s %s%s > %s%s"
-	formatPort = " %s"
+	formatPort = " %d"
 
 	loadEntriesMax       = 600
 	loadEntriesThreshold = 200
@@ -191,7 +191,7 @@ func formatEntry(entry *stream.LogEntry) ([]string, error) {
 					return nil, err
 				}
 			}
-		case uint8:
+		case uint8, uint16:
 			if _, err := fmt.Fprintf(tw, "%s:\t%d\n", ft.Name, v); err != nil {
 				return nil, err
 			}
@@ -656,12 +656,12 @@ func (m model) View() tea.View {
 			}
 			// source
 			var sourcePort string
-			if entry.SourcePort != "" {
+			if entry.SourcePort != 0 {
 				sourcePort = fmt.Sprintf(formatPort, entry.SourcePort)
 			}
 			// destination
 			var destinationPort string
-			if entry.DestinationPort != "" {
+			if entry.DestinationPort != 0 {
 				destinationPort = fmt.Sprintf(formatPort, entry.DestinationPort)
 			}
 			line := fmt.Sprintf(formatLine,
