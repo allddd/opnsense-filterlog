@@ -389,7 +389,7 @@ func (s *Stream) BuildIndex() error {
 			lineOffset += int64(len(s.scanner.Bytes()) + 1) // +1 for newline
 		}
 		if err := s.scanner.Err(); err != nil {
-			return fmt.Errorf("error(stream): could not build index: %w", err)
+			return fmt.Errorf("error(stream): could not scan file: %w", err)
 		}
 	}
 	return s.reset()
@@ -433,6 +433,9 @@ func NewStream(paths []string) (*Stream, error) {
 					order[path] = entry.Time
 					break
 				}
+			}
+			if err := scanner.Err(); err != nil {
+				return nil, fmt.Errorf("error(stream): could not scan file: %w", err)
 			}
 			if err := file.Close(); err != nil {
 				return nil, fmt.Errorf("error(stream): could not close file: %w", err)
