@@ -51,14 +51,6 @@ The following keys are available in the TUI:
 
 # FILTER
 
-## Simple search
-Type a value without a field name to search across all fields:
-
-```
-block
-tcp
-```
-
 ## Field-based filtering
 Use the *field* *value* syntax to target specific fields:
 

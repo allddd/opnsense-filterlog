@@ -26,7 +26,6 @@ package filter
 import (
 	"fmt"
 	"net/netip"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -151,11 +150,6 @@ type fieldTyp int
 // FilterNode is the interface that all filter nodes use to match log entries.
 type FilterNode interface {
 	Matches(entry *stream.LogEntry) bool
-}
-
-// anyFilter matches any field containing the value.
-type anyFilter struct {
-	value string // value to search for in any field
 }
 
 // fieldValueParsed represents parsed field value of non-string fields.
@@ -419,31 +413,10 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 		return &fieldFilter{field: fields[field], value: value}, nil
 
 	}
-	// handle bare values
-	if p.current.typ == tokenValue {
-		value := strings.ToLower(p.current.value)
-		p.advance()
-		return &anyFilter{value: value}, nil
-	}
-	// TODO: make this err msg more helpful
 	return nil, fmt.Errorf("error(filter): unexpected token %q", p.current.value)
 }
 
 // filter nodes
-
-// Matches (anyFilter) returns true if any field in the log entry contains the filter value.
-func (f *anyFilter) Matches(entry *stream.LogEntry) bool {
-	v := reflect.ValueOf(entry).Elem()
-	for _, fv := range v.Fields() {
-		if fv.IsZero() || fv.Kind() != reflect.String {
-			continue
-		}
-		if strings.Contains(strings.ToLower(fv.String()), f.value) {
-			return true
-		}
-	}
-	return false
-}
 
 // Matches (fieldFilter) returns true if the log entry matches the field filter criteria.
 func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
