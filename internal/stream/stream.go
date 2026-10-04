@@ -47,7 +47,7 @@ type LogEntry struct {
 	Reason          string     `json:"reason"`
 	Direction       string     `json:"dir"`
 	Interface       string     `json:"iface"`
-	IPVersion       string     `json:"ipver"`
+	IPVersion       uint8      `json:"ipver"`
 	ProtocolName    string     `json:"proto"`
 	ProtocolNum     string     `json:"protonum"`
 	Source          netip.Addr `json:"src"`
@@ -167,11 +167,19 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 	entry.Reason = fields[5]
 	entry.Action = fields[6]
 	entry.Direction = fields[7]
-	entry.IPVersion = fields[8]
+	switch ipversion := fields[8]; ipversion {
+	case "4":
+		entry.IPVersion = 4
+	case "6":
+		entry.IPVersion = 6
+	default:
+		s.addError(fmt.Sprintf("%s: invalid ip version in %#q", path, line))
+		return nil
+	}
 
 	switch entry.IPVersion {
 	// ipv4
-	case "4":
+	case 4:
 		// 9:dscp/tos, 10:ecn, 11:ttl, 12:id, 13:offset, 14:flags, 15:protonum, 16:protoname, 17:length, 18:src, 19:dst
 		if len(fields) < 20 {
 			s.addError(fmt.Sprintf("%s: invalid ipv4 section in %#q", path, line))
@@ -246,7 +254,7 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		}
 
 	// ipv6
-	case "6":
+	case 6:
 		// 9:class, 10:flow, 11:hoplimit, 12:protoname, 13:protonum, 14:length, 15:src, 16:dst
 		if len(fields) < 17 {
 			s.addError(fmt.Sprintf("%s: invalid ipv6 section in %#q", path, line))
@@ -316,10 +324,6 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		// skip for any other protocol
 		default:
 		}
-
-	default:
-		s.addError(fmt.Sprintf("%s: invalid ip version in %#q", path, line))
-		return nil
 	}
 
 	if getErrMsg {

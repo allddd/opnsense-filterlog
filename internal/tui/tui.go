@@ -191,6 +191,10 @@ func formatEntry(entry *stream.LogEntry) ([]string, error) {
 					return nil, err
 				}
 			}
+		case uint8:
+			if _, err := fmt.Fprintf(tw, "%s:\t%d\n", ft.Name, v); err != nil {
+				return nil, err
+			}
 		case netip.Addr:
 			if _, err := fmt.Fprintf(tw, "%s:\t%s\n", ft.Name, v.String()); err != nil {
 				return nil, err

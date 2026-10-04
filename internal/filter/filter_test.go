@@ -38,7 +38,7 @@ var logEntry = stream.LogEntry{
 	Reason:            "match",
 	Direction:         "in",
 	Interface:         "eth0",
-	IPVersion:         "4",
+	IPVersion:         4,
 	ProtocolName:      "tcp",
 	ProtocolNum:       "6",
 	Source:            netip.MustParseAddr("192.168.1.20"),

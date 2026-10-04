@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"net/netip"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -159,7 +160,8 @@ type anyFilter struct {
 
 // fieldValueParsed represents parsed field value of non-string fields.
 type fieldValueParsed struct {
-	net netip.Prefix
+	prefix netip.Prefix
+	u8     uint8
 }
 
 // fieldFilter matches a specific field against a value.
@@ -361,8 +363,6 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 	}
 	// handle fields
 	if p.current.typ == tokenField {
-		var net netip.Prefix
-
 		field := p.current.value
 		p.advance()
 
@@ -375,25 +375,37 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 		switch fields[field] { //nolint:exhaustive
 		case fieldDestination, fieldHost, fieldSource:
 			var err error
+			var parsed netip.Prefix
 			if strings.Contains(value, "/") {
-				net, err = netip.ParsePrefix(value)
+				parsed, err = netip.ParsePrefix(value)
 				if err != nil {
-					return nil, fmt.Errorf("error(filter): invalid ip range: %w", err)
+					return nil, fmt.Errorf("error(filter): invalid %s: %w", field, err)
 				}
 			} else {
 				addr, err := netip.ParseAddr(value)
 				if err != nil {
-					return nil, fmt.Errorf("error(filter): invalid ip address: %w", err)
+					return nil, fmt.Errorf("error(filter): invalid %s: %w", field, err)
 				}
-				net = netip.PrefixFrom(addr, addr.BitLen())
+				parsed = netip.PrefixFrom(addr, addr.BitLen())
 			}
+			return &fieldFilter{
+				field:  fields[field],
+				value:  value,
+				parsed: fieldValueParsed{prefix: parsed},
+			}, nil
+		case fieldIPVersion:
+			parsed, err := strconv.ParseUint(value, 10, 8)
+			if err != nil {
+				return nil, fmt.Errorf("error(filter): invalid %s: %w", field, err)
+			}
+			return &fieldFilter{
+				field:  fields[field],
+				value:  value,
+				parsed: fieldValueParsed{u8: uint8(parsed)},
+			}, nil
 		}
 
-		return &fieldFilter{
-			field:  fields[field],
-			value:  value,
-			parsed: fieldValueParsed{net: net},
-		}, nil
+		return &fieldFilter{field: fields[field], value: value}, nil
 
 	}
 	// handle bare values
@@ -428,17 +440,17 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldAction:
 		return entry.Action == f.value
 	case fieldDestination:
-		return f.parsed.net.Contains(entry.Destination)
+		return f.parsed.prefix.Contains(entry.Destination)
 	case fieldDestinationPort:
 		return entry.DestinationPort == f.value
 	case fieldDirection:
 		return entry.Direction == f.value
 	case fieldHost:
-		return f.parsed.net.Contains(entry.Destination) || f.parsed.net.Contains(entry.Source)
+		return f.parsed.prefix.Contains(entry.Destination) || f.parsed.prefix.Contains(entry.Source)
 	case fieldInterface:
 		return entry.Interface == f.value
 	case fieldIPVersion:
-		return entry.IPVersion == f.value
+		return entry.IPVersion == f.parsed.u8
 	case fieldLabel:
 		return entry.Label == f.value
 	case fieldPort:
@@ -450,7 +462,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldReason:
 		return entry.Reason == f.value
 	case fieldSource:
-		return f.parsed.net.Contains(entry.Source)
+		return f.parsed.prefix.Contains(entry.Source)
 	case fieldSourcePort:
 		return entry.SourcePort == f.value
 	}
