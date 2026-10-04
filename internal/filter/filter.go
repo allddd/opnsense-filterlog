@@ -157,11 +157,16 @@ type anyFilter struct {
 	value string // value to search for in any field
 }
 
+// fieldValueParsed represents parsed field value of non-string fields.
+type fieldValueParsed struct {
+	net netip.Prefix
+}
+
 // fieldFilter matches a specific field against a value.
 type fieldFilter struct {
-	field fieldTyp     // type of field
-	value string       // field value
-	net   netip.Prefix // parsed field value of fieldDestination, fieldHost or fieldSource
+	field  fieldTyp         // type of field
+	value  string           // field value
+	parsed fieldValueParsed // parsed (non-string) field values
 }
 
 // andFilter matches only if both child filters match.
@@ -384,7 +389,12 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 			}
 		}
 
-		return &fieldFilter{field: fields[field], value: value, net: net}, nil
+		return &fieldFilter{
+			field:  fields[field],
+			value:  value,
+			parsed: fieldValueParsed{net: net},
+		}, nil
+
 	}
 	// handle bare values
 	if p.current.typ == tokenValue {
@@ -418,13 +428,13 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldAction:
 		return entry.Action == f.value
 	case fieldDestination:
-		return f.net.Contains(entry.Destination)
+		return f.parsed.net.Contains(entry.Destination)
 	case fieldDestinationPort:
 		return entry.DestinationPort == f.value
 	case fieldDirection:
 		return entry.Direction == f.value
 	case fieldHost:
-		return f.net.Contains(entry.Destination) || f.net.Contains(entry.Source)
+		return f.parsed.net.Contains(entry.Destination) || f.parsed.net.Contains(entry.Source)
 	case fieldInterface:
 		return entry.Interface == f.value
 	case fieldIPVersion:
@@ -440,7 +450,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldReason:
 		return entry.Reason == f.value
 	case fieldSource:
-		return f.net.Contains(entry.Source)
+		return f.parsed.net.Contains(entry.Source)
 	case fieldSourcePort:
 		return entry.SourcePort == f.value
 	}
