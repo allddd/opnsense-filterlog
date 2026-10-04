@@ -26,12 +26,15 @@ package cli
 import (
 	"bytes"
 	"context"
+	"flag"
 	"os"
 	"os/exec"
 	"testing"
 
 	"gitlab.com/allddd/opnsense-filterlog/internal/meta"
 )
+
+var update = flag.Bool("update", false, "update .golden files")
 
 func TestJSON(t *testing.T) {
 	tests := []struct {
@@ -44,19 +47,19 @@ func TestJSON(t *testing.T) {
 			name:           "empty",
 			args:           []string{"-j", "/dev/null"},
 			expectError:    false,
-			expectedOutput: "testdata/empty.json",
+			expectedOutput: "testdata/empty.golden",
 		},
 		{
 			name:           "full",
 			args:           []string{"-j", "testdata/filter_20260728.log"},
 			expectError:    false,
-			expectedOutput: "testdata/full.json",
+			expectedOutput: "testdata/full.golden",
 		},
 		{
 			name:           "filter",
 			args:           []string{"-j", "-f", "proto gre", "testdata/filter_20260727.log", "testdata/filter_20260728.log"},
 			expectError:    false,
-			expectedOutput: "testdata/filter.json",
+			expectedOutput: "testdata/filter.golden",
 		},
 		{
 			name:        "filter invalid",
@@ -68,6 +71,15 @@ func TestJSON(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, tc.args...)
 			got, err := cmd.Output()
+			if *update && tc.expectedOutput != "" {
+				if err != nil {
+					t.Fatalf("could not update .golden files: %v", err)
+				}
+				if err := os.WriteFile(tc.expectedOutput, got, 0644); err != nil {
+					t.Fatalf("could not update .golden files: %v", err)
+				}
+				return
+			}
 			if tc.expectError {
 				if err == nil {
 					t.Fatal("expected error, got nil")
