@@ -24,6 +24,7 @@
 package filter
 
 import (
+	"net/netip"
 	"testing"
 	"time"
 
@@ -40,9 +41,9 @@ var logEntry = stream.LogEntry{
 	IPVersion:         "4",
 	ProtocolName:      "tcp",
 	ProtocolNum:       "6",
-	Source:            "192.168.1.20",
+	Source:            netip.MustParseAddr("192.168.1.20"),
 	SourcePort:        "51234",
-	Destination:       "192.168.1.10",
+	Destination:       netip.MustParseAddr("192.168.1.10"),
 	DestinationPort:   "443",
 	Length:            "52",
 	DSCP:              "0x0",
@@ -127,16 +128,6 @@ func TestAnyFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "match source",
-			filter:      "192.168.1.20",
-			expectMatch: true,
-		},
-		{
-			name:        "match destination",
-			filter:      "192.168.1.10",
-			expectMatch: true,
-		},
-		{
 			name:        "match tcp acknowledgment",
 			filter:      "3456789012",
 			expectMatch: true,
@@ -145,11 +136,6 @@ func TestAnyFilter(t *testing.T) {
 		{
 			name:        "match label partial",
 			filter:      "b031b57d",
-			expectMatch: true,
-		},
-		{
-			name:        "match source partial",
-			filter:      "192.168",
 			expectMatch: true,
 		},
 		{
@@ -197,6 +183,11 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
+			name:        "match destination range",
+			filter:      "destination 192.168.1.0/24",
+			expectMatch: true,
+		},
+		{
 			name:        "match destination port",
 			filter:      "dstport 443",
 			expectMatch: true,
@@ -212,8 +203,18 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
+			name:        "match source host range",
+			filter:      "host 192.168.1.0/24",
+			expectMatch: true,
+		},
+		{
 			name:        "match destination host",
 			filter:      "host 192.168.1.10",
+			expectMatch: true,
+		},
+		{
+			name:        "match destination host range",
+			filter:      "host 192.168.1.0/24",
 			expectMatch: true,
 		},
 		{
@@ -259,6 +260,11 @@ func TestFieldFilter(t *testing.T) {
 		{
 			name:        "match source",
 			filter:      "source 192.168.1.20",
+			expectMatch: true,
+		},
+		{
+			name:        "match source range",
+			filter:      "source 192.168.1.0/24",
 			expectMatch: true,
 		},
 		{
@@ -326,17 +332,17 @@ func TestFieldFilter(t *testing.T) {
 		{
 			name:        "do not match source partial",
 			filter:      "source 192.168",
-			expectMatch: false,
+			expectError: true,
 		},
 		{
 			name:        "do not match destination partial",
 			filter:      "destination 192.168",
-			expectMatch: false,
+			expectError: true,
 		},
 		{
 			name:        "do not match host partial",
 			filter:      "host 192.168",
-			expectMatch: false,
+			expectError: true,
 		},
 		{
 			name:        "do not match label partial",
@@ -363,6 +369,11 @@ func TestFieldFilter(t *testing.T) {
 		{
 			name:        "do not match wrong destination",
 			filter:      "destination 10.0.0.1",
+			expectMatch: false,
+		},
+		{
+			name:        "do not match wrong destination range",
+			filter:      "destination 10.0.0.0/16",
 			expectMatch: false,
 		},
 		{
@@ -418,6 +429,11 @@ func TestFieldFilter(t *testing.T) {
 		{
 			name:        "do not match wrong source",
 			filter:      "source 10.0.0.1",
+			expectMatch: false,
+		},
+		{
+			name:        "do not match wrong source range",
+			filter:      "source 10.0.0.0/16",
 			expectMatch: false,
 		},
 		{

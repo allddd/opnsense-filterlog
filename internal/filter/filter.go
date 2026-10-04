@@ -25,6 +25,7 @@ package filter
 
 import (
 	"fmt"
+	"net/netip"
 	"reflect"
 	"strings"
 	"time"
@@ -158,8 +159,9 @@ type anyFilter struct {
 
 // fieldFilter matches a specific field against a value.
 type fieldFilter struct {
-	field fieldTyp // type of field
-	value string   // value to match against
+	field fieldTyp     // type of field
+	value string       // field value
+	net   netip.Prefix // parsed field value of fieldDestination, fieldHost or fieldSource
 }
 
 // andFilter matches only if both child filters match.
@@ -354,6 +356,8 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 	}
 	// handle fields
 	if p.current.typ == tokenField {
+		var net netip.Prefix
+
 		field := p.current.value
 		p.advance()
 
@@ -363,7 +367,24 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 		value := p.current.value
 		p.advance()
 
-		return &fieldFilter{field: fields[field], value: value}, nil
+		switch fields[field] { //nolint:exhaustive
+		case fieldDestination, fieldHost, fieldSource:
+			var err error
+			if strings.Contains(value, "/") {
+				net, err = netip.ParsePrefix(value)
+				if err != nil {
+					return nil, fmt.Errorf("error(filter): invalid ip range: %w", err)
+				}
+			} else {
+				addr, err := netip.ParseAddr(value)
+				if err != nil {
+					return nil, fmt.Errorf("error(filter): invalid ip address: %w", err)
+				}
+				net = netip.PrefixFrom(addr, addr.BitLen())
+			}
+		}
+
+		return &fieldFilter{field: fields[field], value: value, net: net}, nil
 	}
 	// handle bare values
 	if p.current.typ == tokenValue {
@@ -397,13 +418,13 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldAction:
 		return entry.Action == f.value
 	case fieldDestination:
-		return entry.Destination == f.value
+		return f.net.Contains(entry.Destination)
 	case fieldDestinationPort:
 		return entry.DestinationPort == f.value
 	case fieldDirection:
 		return entry.Direction == f.value
 	case fieldHost:
-		return entry.Source == f.value || entry.Destination == f.value
+		return f.net.Contains(entry.Destination) || f.net.Contains(entry.Source)
 	case fieldInterface:
 		return entry.Interface == f.value
 	case fieldIPVersion:
@@ -419,7 +440,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldReason:
 		return entry.Reason == f.value
 	case fieldSource:
-		return entry.Source == f.value
+		return f.net.Contains(entry.Source)
 	case fieldSourcePort:
 		return entry.SourcePort == f.value
 	}

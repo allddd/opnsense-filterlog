@@ -26,6 +26,7 @@ package tui
 import (
 	"fmt"
 	"maps"
+	"net/netip"
 	"reflect"
 	"strconv"
 	"strings"
@@ -175,7 +176,7 @@ func styleString(str string, width int, style ...lipgloss.Style) string {
 	return str
 }
 
-// formatEntry returns a formatted log entry.
+// formatEntry returns a formatted log entry used in details view.
 func formatEntry(entry *stream.LogEntry) ([]string, error) {
 	var b strings.Builder
 	tw := tabwriter.NewWriter(&b, 0, 0, 2, ' ', 0)
@@ -189,6 +190,10 @@ func formatEntry(entry *stream.LogEntry) ([]string, error) {
 				if _, err := fmt.Fprintf(tw, "%s:\t%s\n", ft.Name, v); err != nil {
 					return nil, err
 				}
+			}
+		case netip.Addr:
+			if _, err := fmt.Fprintf(tw, "%s:\t%s\n", ft.Name, v.String()); err != nil {
+				return nil, err
 			}
 		case time.Time:
 			if _, err := fmt.Fprintf(tw, "%s:\t%s\n", ft.Name, v.Format(time.RFC1123Z)); err != nil {
@@ -658,9 +663,9 @@ func (m model) View() tea.View {
 				styleString(entry.Action, widthAction, actionStyle),
 				styleString(entry.ProtocolName, widthProtocol, m.uiStyles.plain),
 				styleString(iface, widthInterface, m.uiStyles.plain),
-				styleString(entry.Source, 0, m.uiStyles.ip),
+				styleString(entry.Source.String(), 0, m.uiStyles.ip),
 				styleString(sourcePort, 0, m.uiStyles.port),
-				styleString(entry.Destination, 0, m.uiStyles.ip),
+				styleString(entry.Destination.String(), 0, m.uiStyles.ip),
 				styleString(destinationPort, 0, m.uiStyles.port))
 			line = m.sliceString(line)
 			switch {

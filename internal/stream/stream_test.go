@@ -25,11 +25,13 @@ package stream
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 var files = []struct {
@@ -89,8 +91,8 @@ func TestIndexSeekParse(t *testing.T) {
 				IPVersion:    "4",
 				ProtocolName: "gre",
 				ProtocolNum:  "47",
-				Source:       "10.164.203.218",
-				Destination:  "10.247.95.6",
+				Source:       netip.MustParseAddr("10.164.203.218"),
+				Destination:  netip.MustParseAddr("10.247.95.6"),
 				Length:       "578",
 				DSCP:         "0x0",
 				Flags:        "DF",
@@ -112,8 +114,8 @@ func TestIndexSeekParse(t *testing.T) {
 				IPVersion:    "4",
 				ProtocolName: "icmp",
 				ProtocolNum:  "1",
-				Source:       "10.34.135.90",
-				Destination:  "10.247.95.6",
+				Source:       netip.MustParseAddr("10.34.135.90"),
+				Destination:  netip.MustParseAddr("10.247.95.6"),
 				Length:       "40",
 				DSCP:         "0x0",
 				Flags:        "none",
@@ -135,9 +137,9 @@ func TestIndexSeekParse(t *testing.T) {
 				IPVersion:       "4",
 				ProtocolName:    "tcp",
 				ProtocolNum:     "6",
-				Source:          "10.61.225.162",
+				Source:          netip.MustParseAddr("10.61.225.162"),
 				SourcePort:      "41821",
-				Destination:     "10.247.95.6",
+				Destination:     netip.MustParseAddr("10.247.95.6"),
 				DestinationPort: "25048",
 				Length:          "40",
 				DSCP:            "0x0",
@@ -164,9 +166,9 @@ func TestIndexSeekParse(t *testing.T) {
 				IPVersion:       "4",
 				ProtocolName:    "udp",
 				ProtocolNum:     "17",
-				Source:          "10.247.95.6",
+				Source:          netip.MustParseAddr("10.247.95.6"),
 				SourcePort:      "59066",
-				Destination:     "10.80.8.109",
+				Destination:     netip.MustParseAddr("10.80.8.109"),
 				DestinationPort: "53",
 				Length:          "70",
 				DSCP:            "0x0",
@@ -190,8 +192,8 @@ func TestIndexSeekParse(t *testing.T) {
 				IPVersion:    "6",
 				ProtocolName: "ipv6-icmp",
 				ProtocolNum:  "58",
-				Source:       "fe80::cfbf:d893:e80d:17ff",
-				Destination:  "fe80::bad8",
+				Source:       netip.MustParseAddr("fe80::cfbf:d893:e80d:17ff"),
+				Destination:  netip.MustParseAddr("fe80::bad8"),
 				Length:       "32",
 				Class:        "0x00",
 				Flow:         "0x00000",
@@ -211,9 +213,9 @@ func TestIndexSeekParse(t *testing.T) {
 				IPVersion:       "6",
 				ProtocolName:    "tcp",
 				ProtocolNum:     "6",
-				Source:          "fd11:4ad:f2ce:6b0e::a894",
+				Source:          netip.MustParseAddr("fd11:4ad:f2ce:6b0e::a894"),
 				SourcePort:      "25408",
-				Destination:     "fdf1:4357:edd8:f527::414f",
+				Destination:     netip.MustParseAddr("fdf1:4357:edd8:f527::414f"),
 				DestinationPort: "443",
 				Length:          "40",
 				Class:           "0x00",
@@ -239,9 +241,9 @@ func TestIndexSeekParse(t *testing.T) {
 				IPVersion:       "6",
 				ProtocolName:    "udp",
 				ProtocolNum:     "17",
-				Source:          "fd11:4ad:f2ce:6b0e::a894",
+				Source:          netip.MustParseAddr("fd11:4ad:f2ce:6b0e::a894"),
 				SourcePort:      "123",
-				Destination:     "fd25:380e:4b5f:1e3a::683",
+				Destination:     netip.MustParseAddr("fd25:380e:4b5f:1e3a::683"),
 				DestinationPort: "123",
 				Length:          "56",
 				Class:           "0xb8",
@@ -263,8 +265,8 @@ func TestIndexSeekParse(t *testing.T) {
 				IPVersion:    "4",
 				ProtocolName: "ipv6",
 				ProtocolNum:  "41",
-				Source:       "10.119.149.16",
-				Destination:  "10.247.95.6",
+				Source:       netip.MustParseAddr("10.119.149.16"),
+				Destination:  netip.MustParseAddr("10.247.95.6"),
 				Length:       "68",
 				DSCP:         "0x0",
 				Flags:        "none",
@@ -297,7 +299,7 @@ func TestIndexSeekParse(t *testing.T) {
 			if got == nil {
 				t.Error("expected entry, got nil")
 			}
-			if diff := cmp.Diff(tc.expected, *got); diff != "" {
+			if diff := cmp.Diff(tc.expected, *got, cmpopts.EquateComparable(netip.Addr{})); diff != "" {
 				t.Error(diff)
 			}
 		})

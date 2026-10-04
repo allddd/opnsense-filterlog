@@ -55,7 +55,6 @@ The following keys are available in the TUI:
 Type a value without a field name to search across all fields:
 
 ```
-192.168
 block
 tcp
 ```
@@ -72,7 +71,7 @@ label 02f4bab031b57d1e30553ce08e0ec131
 port 443
 proto tcp
 protonum 6
-src 192.168.1.1
+src 192.168.1.0/24
 ```
 
 Fields:
@@ -80,10 +79,10 @@ Fields:
 | Field | Alias(es) | Description |
 |-------|-----------|-------------|
 | `action` | - | Action (block, pass, etc.) |
-| `destination` | `dst`, `dest` | Destination IP address |
+| `destination` | `dst`, `dest` | Destination IP address/range |
 | `direction` | `dir` | Direction (in or out) |
 | `dstport` | `dport` | Destination port |
-| `host` | - | Either source or destination IP address |
+| `host` | - | Either source or destination IP address/range |
 | `interface` | `iface` | Network interface |
 | `ipversion` | `ip`, `ipver` | IP version (4 or 6) |
 | `label` | - | Rule label |
@@ -91,7 +90,7 @@ Fields:
 | `protocol` | `proto` | Protocol name (tcp, udp, icmp, etc.) |
 | `protocolnum` | `protonum` | Protocol number (6, 17, 1, etc.) |
 | `reason` | - | Reason (match, fragment, etc.) |
-| `source` | `src` | Source IP address |
+| `source` | `src` | Source IP address/range |
 | `srcport` | `sport` | Source port |
 
 ## Time-based filtering
@@ -129,7 +128,7 @@ proto tcp && port 443
 Either condition must match:
 
 ```
-src 192.168.1.1 or src 192.168.1.2
+src 192.168.1.1 or src 172.26.33.0/24
 port 80 || port 443
 ```
 

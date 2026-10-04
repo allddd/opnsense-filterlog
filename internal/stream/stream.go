@@ -27,6 +27,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"slices"
 	"strings"
@@ -40,19 +41,19 @@ const (
 // LogEntry represents a parsed filter log entry.
 type LogEntry struct {
 	// common
-	Time            time.Time `json:"time"`
-	Label           string    `json:"label"`
-	Action          string    `json:"action"`
-	Reason          string    `json:"reason"`
-	Direction       string    `json:"dir"`
-	Interface       string    `json:"iface"`
-	IPVersion       string    `json:"ipver"`
-	ProtocolName    string    `json:"proto"`
-	ProtocolNum     string    `json:"protonum"`
-	Source          string    `json:"src"`
-	SourcePort      string    `json:"sport,omitzero"`
-	Destination     string    `json:"dst"`
-	DestinationPort string    `json:"dport,omitzero"`
+	Time            time.Time  `json:"time"`
+	Label           string     `json:"label"`
+	Action          string     `json:"action"`
+	Reason          string     `json:"reason"`
+	Direction       string     `json:"dir"`
+	Interface       string     `json:"iface"`
+	IPVersion       string     `json:"ipver"`
+	ProtocolName    string     `json:"proto"`
+	ProtocolNum     string     `json:"protonum"`
+	Source          netip.Addr `json:"src"`
+	SourcePort      string     `json:"sport,omitzero"`
+	Destination     netip.Addr `json:"dst"`
+	DestinationPort string     `json:"dport,omitzero"`
 	// ip
 	Length string `json:"length,omitzero"`
 	// ipv4
@@ -186,8 +187,16 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.ProtocolNum = fields[15]
 		entry.ProtocolName = fields[16]
 		entry.Length = fields[17]
-		entry.Source = fields[18]
-		entry.Destination = fields[19]
+		entry.Source, err = netip.ParseAddr(fields[18])
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid source ip in %#q: %v", path, line, err))
+			return nil
+		}
+		entry.Destination, err = netip.ParseAddr(fields[19])
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid destination ip in %#q: %v", path, line, err))
+			return nil
+		}
 
 		switch entry.ProtocolName { //nolint:dupl
 		// udp4
@@ -250,8 +259,16 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.ProtocolName = fields[12]
 		entry.ProtocolNum = fields[13]
 		entry.Length = fields[14]
-		entry.Source = fields[15]
-		entry.Destination = fields[16]
+		entry.Source, err = netip.ParseAddr(fields[15])
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid source ip in %#q: %v", path, line, err))
+			return nil
+		}
+		entry.Destination, err = netip.ParseAddr(fields[16])
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid destination ip in %#q: %v", path, line, err))
+			return nil
+		}
 
 		switch entry.ProtocolName { //nolint:dupl
 		// udp6
