@@ -79,12 +79,12 @@ type LogEntry struct {
 	// tcp/udp
 	DataLength *uint16 `json:"datalen,omitzero"`
 	// tcp
-	TCPAcknowledgment string `json:"tcpack,omitzero"`
-	TCPFlags          string `json:"tcpflags,omitzero"`
-	TCPOptions        string `json:"tcpopts,omitzero"`
-	TCPSequence       string `json:"tcpseq,omitzero"`
-	TCPUrgentPointer  string `json:"tcpurg,omitzero"`
-	TCPWindow         string `json:"tcpwin,omitzero"`
+	TCPAcknowledgment *uint32 `json:"tcpack,omitzero"`
+	TCPFlags          string  `json:"tcpflags,omitzero"`
+	TCPOptions        string  `json:"tcpopts,omitzero"`
+	TCPSequence       *uint32 `json:"tcpseq,omitzero"`
+	TCPUrgentPointer  *uint16 `json:"tcpurg,omitzero"`
+	TCPWindow         *uint16 `json:"tcpwin,omitzero"`
 	// common
 	ErrMsg string `json:"errmsg,omitzero"`
 }
@@ -290,10 +290,37 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				return nil
 			}
 			entry.TCPFlags = fields[23]
-			entry.TCPSequence = fields[24]
-			entry.TCPAcknowledgment = fields[25]
-			entry.TCPWindow = fields[26]
-			entry.TCPUrgentPointer = fields[27]
+			// empty if there is no data and no syn/fin/rst flag
+			if fields[24] != "" {
+				// only start is kept since end is always start + datalen
+				start, _, _ := strings.Cut(fields[24], ":")
+				entry.TCPSequence, err = parseUintPointer[uint32](start)
+				if err != nil {
+					s.addError(fmt.Sprintf("%s: invalid tcp sequence in %#q: %v", path, line, err))
+					return nil
+				}
+			}
+			// empty if ack flag is not set
+			if fields[25] != "" {
+				entry.TCPAcknowledgment, err = parseUintPointer[uint32](fields[25])
+				if err != nil {
+					s.addError(fmt.Sprintf("%s: invalid tcp acknowledgment in %#q: %v", path, line, err))
+					return nil
+				}
+			}
+			entry.TCPWindow, err = parseUintPointer[uint16](fields[26])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid tcp window in %#q: %v", path, line, err))
+				return nil
+			}
+			// empty if urg flag is not set
+			if fields[27] != "" {
+				entry.TCPUrgentPointer, err = parseUintPointer[uint16](fields[27])
+				if err != nil {
+					s.addError(fmt.Sprintf("%s: invalid tcp urgent pointer in %#q: %v", path, line, err))
+					return nil
+				}
+			}
 			entry.TCPOptions = fields[28]
 
 		// carp4
@@ -398,10 +425,37 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				return nil
 			}
 			entry.TCPFlags = fields[20]
-			entry.TCPSequence = fields[21]
-			entry.TCPAcknowledgment = fields[22]
-			entry.TCPWindow = fields[23]
-			entry.TCPUrgentPointer = fields[24]
+			// empty if there is no data and no syn/fin/rst flag
+			if fields[21] != "" {
+				// only start is kept since end is always start + datalen
+				start, _, _ := strings.Cut(fields[21], ":")
+				entry.TCPSequence, err = parseUintPointer[uint32](start)
+				if err != nil {
+					s.addError(fmt.Sprintf("%s: invalid tcp sequence in %#q: %v", path, line, err))
+					return nil
+				}
+			}
+			// empty if ack flag is not set
+			if fields[22] != "" {
+				entry.TCPAcknowledgment, err = parseUintPointer[uint32](fields[22])
+				if err != nil {
+					s.addError(fmt.Sprintf("%s: invalid tcp acknowledgment in %#q: %v", path, line, err))
+					return nil
+				}
+			}
+			entry.TCPWindow, err = parseUintPointer[uint16](fields[23])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid tcp window in %#q: %v", path, line, err))
+				return nil
+			}
+			// empty if urg flag is not set
+			if fields[24] != "" {
+				entry.TCPUrgentPointer, err = parseUintPointer[uint16](fields[24])
+				if err != nil {
+					s.addError(fmt.Sprintf("%s: invalid tcp urgent pointer in %#q: %v", path, line, err))
+					return nil
+				}
+			}
 			entry.TCPOptions = fields[25]
 
 		// carp6

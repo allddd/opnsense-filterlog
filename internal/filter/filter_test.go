@@ -52,11 +52,11 @@ var logEntry = stream.LogEntry{
 	Offset:            new(uint16(0)),
 	TTL:               new(uint8(127)),
 	DataLength:        new(uint16(0)),
-	TCPAcknowledgment: "3456789012",
+	TCPAcknowledgment: new(uint32(3456789012)),
 	TCPFlags:          "S",
 	TCPOptions:        "mss;nop;wscale;nop;nop;sackOK",
-	TCPSequence:       "2055277259",
-	TCPWindow:         "64480",
+	TCPSequence:       new(uint32(2055277259)),
+	TCPWindow:         new(uint16(64480)),
 }
 
 type test struct {

@@ -197,7 +197,7 @@ func formatEntry(entry *stream.LogEntry) ([]string, error) {
 					return nil, err
 				}
 			}
-		case uint8, uint16:
+		case uint8, uint16, uint32:
 			if _, err := fmt.Fprintf(tw, "%s:\t%d\n", ft.Name, v); err != nil {
 				return nil, err
 			}
