@@ -49,7 +49,7 @@ var logEntry = stream.LogEntry{
 	DSCP:              "0x0",
 	Flags:             "DF",
 	ID:                new(uint16(12519)),
-	Offset:            "0",
+	Offset:            new(uint16(0)),
 	TTL:               new(uint8(127)),
 	DataLength:        "0",
 	TCPAcknowledgment: "3456789012",

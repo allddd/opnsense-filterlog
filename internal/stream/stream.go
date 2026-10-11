@@ -63,7 +63,7 @@ type LogEntry struct {
 	ECN    string  `json:"ecn,omitzero"`
 	Flags  string  `json:"flags,omitzero"`
 	ID     *uint16 `json:"id,omitzero"`
-	Offset string  `json:"offset,omitzero"`
+	Offset *uint16 `json:"offset,omitzero"`
 	TTL    *uint8  `json:"ttl,omitzero"`
 	// ipv6
 	Class    string `json:"class,omitzero"`
@@ -215,7 +215,11 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 			s.addError(fmt.Sprintf("%s: invalid id in %#q: %v", path, line, err))
 			return nil
 		}
-		entry.Offset = fields[13]
+		entry.Offset, err = parseUintPointer[uint16](fields[13])
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid offset in %#q: %v", path, line, err))
+			return nil
+		}
 		entry.Flags = fields[14]
 		entry.ProtocolNum, err = parseUint[uint8](fields[15])
 		if err != nil {
