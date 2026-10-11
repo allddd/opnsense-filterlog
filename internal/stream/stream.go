@@ -68,7 +68,7 @@ type LogEntry struct {
 	// ipv6
 	Class    string `json:"class,omitzero"`
 	Flow     string `json:"flow,omitzero"`
-	HopLimit string `json:"hoplimit,omitzero"`
+	HopLimit *uint8 `json:"hoplimit,omitzero"`
 	// carp
 	CARPAdvBase string `json:"carpabase,omitzero"`
 	CARPAdvSkew string `json:"carpaskew,omitzero"`
@@ -308,7 +308,11 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 
 		entry.Class = fields[9]
 		entry.Flow = fields[10]
-		entry.HopLimit = fields[11]
+		entry.HopLimit, err = parseUintPointer[uint8](fields[11])
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid hop limit in %#q: %v", path, line, err))
+			return nil
+		}
 		entry.ProtocolName = fields[12]
 		entry.ProtocolNum, err = parseUint[uint8](fields[13])
 		if err != nil {
