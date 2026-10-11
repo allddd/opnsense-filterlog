@@ -50,7 +50,7 @@ var logEntry = stream.LogEntry{
 	Flags:             "DF",
 	ID:                "12519",
 	Offset:            "0",
-	TTL:               "127",
+	TTL:               new(uint8(127)),
 	DataLength:        "0",
 	TCPAcknowledgment: "3456789012",
 	TCPFlags:          "S",
