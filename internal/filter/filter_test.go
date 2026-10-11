@@ -48,7 +48,7 @@ var logEntry = stream.LogEntry{
 	Length:            52,
 	DSCP:              "0x0",
 	Flags:             "DF",
-	ID:                "12519",
+	ID:                new(uint16(12519)),
 	Offset:            "0",
 	TTL:               new(uint8(127)),
 	DataLength:        "0",

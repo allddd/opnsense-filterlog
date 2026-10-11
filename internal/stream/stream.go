@@ -59,12 +59,12 @@ type LogEntry struct {
 	// ip
 	Length uint16 `json:"length"`
 	// ipv4
-	DSCP   string `json:"dscp,omitzero"`
-	ECN    string `json:"ecn,omitzero"`
-	Flags  string `json:"flags,omitzero"`
-	ID     string `json:"id,omitzero"`
-	Offset string `json:"offset,omitzero"`
-	TTL    *uint8 `json:"ttl,omitzero"`
+	DSCP   string  `json:"dscp,omitzero"`
+	ECN    string  `json:"ecn,omitzero"`
+	Flags  string  `json:"flags,omitzero"`
+	ID     *uint16 `json:"id,omitzero"`
+	Offset string  `json:"offset,omitzero"`
+	TTL    *uint8  `json:"ttl,omitzero"`
 	// ipv6
 	Class    string `json:"class,omitzero"`
 	Flow     string `json:"flow,omitzero"`
@@ -210,7 +210,11 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 			s.addError(fmt.Sprintf("%s: invalid ttl in %#q: %v", path, line, err))
 			return nil
 		}
-		entry.ID = fields[12]
+		entry.ID, err = parseUintPointer[uint16](fields[12])
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid id in %#q: %v", path, line, err))
+			return nil
+		}
 		entry.Offset = fields[13]
 		entry.Flags = fields[14]
 		entry.ProtocolNum, err = parseUint[uint8](fields[15])
