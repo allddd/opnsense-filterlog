@@ -45,7 +45,7 @@ var logEntry = stream.LogEntry{
 	SourcePort:        51234,
 	Destination:       netip.MustParseAddr("192.168.1.10"),
 	DestinationPort:   443,
-	Length:            "52",
+	Length:            52,
 	DSCP:              "0x0",
 	Flags:             "DF",
 	ID:                "12519",

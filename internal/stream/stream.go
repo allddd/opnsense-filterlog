@@ -56,7 +56,7 @@ type LogEntry struct {
 	Destination     netip.Addr `json:"dst"`
 	DestinationPort uint16     `json:"dport,omitzero"`
 	// ip
-	Length string `json:"length,omitzero"`
+	Length uint16 `json:"length"`
 	// ipv4
 	DSCP   string `json:"dscp,omitzero"`
 	ECN    string `json:"ecn,omitzero"`
@@ -200,7 +200,12 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		}
 		entry.ProtocolNum = uint8(pn)
 		entry.ProtocolName = fields[16]
-		entry.Length = fields[17]
+		l, err := strconv.ParseUint(fields[17], 10, 16)
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid length in %#q: %v", path, line, err))
+			return nil
+		}
+		entry.Length = uint16(l)
 		entry.Source, err = netip.ParseAddr(fields[18])
 		if err != nil {
 			s.addError(fmt.Sprintf("%s: invalid source ip in %#q: %v", path, line, err))
@@ -297,7 +302,12 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 			return nil
 		}
 		entry.ProtocolNum = uint8(pn)
-		entry.Length = fields[14]
+		l, err := strconv.ParseUint(fields[14], 10, 16)
+		if err != nil {
+			s.addError(fmt.Sprintf("%s: invalid length in %#q: %v", path, line, err))
+			return nil
+		}
+		entry.Length = uint16(l)
 		entry.Source, err = netip.ParseAddr(fields[15])
 		if err != nil {
 			s.addError(fmt.Sprintf("%s: invalid source ip in %#q: %v", path, line, err))
