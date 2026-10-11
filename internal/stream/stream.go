@@ -109,8 +109,12 @@ type Stream struct {
 // parsing
 
 // addError adds a parsing error to the errors slice.
-func (s *Stream) addError(msg string) {
+func (s *Stream) addError(line string, path string, what string, err error) {
 	if len(s.errors) < MaxErrorsInMemory {
+		msg := fmt.Sprintf("%s: invalid %s in %#q", path, what, line)
+		if err != nil {
+			msg += ": " + err.Error()
+		}
 		s.errors = append(s.errors, msg)
 	}
 }
@@ -156,27 +160,27 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 	timeStart := strings.IndexByte(line, ' ') + 1 // +1 for 1st space
 	timeEnd := strings.IndexByte(line[timeStart:], ' ')
 	if timeStart <= 0 || timeEnd == -1 {
-		s.addError(fmt.Sprintf("%s: invalid timestamp in %#q", path, line))
+		s.addError(line, path, "timestamp", nil)
 		return nil
 	}
 	timeEnd += timeStart // make relative index absolute
 	entry.Time, err = time.Parse(time.RFC3339, line[timeStart:timeEnd])
 	if err != nil {
-		s.addError(fmt.Sprintf("%s: invalid timestamp in %#q: %v", path, line, err))
+		s.addError(line, path, "timestamp", err)
 		return nil
 	}
 
 	// extract the csv string (after "] ") and split it into fields
 	_, csv, ok := strings.Cut(line, "] ")
 	if !ok {
-		s.addError(fmt.Sprintf("%s: invalid csv in %#q", path, line))
+		s.addError(line, path, "csv", nil)
 		return nil
 	}
 	fields := splitCSV(csv)
 
 	// 3: label, 4: interface, 5: reason, 6: action, 7: direction, 8: ipversion
 	if len(fields) < 9 {
-		s.addError(fmt.Sprintf("%s: invalid packetfilter section in %#q", path, line))
+		s.addError(line, path, "packetfilter section", nil)
 		return nil
 	}
 
@@ -191,7 +195,7 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 	case "6":
 		entry.IPVersion = 6
 	default:
-		s.addError(fmt.Sprintf("%s: invalid ip version in %#q", path, line))
+		s.addError(line, path, "ip version", nil)
 		return nil
 	}
 
@@ -200,7 +204,7 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 	case 4:
 		// 9:dscp/tos, 10:ecn, 11:ttl, 12:id, 13:offset, 14:flags, 15:protonum, 16:protoname, 17:length, 18:src, 19:dst
 		if len(fields) < 20 {
-			s.addError(fmt.Sprintf("%s: invalid ipv4 section in %#q", path, line))
+			s.addError(line, path, "ipv4 section", nil)
 			return nil
 		}
 
@@ -208,23 +212,23 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.ECN = fields[10]
 		entry.TTL, err = parseUintPointer[uint8](fields[11])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid ttl in %#q: %v", path, line, err))
+			s.addError(line, path, "ttl", err)
 			return nil
 		}
 		entry.ID, err = parseUintPointer[uint16](fields[12])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid id in %#q: %v", path, line, err))
+			s.addError(line, path, "id", err)
 			return nil
 		}
 		entry.Offset, err = parseUintPointer[uint16](fields[13])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid offset in %#q: %v", path, line, err))
+			s.addError(line, path, "offset", err)
 			return nil
 		}
 		entry.Flags = fields[14]
 		entry.ProtocolNum, err = parseUint[uint8](fields[15])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid protocol number in %#q: %v", path, line, err))
+			s.addError(line, path, "protocol number", err)
 			return nil
 		}
 		entry.ProtocolName = fields[16]
@@ -235,7 +239,7 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 	case 6:
 		// 9:class, 10:flow, 11:hoplimit, 12:protoname, 13:protonum, 14:length, 15:src, 16:dst
 		if len(fields) < 17 {
-			s.addError(fmt.Sprintf("%s: invalid ipv6 section in %#q", path, line))
+			s.addError(line, path, "ipv6 section", nil)
 			return nil
 		}
 
@@ -243,13 +247,13 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.Flow = fields[10]
 		entry.HopLimit, err = parseUintPointer[uint8](fields[11])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid hop limit in %#q: %v", path, line, err))
+			s.addError(line, path, "hop limit", err)
 			return nil
 		}
 		entry.ProtocolName = fields[12]
 		entry.ProtocolNum, err = parseUint[uint8](fields[13])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid protocol number in %#q: %v", path, line, err))
+			s.addError(line, path, "protocol number", err)
 			return nil
 		}
 
@@ -259,17 +263,17 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 	// 0: length, 1: src, 2: dst
 	entry.Length, err = parseUint[uint16](remainingFields[0])
 	if err != nil {
-		s.addError(fmt.Sprintf("%s: invalid length in %#q: %v", path, line, err))
+		s.addError(line, path, "length", err)
 		return nil
 	}
 	entry.Source, err = netip.ParseAddr(remainingFields[1])
 	if err != nil {
-		s.addError(fmt.Sprintf("%s: invalid source ip in %#q: %v", path, line, err))
+		s.addError(line, path, "source ip", err)
 		return nil
 	}
 	entry.Destination, err = netip.ParseAddr(remainingFields[2])
 	if err != nil {
-		s.addError(fmt.Sprintf("%s: invalid destination ip in %#q: %v", path, line, err))
+		s.addError(line, path, "destination ip", err)
 		return nil
 	}
 	remainingFields = remainingFields[3:]
@@ -284,17 +288,17 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		}
 		entry.SourcePort, err = parseUintPointer[uint16](remainingFields[0])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid source port in %#q: %v", path, line, err))
+			s.addError(line, path, "source port", err)
 			return nil
 		}
 		entry.DestinationPort, err = parseUintPointer[uint16](remainingFields[1])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
+			s.addError(line, path, "destination port", err)
 			return nil
 		}
 		entry.DataLength, err = parseUintPointer[uint16](remainingFields[2])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid data length in %#q: %v", path, line, err))
+			s.addError(line, path, "data length", err)
 			return nil
 		}
 
@@ -307,17 +311,17 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		}
 		entry.SourcePort, err = parseUintPointer[uint16](remainingFields[0])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid source port in %#q: %v", path, line, err))
+			s.addError(line, path, "source port", err)
 			return nil
 		}
 		entry.DestinationPort, err = parseUintPointer[uint16](remainingFields[1])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
+			s.addError(line, path, "destination port", err)
 			return nil
 		}
 		entry.DataLength, err = parseUintPointer[uint16](remainingFields[2])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid data length in %#q: %v", path, line, err))
+			s.addError(line, path, "data length", err)
 			return nil
 		}
 		entry.TCPFlags = remainingFields[3]
@@ -327,7 +331,7 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 			start, _, _ := strings.Cut(remainingFields[4], ":")
 			entry.TCPSequence, err = parseUintPointer[uint32](start)
 			if err != nil {
-				s.addError(fmt.Sprintf("%s: invalid tcp sequence in %#q: %v", path, line, err))
+				s.addError(line, path, "tcp sequence", err)
 				return nil
 			}
 		}
@@ -335,20 +339,20 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		if remainingFields[5] != "" {
 			entry.TCPAcknowledgment, err = parseUintPointer[uint32](remainingFields[5])
 			if err != nil {
-				s.addError(fmt.Sprintf("%s: invalid tcp acknowledgment in %#q: %v", path, line, err))
+				s.addError(line, path, "tcp acknowledgment", err)
 				return nil
 			}
 		}
 		entry.TCPWindow, err = parseUintPointer[uint16](remainingFields[6])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid tcp window in %#q: %v", path, line, err))
+			s.addError(line, path, "tcp window", err)
 			return nil
 		}
 		// empty if urg flag is not set
 		if remainingFields[7] != "" {
 			entry.TCPUrgentPointer, err = parseUintPointer[uint16](remainingFields[7])
 			if err != nil {
-				s.addError(fmt.Sprintf("%s: invalid tcp urgent pointer in %#q: %v", path, line, err))
+				s.addError(line, path, "tcp urgent pointer", err)
 				return nil
 			}
 		}
@@ -364,27 +368,27 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.CARPType = remainingFields[0]
 		entry.CARPTTL, err = parseUintPointer[uint8](remainingFields[1])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid carp ttl in %#q: %v", path, line, err))
+			s.addError(line, path, "carp ttl", err)
 			return nil
 		}
 		entry.CARPVHID, err = parseUintPointer[uint8](remainingFields[2])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid carp vhid in %#q: %v", path, line, err))
+			s.addError(line, path, "carp vhid", err)
 			return nil
 		}
 		entry.CARPVersion, err = parseUintPointer[uint8](remainingFields[3])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid carp version in %#q: %v", path, line, err))
+			s.addError(line, path, "carp version", err)
 			return nil
 		}
 		entry.CARPAdvSkew, err = parseUintPointer[uint8](remainingFields[4])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid carp advskew in %#q: %v", path, line, err))
+			s.addError(line, path, "carp advskew", err)
 			return nil
 		}
 		entry.CARPAdvBase, err = parseUintPointer[uint8](remainingFields[5])
 		if err != nil {
-			s.addError(fmt.Sprintf("%s: invalid carp advbase in %#q: %v", path, line, err))
+			s.addError(line, path, "carp advbase", err)
 			return nil
 		}
 
