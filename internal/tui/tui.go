@@ -184,6 +184,12 @@ func formatEntry(entry *stream.LogEntry) ([]string, error) {
 	for i := range v.NumField() {
 		ft := v.Type().Field(i)
 		fv := v.Field(i)
+		if fv.Kind() == reflect.Pointer {
+			if fv.IsNil() {
+				continue
+			}
+			fv = fv.Elem()
+		}
 		switch v := fv.Interface().(type) {
 		case string:
 			if v != "" {
@@ -656,13 +662,13 @@ func (m model) View() tea.View {
 			}
 			// source
 			var sourcePort string
-			if entry.SourcePort != 0 {
-				sourcePort = fmt.Sprintf(formatPort, entry.SourcePort)
+			if entry.SourcePort != nil {
+				sourcePort = fmt.Sprintf(formatPort, *entry.SourcePort)
 			}
 			// destination
 			var destinationPort string
-			if entry.DestinationPort != 0 {
-				destinationPort = fmt.Sprintf(formatPort, entry.DestinationPort)
+			if entry.DestinationPort != nil {
+				destinationPort = fmt.Sprintf(formatPort, *entry.DestinationPort)
 			}
 			line := fmt.Sprintf(formatLine,
 				styleString(entry.Time.Format("Jan 02 15:04:05"), widthTime, m.uiStyles.plain),

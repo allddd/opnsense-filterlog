@@ -418,6 +418,11 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 
 // filter nodes
 
+// matchPointer returns true if p is not nil and points to a value equal to v.
+func matchPointer[T comparable](p *T, v T) bool {
+	return p != nil && *p == v
+}
+
 // Matches (fieldFilter) returns true if the log entry matches the field filter criteria.
 func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	switch f.field {
@@ -426,7 +431,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldDestination:
 		return f.parsed.prefix.Contains(entry.Destination)
 	case fieldDestinationPort:
-		return entry.DestinationPort == f.parsed.u16
+		return matchPointer(entry.DestinationPort, f.parsed.u16)
 	case fieldDirection:
 		return entry.Direction == f.value
 	case fieldHost:
@@ -438,7 +443,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldLabel:
 		return entry.Label == f.value
 	case fieldPort:
-		return entry.DestinationPort == f.parsed.u16 || entry.SourcePort == f.parsed.u16
+		return matchPointer(entry.DestinationPort, f.parsed.u16) || matchPointer(entry.SourcePort, f.parsed.u16)
 	case fieldProtocolName:
 		return entry.ProtocolName == f.value
 	case fieldProtocolNum:
@@ -448,7 +453,7 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 	case fieldSource:
 		return f.parsed.prefix.Contains(entry.Source)
 	case fieldSourcePort:
-		return entry.SourcePort == f.parsed.u16
+		return matchPointer(entry.SourcePort, f.parsed.u16)
 	}
 	return false
 }
