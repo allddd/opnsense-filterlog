@@ -31,38 +31,84 @@ import (
 	"gitlab.com/allddd/opnsense-filterlog/internal/stream"
 )
 
-var logEntry = stream.LogEntry{
-	Time:              time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC),
-	Label:             "02f4bab031b57d1e30553ce08e0ec131",
-	Action:            "block",
-	Reason:            "match",
-	Direction:         "in",
-	Interface:         "eth0",
-	IPVersion:         4,
-	ProtocolName:      "tcp",
-	ProtocolNum:       6,
-	Source:            netip.MustParseAddr("192.168.1.20"),
-	SourcePort:        new(uint16(51234)),
-	Destination:       netip.MustParseAddr("192.168.1.10"),
-	DestinationPort:   new(uint16(443)),
-	Length:            52,
-	DSCP:              "0x0",
-	Flags:             "DF",
-	ID:                new(uint16(12519)),
-	Offset:            new(uint16(0)),
-	TTL:               new(uint8(127)),
-	DataLength:        new(uint16(0)),
-	TCPAcknowledgment: new(uint32(3456789012)),
-	TCPFlags:          "S",
-	TCPOptions:        "mss;nop;wscale;nop;nop;sackOK",
-	TCPSequence:       new(uint32(2055277259)),
-	TCPWindow:         new(uint16(64480)),
-}
+var (
+	logEntryTCP4 = stream.LogEntry{
+		Time:              time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC),
+		Label:             "02f4bab031b57d1e30553ce08e0ec131",
+		Action:            "block",
+		Reason:            "match",
+		Direction:         "in",
+		Interface:         "eth0",
+		IPVersion:         4,
+		ProtocolName:      "tcp",
+		ProtocolNum:       6,
+		Source:            netip.MustParseAddr("192.168.1.20"),
+		SourcePort:        new(uint16(51234)),
+		Destination:       netip.MustParseAddr("192.168.1.10"),
+		DestinationPort:   new(uint16(443)),
+		Length:            52,
+		DSCP:              "0x0",
+		Flags:             "DF",
+		ID:                new(uint16(12519)),
+		Offset:            new(uint16(0)),
+		TTL:               new(uint8(127)),
+		DataLength:        new(uint16(0)),
+		TCPAcknowledgment: new(uint32(3456789012)),
+		TCPFlags:          "S",
+		TCPOptions:        "mss;nop;wscale;nop;nop;sackOK",
+		TCPSequence:       new(uint32(2055277259)),
+		TCPWindow:         new(uint16(64480)),
+	}
+	logEntryICMP4 = stream.LogEntry{
+		Time:         time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC),
+		Label:        "02f4bab031b57d1e30553ce08e0ec131",
+		Action:       "block",
+		Reason:       "match",
+		Direction:    "in",
+		Interface:    "eth0",
+		IPVersion:    4,
+		ProtocolName: "icmp",
+		ProtocolNum:  1,
+		Source:       netip.MustParseAddr("192.168.1.20"),
+		Destination:  netip.MustParseAddr("192.168.1.10"),
+		Length:       52,
+		DSCP:         "0x0",
+		Flags:        "DF",
+		ID:           new(uint16(12519)),
+		Offset:       new(uint16(0)),
+		TTL:          new(uint8(127)),
+	}
+	logEntryTCP6 = stream.LogEntry{
+		Time:              time.Date(2009, 11, 10, 23, 0, 0, 0, time.UTC),
+		Label:             "02f4bab031b57d1e30553ce08e0ec131",
+		Action:            "block",
+		Reason:            "match",
+		Direction:         "in",
+		Interface:         "eth0",
+		IPVersion:         6,
+		ProtocolName:      "tcp",
+		ProtocolNum:       6,
+		Source:            netip.MustParseAddr("fd11:4ad:f2ce:6b0e::a894"),
+		SourcePort:        new(uint16(51234)),
+		Destination:       netip.MustParseAddr("fdf1:4357:edd8:f527::414f"),
+		DestinationPort:   new(uint16(443)),
+		Length:            32,
+		Class:             "0x00",
+		Flow:              "0x00000",
+		HopLimit:          new(uint8(64)),
+		DataLength:        new(uint16(0)),
+		TCPAcknowledgment: new(uint32(3456789012)),
+		TCPFlags:          "S",
+		TCPOptions:        "mss;nop;wscale;nop;nop;sackOK",
+		TCPSequence:       new(uint32(2055277259)),
+		TCPWindow:         new(uint16(64480)),
+	}
+)
 
 type test struct {
 	name        string
 	filter      string
-	entry       stream.LogEntry
+	entry       *stream.LogEntry
 	expectMatch bool
 	expectError bool
 }
@@ -71,11 +117,11 @@ func runTests(t *testing.T, tests []test) {
 	t.Helper()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			entry := tc.entry
-			if (entry == stream.LogEntry{}) {
-				entry = logEntry
+			entry := &logEntryTCP4
+			if tc.entry != nil {
+				entry = tc.entry
 			}
-			filter, err := Compile(tc.filter)
+			node, err := Compile(tc.filter)
 			if tc.expectError {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -85,10 +131,9 @@ func runTests(t *testing.T, tests []test) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if filter != nil {
-				if match := filter.Matches(&entry); match != tc.expectMatch {
-					t.Fatalf("expected %v, got %v", match, tc.expectMatch)
-				}
+			match := node == nil || node.Matches(entry) // no filter matches everything
+			if tc.expectMatch != match {
+				t.Fatalf("expected %v, got %v", tc.expectMatch, match)
 			}
 		})
 	}
@@ -129,7 +174,7 @@ func TestFieldFilter(t *testing.T) {
 		},
 		{
 			name:        "match source host range",
-			filter:      "host 192.168.1.0/24",
+			filter:      "host 192.168.1.16/29",
 			expectMatch: true,
 		},
 		{
@@ -139,17 +184,17 @@ func TestFieldFilter(t *testing.T) {
 		},
 		{
 			name:        "match destination host range",
-			filter:      "host 192.168.1.0/24",
-			expectMatch: true,
-		},
-		{
-			name:        "match interface",
-			filter:      "interface eth0",
+			filter:      "host 192.168.1.8/29",
 			expectMatch: true,
 		},
 		{
 			name:        "match ip version",
 			filter:      "ipversion 4",
+			expectMatch: true,
+		},
+		{
+			name:        "match interface",
+			filter:      "interface eth0",
 			expectMatch: true,
 		},
 		{
@@ -199,13 +244,13 @@ func TestFieldFilter(t *testing.T) {
 		},
 		// aliases
 		{
-			name:        "match destination alias dst",
-			filter:      "dst 192.168.1.10",
+			name:        "match destination alias dest",
+			filter:      "dest 192.168.1.10",
 			expectMatch: true,
 		},
 		{
-			name:        "match destination alias dest",
-			filter:      "dest 192.168.1.10",
+			name:        "match destination alias dst",
+			filter:      "dst 192.168.1.10",
 			expectMatch: true,
 		},
 		{
@@ -214,13 +259,8 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "match direction alias",
+			name:        "match direction alias dir",
 			filter:      "dir in",
-			expectMatch: true,
-		},
-		{
-			name:        "match interface alias",
-			filter:      "iface eth0",
 			expectMatch: true,
 		},
 		{
@@ -234,17 +274,22 @@ func TestFieldFilter(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "match protocol name alias",
+			name:        "match interface alias iface",
+			filter:      "iface eth0",
+			expectMatch: true,
+		},
+		{
+			name:        "match protocol name alias proto",
 			filter:      "proto tcp",
 			expectMatch: true,
 		},
 		{
-			name:        "match protocol number alias",
+			name:        "match protocol number alias protonum",
 			filter:      "protonum 6",
 			expectMatch: true,
 		},
 		{
-			name:        "match source alias",
+			name:        "match source alias src",
 			filter:      "src 192.168.1.20",
 			expectMatch: true,
 		},
@@ -255,116 +300,141 @@ func TestFieldFilter(t *testing.T) {
 		},
 		// partial
 		{
-			name:        "do not match source partial",
-			filter:      "source 192.168",
-			expectError: true,
-		},
-		{
-			name:        "do not match destination partial",
+			name:        "invalid partial destination",
 			filter:      "destination 192.168",
 			expectError: true,
 		},
 		{
-			name:        "do not match host partial",
+			name:        "invalid partial host",
 			filter:      "host 192.168",
 			expectError: true,
 		},
 		{
-			name:        "do not match label partial",
-			filter:      "label b031b57d",
-			expectMatch: false,
+			name:   "do not match label partial",
+			filter: "label b031b57d",
+		},
+		{
+			name:        "invalid partial source",
+			filter:      "source 192.168",
+			expectError: true,
 		},
 		// case sensitive
 		{
-			name:        "do not match interface case insensitive",
-			filter:      "interface Eth0",
-			expectMatch: false,
+			name:   "do not match interface case insensitive",
+			filter: "interface Eth0",
 		},
 		{
-			name:        "do not match protocol name case insensitive",
-			filter:      "protocol TCP",
-			expectMatch: false,
+			name:   "do not match protocol name case insensitive",
+			filter: "protocol TCP",
 		},
 		// no match
 		{
-			name:        "do not match wrong action",
-			filter:      "action pass",
-			expectMatch: false,
+			name:   "do not match wrong action",
+			filter: "action pass",
 		},
 		{
-			name:        "do not match wrong destination",
-			filter:      "destination 10.0.0.1",
-			expectMatch: false,
+			name:   "do not match wrong destination",
+			filter: "destination 10.0.0.1",
 		},
 		{
-			name:        "do not match wrong destination range",
-			filter:      "destination 10.0.0.0/16",
-			expectMatch: false,
+			name:   "do not match wrong destination range",
+			filter: "destination 10.0.0.0/16",
 		},
 		{
-			name:        "do not match wrong destination port",
-			filter:      "dstport 8080",
-			expectMatch: false,
+			name:   "do not match wrong destination port",
+			filter: "dstport 8080",
 		},
 		{
-			name:        "do not match wrong direction",
-			filter:      "direction out",
-			expectMatch: false,
+			name:   "do not match wrong direction",
+			filter: "direction out",
 		},
 		{
-			name:        "do not match wrong host",
-			filter:      "host 10.0.0.1",
-			expectMatch: false,
+			name:   "do not match wrong host",
+			filter: "host 10.0.0.1",
 		},
 		{
-			name:        "do not match wrong interface",
-			filter:      "interface eth1",
-			expectMatch: false,
+			name:   "do not match wrong ip version",
+			filter: "ipversion 6",
 		},
 		{
-			name:        "do not match wrong ip version",
+			name:   "do not match wrong interface",
+			filter: "interface eth1",
+		},
+		{
+			name:   "do not match wrong label",
+			filter: "label ffffffffffffffffffffffffffffffff",
+		},
+		{
+			name:   "do not match wrong port",
+			filter: "port 9999",
+		},
+		{
+			name:   "do not match wrong protocol name",
+			filter: "protocol udp",
+		},
+		{
+			name:   "do not match wrong protocol number",
+			filter: "protocolnum 1",
+		},
+		{
+			name:   "do not match wrong reason",
+			filter: "reason nomatch",
+		},
+		{
+			name:   "do not match wrong source",
+			filter: "source 10.0.0.1",
+		},
+		{
+			name:   "do not match wrong source range",
+			filter: "source 10.0.0.0/16",
+		},
+		{
+			name:   "do not match wrong source port",
+			filter: "srcport 8080",
+		},
+		// entry without ports
+		{
+			name:   "do not match destination port on entry without ports",
+			filter: "dstport 443",
+			entry:  &logEntryICMP4,
+		},
+		{
+			name:   "do not match port on entry without ports",
+			filter: "port 443",
+			entry:  &logEntryICMP4,
+		},
+		{
+			name:   "do not match source port on entry without ports",
+			filter: "srcport 51234",
+			entry:  &logEntryICMP4,
+		},
+		// ipv6
+		{
+			name:        "match ip version 6",
 			filter:      "ipversion 6",
-			expectMatch: false,
+			entry:       &logEntryTCP6,
+			expectMatch: true,
 		},
 		{
-			name:        "do not match wrong label",
-			filter:      "label ffffffffffffffffffffffffffffffff",
-			expectMatch: false,
+			name:        "match source ipv6",
+			filter:      "source fd11:4ad:f2ce:6b0e::a894",
+			entry:       &logEntryTCP6,
+			expectMatch: true,
 		},
 		{
-			name:        "do not match wrong port",
-			filter:      "port 9999",
-			expectMatch: false,
+			name:        "match source ipv6 range",
+			filter:      "source fd11:4ad:f2ce:6b0e::/64",
+			entry:       &logEntryTCP6,
+			expectMatch: true,
 		},
 		{
-			name:        "do not match wrong protocol name",
-			filter:      "protocol udp",
-			expectMatch: false,
+			name:   "do not match ipv4 range on ipv6 entry",
+			filter: "source 0.0.0.0/0",
+			entry:  &logEntryTCP6,
 		},
 		{
-			name:        "do not match wrong protocol number",
-			filter:      "protocolnum 1",
-			expectMatch: false,
-		},
-		{
-			name:        "do not match wrong reason",
-			filter:      "reason nomatch",
-			expectMatch: false,
-		},
-		{
-			name:        "do not match wrong source",
-			filter:      "source 10.0.0.1",
-			expectMatch: false,
-		},
-		{
-			name:        "do not match wrong source range",
-			filter:      "source 10.0.0.0/16",
-			expectMatch: false,
-		},
-		{
-			name:        "do not match wrong source port",
-			filter:      "srcport 8080",
-			expectMatch: false,
+			name:   "do not match ipv6 range on ipv4 entry",
+			filter: "source ::/0",
 		},
 	}
 	runTests(t, tests)
@@ -396,14 +466,12 @@ func TestTimeFilter(t *testing.T) {
 		},
 		// no match
 		{
-			name:        "do not match since after entry",
-			filter:      "since 2009-11-10T23:00:01Z",
-			expectMatch: false,
+			name:   "do not match since after entry",
+			filter: "since 2009-11-10T23:00:01Z",
 		},
 		{
-			name:        "do not match until before entry",
-			filter:      "until 2009-11-10T22:59:59Z",
-			expectMatch: false,
+			name:   "do not match until before entry",
+			filter: "until 2009-11-10T22:59:59Z",
 		},
 		// errors
 		{
@@ -444,19 +512,16 @@ func TestAndOperator(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "left fails",
-			filter:      "source 10.0.0.1 and proto tcp",
-			expectMatch: false,
+			name:   "left fails",
+			filter: "source 10.0.0.1 and proto tcp",
 		},
 		{
-			name:        "right fails",
-			filter:      "source 192.168.1.20 and proto udp",
-			expectMatch: false,
+			name:   "right fails",
+			filter: "source 192.168.1.20 and proto udp",
 		},
 		{
-			name:        "both fail",
-			filter:      "source 10.0.0.1 and protocol udp",
-			expectMatch: false,
+			name:   "both fail",
+			filter: "source 10.0.0.1 and protocol udp",
 		},
 		// multiple
 		{
@@ -470,19 +535,16 @@ func TestAndOperator(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "first fails",
-			filter:      "source 10.0.0.1 and proto tcp and dport 443",
-			expectMatch: false,
+			name:   "first fails",
+			filter: "source 10.0.0.1 and proto tcp and dport 443",
 		},
 		{
-			name:        "middle fails",
-			filter:      "source 192.168.1.20 and proto udp and dport 443",
-			expectMatch: false,
+			name:   "middle fails",
+			filter: "source 192.168.1.20 and proto udp and dport 443",
 		},
 		{
-			name:        "last fails",
-			filter:      "source 192.168.1.20 and proto tcp and dport 80",
-			expectMatch: false,
+			name:   "last fails",
+			filter: "source 192.168.1.20 and proto tcp and dport 80",
 		},
 		// errors
 		{
@@ -492,7 +554,7 @@ func TestAndOperator(t *testing.T) {
 		},
 		{
 			name:        "missing right operand",
-			filter:      "src 192.168 and proto",
+			filter:      "src 192.168.1.20 and proto",
 			expectError: true,
 		},
 	}
@@ -519,13 +581,12 @@ func TestOrOperator(t *testing.T) {
 		},
 		{
 			name:        "both match",
-			filter:      "since 2009-11-10T23:00:01Z or proto tcp",
+			filter:      "since 2009-11-10T22:59:59Z or proto tcp",
 			expectMatch: true,
 		},
 		{
-			name:        "neither matches",
-			filter:      "source 10.0.0.1 || destination 10.0.0.5",
-			expectMatch: false,
+			name:   "neither matches",
+			filter: "source 10.0.0.1 || destination 10.0.0.5",
 		},
 		// multiple
 		{
@@ -549,9 +610,8 @@ func TestOrOperator(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "all fail",
-			filter:      "source 10.0.0.1 or source 172.16.0.1 or proto udp",
-			expectMatch: false,
+			name:   "all fail",
+			filter: "source 10.0.0.1 or source 172.16.0.1 or proto udp",
 		},
 		// errors
 		{
@@ -572,14 +632,12 @@ func TestNotOperator(t *testing.T) {
 	tests := []test{
 		// basic
 		{
-			name:        "invert match",
-			filter:      "not action block",
-			expectMatch: false,
+			name:   "invert match",
+			filter: "not action block",
 		},
 		{
-			name:        "invert match with alias",
-			filter:      "! proto tcp",
-			expectMatch: false,
+			name:   "invert match with alias",
+			filter: "! proto tcp",
 		},
 		{
 			name:        "invert no match",
@@ -626,9 +684,8 @@ func TestGrouping(t *testing.T) {
 			expectMatch: true,
 		},
 		{
-			name:        "group no match",
-			filter:      "(source 192.168.1.20 or source 10.0.0.1) and proto icmp",
-			expectMatch: false,
+			name:   "group no match",
+			filter: "(source 192.168.1.20 or source 10.0.0.1) and proto icmp",
 		},
 		// nested
 		{
@@ -677,7 +734,7 @@ func TestEdge(t *testing.T) {
 		{
 			name:        "empty filter",
 			filter:      "",
-			expectMatch: false,
+			expectMatch: true,
 		},
 		{
 			name:        "extra spaces between tokens",
@@ -693,6 +750,16 @@ func TestEdge(t *testing.T) {
 			name:        "extra spaces in parentheses",
 			filter:      "(  action block  )",
 			expectMatch: true,
+		},
+		{
+			name:        "uppercase field and operator names",
+			filter:      "SOURCE 192.168.1.20 AND Proto tcp",
+			expectMatch: true,
+		},
+		{
+			name:        "value without field",
+			filter:      "192.168.1.20",
+			expectError: true,
 		},
 	}
 	runTests(t, tests)
