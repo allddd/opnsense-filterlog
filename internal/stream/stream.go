@@ -70,12 +70,12 @@ type LogEntry struct {
 	Flow     string `json:"flow,omitzero"`
 	HopLimit *uint8 `json:"hoplimit,omitzero"`
 	// carp
-	CARPAdvBase string `json:"carpabase,omitzero"`
-	CARPAdvSkew string `json:"carpaskew,omitzero"`
-	CARPTTL     string `json:"carpttl,omitzero"`
+	CARPAdvBase *uint8 `json:"carpabase,omitzero"`
+	CARPAdvSkew *uint8 `json:"carpaskew,omitzero"`
+	CARPTTL     *uint8 `json:"carpttl,omitzero"`
 	CARPType    string `json:"carptype,omitzero"`
-	CARPVHID    string `json:"carpvhid,omitzero"`
-	CARPVersion string `json:"carpver,omitzero"`
+	CARPVHID    *uint8 `json:"carpvhid,omitzero"`
+	CARPVersion *uint8 `json:"carpver,omitzero"`
 	// tcp/udp
 	DataLength *uint16 `json:"datalen,omitzero"`
 	// tcp
@@ -331,11 +331,31 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				break
 			}
 			entry.CARPType = fields[20]
-			entry.CARPTTL = fields[21]
-			entry.CARPVHID = fields[22]
-			entry.CARPVersion = fields[23]
-			entry.CARPAdvSkew = fields[24]
-			entry.CARPAdvBase = fields[25]
+			entry.CARPTTL, err = parseUintPointer[uint8](fields[21])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp ttl in %#q: %v", path, line, err))
+				return nil
+			}
+			entry.CARPVHID, err = parseUintPointer[uint8](fields[22])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp vhid in %#q: %v", path, line, err))
+				return nil
+			}
+			entry.CARPVersion, err = parseUintPointer[uint8](fields[23])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp version in %#q: %v", path, line, err))
+				return nil
+			}
+			entry.CARPAdvSkew, err = parseUintPointer[uint8](fields[24])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp advskew in %#q: %v", path, line, err))
+				return nil
+			}
+			entry.CARPAdvBase, err = parseUintPointer[uint8](fields[25])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp advbase in %#q: %v", path, line, err))
+				return nil
+			}
 
 		// skip for any other protocol
 		default:
@@ -466,11 +486,31 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				break
 			}
 			entry.CARPType = fields[17]
-			entry.CARPTTL = fields[18]
-			entry.CARPVHID = fields[19]
-			entry.CARPVersion = fields[20]
-			entry.CARPAdvSkew = fields[21]
-			entry.CARPAdvBase = fields[22]
+			entry.CARPTTL, err = parseUintPointer[uint8](fields[18])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp ttl in %#q: %v", path, line, err))
+				return nil
+			}
+			entry.CARPVHID, err = parseUintPointer[uint8](fields[19])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp vhid in %#q: %v", path, line, err))
+				return nil
+			}
+			entry.CARPVersion, err = parseUintPointer[uint8](fields[20])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp version in %#q: %v", path, line, err))
+				return nil
+			}
+			entry.CARPAdvSkew, err = parseUintPointer[uint8](fields[21])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp advskew in %#q: %v", path, line, err))
+				return nil
+			}
+			entry.CARPAdvBase, err = parseUintPointer[uint8](fields[22])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid carp advbase in %#q: %v", path, line, err))
+				return nil
+			}
 
 		// skip for any other protocol
 		default:
