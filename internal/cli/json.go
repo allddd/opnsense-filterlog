@@ -49,9 +49,13 @@ type jsonObj struct {
 // displayJSON writes the jsonObj to stdout.
 func displayJSON(s *stream.Stream, filterValue string) error {
 	// compile filter expression (if any)
-	compiled, err := filter.Compile(filterValue)
-	if err != nil {
-		return err
+	var compiled filter.Node
+	if filterValue != "" {
+		var err error
+		compiled, err = filter.Compile(filterValue)
+		if err != nil {
+			return err
+		}
 	}
 	w := bufio.NewWriter(os.Stdout)
 	defer func() { _ = w.Flush() }()

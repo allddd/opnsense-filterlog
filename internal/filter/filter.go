@@ -24,6 +24,7 @@
 package filter
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -268,10 +269,10 @@ func (p *parser) advance() {
 	p.current = p.lex.nextToken()
 }
 
-// parse parses the entire filter expression and returns the root Node or nil if empty.
+// parse parses the entire filter expression and returns the root Node.
 func (p *parser) parse() (Node, error) {
 	if p.current.typ == tokenEOF {
-		return nil, nil
+		return nil, errors.New("empty filter expression")
 	}
 	return p.parseOr()
 }

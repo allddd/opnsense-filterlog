@@ -131,8 +131,7 @@ func runTests(t *testing.T, tests []test) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			match := node == nil || node.Matches(entry) // no filter matches everything
-			if tc.expectMatch != match {
+			if match := node.Matches(entry); tc.expectMatch != match {
 				t.Fatalf("expected %v, got %v", tc.expectMatch, match)
 			}
 		})
@@ -734,7 +733,7 @@ func TestEdge(t *testing.T) {
 		{
 			name:        "empty filter",
 			filter:      "",
-			expectMatch: true,
+			expectError: true,
 		},
 		{
 			name:        "extra spaces between tokens",
