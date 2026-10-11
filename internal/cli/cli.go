@@ -24,6 +24,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -36,27 +37,30 @@ import (
 	"gitlab.com/allddd/opnsense-filterlog/internal/tui"
 )
 
-const defaultLogPath = "/var/log/filter/latest.log"
-const usageText = `command-line tool and terminal-based viewer for OPNsense firewall logs
+const (
+	defaultLogPath = "/var/log/filter/latest.log"
+	usageText      = `command-line tool and terminal-based viewer for OPNsense firewall logs
 
 Usage:
   %s [flag]... [file]...
 
 Arguments:
-  file	filter log file(s) to analyze, defaults to 'latest.log' if omitted
+  file
+    	filter log file(s) to analyze (default %q)
 
 Flags:
 `
+)
 
 type flags struct {
 	Filter  string `name:"f" usage:"filter expression (requires -j)"`
 	Help    bool   `name:"h" usage:"display usage information and exit"`
-	Json    bool   `name:"j" usage:"display entries as JSON and exit"`
+	JSON    bool   `name:"j" usage:"display entries as JSON and exit"`
 	Version bool   `name:"V" usage:"display version information and exit"`
 }
 
-// flagsDefine defines all flags set in the struct.
-func (f *flags) flagsDefine() {
+// define defines all flags set in the struct.
+func (f *flags) define() error {
 	v := reflect.ValueOf(f).Elem()
 	t := v.Type()
 	for i := range t.NumField() {
@@ -67,50 +71,61 @@ func (f *flags) flagsDefine() {
 		value := ft.Tag.Get("value")
 		switch fv.Kind() { //nolint:exhaustive
 		case reflect.Bool:
-			valueBool, _ := strconv.ParseBool(value)
+			valueBool, err := strconv.ParseBool(value)
+			if err != nil && value != "" {
+				return fmt.Errorf("invalid value %q for flag %q", value, ft.Name)
+			}
 			flag.BoolVar(fv.Addr().Interface().(*bool), name, valueBool, usage) //nolint:forcetypeassert
 		case reflect.String:
 			flag.StringVar(fv.Addr().Interface().(*string), name, value, usage) //nolint:forcetypeassert
+		default:
+			return fmt.Errorf("unhandled flag %q of type %q", ft.Name, ft.Type)
 		}
 	}
+	return nil
 }
 
+// readStdin copies stdin to a temp file and returns its path, or an empty string if stdin is a terminal.
 func readStdin() (string, error) {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
-		return "", fmt.Errorf("error(cli): could not stat stdin: %w", err)
+		return "", fmt.Errorf("could not stat stdin: %w", err)
 	}
 	if fi.Mode()&os.ModeCharDevice != 0 {
 		return "", nil
 	}
 	f, err := os.CreateTemp("", meta.Name+"_*")
 	if err != nil {
-		return "", fmt.Errorf("error(cli): could not create temp file: %w", err)
+		return "", fmt.Errorf("could not create temp file: %w", err)
 	}
-	n := f.Name()
+	path := f.Name()
 	if _, err := io.Copy(f, os.Stdin); err != nil {
 		_ = f.Close()
-		_ = os.Remove(n)
-		return "", fmt.Errorf("error(cli): could not copy stdin: %w", err)
+		_ = os.Remove(path)
+		return "", fmt.Errorf("could not copy stdin: %w", err)
 	}
 	if err := f.Close(); err != nil {
-		_ = os.Remove(n)
-		return "", fmt.Errorf("error(cli): could not close temp file: %w", err)
+		_ = os.Remove(path)
+		return "", fmt.Errorf("could not close temp file: %w", err)
 	}
-	return n, nil
+	return path, nil
 }
 
+// Execute parses flags and arguments, runs json or tui mode and returns the exit code.
 func Execute() int {
 	var f flags
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, usageText, meta.Name)
+		fmt.Fprintf(os.Stderr, usageText, meta.Name, defaultLogPath)
 		flag.PrintDefaults()
 	}
-	f.flagsDefine()
+	if err := f.define(); err != nil {
+		fmt.Fprintln(os.Stderr, "error(cli):", err)
+		return 1
+	}
 	flag.Parse()
 	// check mutually exclusive flags
 	count := 0
-	for _, provided := range []bool{f.Help, f.Json, f.Version} {
+	for _, provided := range []bool{f.Help, f.JSON, f.Version} {
 		if provided {
 			if count++; count > 1 {
 				fmt.Fprintln(os.Stderr, "error(cli): mutually exclusive flags")
@@ -119,7 +134,7 @@ func Execute() int {
 			}
 		}
 	}
-	if !f.Json && f.Filter != "" {
+	if !f.JSON && f.Filter != "" {
 		fmt.Fprintln(os.Stderr, "error(cli): -f requires -j flag")
 		flag.Usage()
 		return 1
@@ -137,40 +152,44 @@ func Execute() int {
 		return 0
 	}
 	// args
+	var stdinPath string
+	defer func() {
+		if stdinPath != "" {
+			_ = os.Remove(stdinPath)
+		}
+	}()
 	args := flag.Args()
 	if len(args) == 0 {
 		path, err := readStdin()
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, "error(cli):", err)
 			return 1
 		}
 		if path == "" {
 			path = defaultLogPath
 		} else {
-			defer os.Remove(path) //nolint:errcheck
+			stdinPath = path
 		}
 		args = []string{path}
 	} else {
-		count := 0
 		for i, arg := range args {
 			if arg != "-" {
 				continue
 			}
-			count++
-			if count > 1 {
+			if stdinPath != "" {
 				fmt.Fprintln(os.Stderr, "error(cli): duplicate stdin arg")
 				return 1
 			}
 			path, err := readStdin()
 			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+				fmt.Fprintln(os.Stderr, "error(cli):", err)
 				return 1
 			}
 			if path == "" {
 				fmt.Fprintln(os.Stderr, "error(cli): no stdin data")
 				return 1
 			}
-			defer os.Remove(path) //nolint:errcheck
+			stdinPath = path
 			args[i] = path
 		}
 	}
@@ -181,16 +200,14 @@ func Execute() int {
 		return 1
 	}
 	// -j
-	if f.Json {
-		if err := displayJSON(s, f.Filter); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
-		}
+	if f.JSON {
+		err = displayJSON(s, f.Filter)
 	} else {
-		if err := tui.Display(s); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
-		}
+		err = tui.Display(s)
+	}
+	if err := errors.Join(err, s.Close()); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
 	return 0
 }
