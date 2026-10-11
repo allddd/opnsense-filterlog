@@ -51,7 +51,7 @@ var logEntry = stream.LogEntry{
 	ID:                new(uint16(12519)),
 	Offset:            new(uint16(0)),
 	TTL:               new(uint8(127)),
-	DataLength:        "0",
+	DataLength:        new(uint16(0)),
 	TCPAcknowledgment: "3456789012",
 	TCPFlags:          "S",
 	TCPOptions:        "mss;nop;wscale;nop;nop;sackOK",

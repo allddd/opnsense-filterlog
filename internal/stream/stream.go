@@ -77,7 +77,7 @@ type LogEntry struct {
 	CARPVHID    string `json:"carpvhid,omitzero"`
 	CARPVersion string `json:"carpver,omitzero"`
 	// tcp/udp
-	DataLength string `json:"datalen,omitzero"`
+	DataLength *uint16 `json:"datalen,omitzero"`
 	// tcp
 	TCPAcknowledgment string `json:"tcpack,omitzero"`
 	TCPFlags          string `json:"tcpflags,omitzero"`
@@ -261,7 +261,11 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.DataLength = fields[22]
+			entry.DataLength, err = parseUintPointer[uint16](fields[22])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid data length in %#q: %v", path, line, err))
+				return nil
+			}
 
 		// tcp4
 		case "tcp":
@@ -280,7 +284,11 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.DataLength = fields[22]
+			entry.DataLength, err = parseUintPointer[uint16](fields[22])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid data length in %#q: %v", path, line, err))
+				return nil
+			}
 			entry.TCPFlags = fields[23]
 			entry.TCPSequence = fields[24]
 			entry.TCPAcknowledgment = fields[25]
@@ -361,7 +369,11 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.DataLength = fields[19]
+			entry.DataLength, err = parseUintPointer[uint16](fields[19])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid data length in %#q: %v", path, line, err))
+				return nil
+			}
 
 		// tcp6
 		case "tcp":
@@ -380,7 +392,11 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.DataLength = fields[19]
+			entry.DataLength, err = parseUintPointer[uint16](fields[19])
+			if err != nil {
+				s.addError(fmt.Sprintf("%s: invalid data length in %#q: %v", path, line, err))
+				return nil
+			}
 			entry.TCPFlags = fields[20]
 			entry.TCPSequence = fields[21]
 			entry.TCPAcknowledgment = fields[22]
