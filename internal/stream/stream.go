@@ -27,6 +27,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"math/bits"
 	"net/netip"
 	"os"
 	"slices"
@@ -114,6 +115,21 @@ func (s *Stream) addError(msg string) {
 	}
 }
 
+// parseUint parses s as a base 10 unsigned integer of type T.
+func parseUint[T uint8 | uint16 | uint32](s string) (T, error) {
+	v, err := strconv.ParseUint(s, 10, bits.Len64(uint64(^T(0))))
+	return T(v), err
+}
+
+// parseUintPointer parses s as a base 10 unsigned integer of type T and returns a pointer to it.
+func parseUintPointer[T uint8 | uint16 | uint32](s string) (*T, error) {
+	v, err := parseUint[T](s)
+	if err != nil {
+		return nil, err
+	}
+	return &v, nil
+}
+
 // splitCSV splits a csv string into fields
 // This is similar to strings.Split but optimized for this use case (almost 2x faster).
 func splitCSV(csv string) []string {
@@ -193,19 +209,17 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.ID = fields[12]
 		entry.Offset = fields[13]
 		entry.Flags = fields[14]
-		pn, err := strconv.ParseUint(fields[15], 10, 8)
+		entry.ProtocolNum, err = parseUint[uint8](fields[15])
 		if err != nil {
 			s.addError(fmt.Sprintf("%s: invalid protocol number in %#q: %v", path, line, err))
 			return nil
 		}
-		entry.ProtocolNum = uint8(pn)
 		entry.ProtocolName = fields[16]
-		l, err := strconv.ParseUint(fields[17], 10, 16)
+		entry.Length, err = parseUint[uint16](fields[17])
 		if err != nil {
 			s.addError(fmt.Sprintf("%s: invalid length in %#q: %v", path, line, err))
 			return nil
 		}
-		entry.Length = uint16(l)
 		entry.Source, err = netip.ParseAddr(fields[18])
 		if err != nil {
 			s.addError(fmt.Sprintf("%s: invalid source ip in %#q: %v", path, line, err))
@@ -225,18 +239,16 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				getErrMsg = true
 				break
 			}
-			sp, err := strconv.ParseUint(fields[20], 10, 16)
+			entry.SourcePort, err = parseUintPointer[uint16](fields[20])
 			if err != nil {
 				s.addError(fmt.Sprintf("%s: invalid source port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.SourcePort = new(uint16(sp))
-			dp, err := strconv.ParseUint(fields[21], 10, 16)
+			entry.DestinationPort, err = parseUintPointer[uint16](fields[21])
 			if err != nil {
 				s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.DestinationPort = new(uint16(dp))
 			entry.DataLength = fields[22]
 
 		// tcp4
@@ -246,18 +258,16 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				getErrMsg = true
 				break
 			}
-			sp, err := strconv.ParseUint(fields[20], 10, 16)
+			entry.SourcePort, err = parseUintPointer[uint16](fields[20])
 			if err != nil {
 				s.addError(fmt.Sprintf("%s: invalid source port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.SourcePort = new(uint16(sp))
-			dp, err := strconv.ParseUint(fields[21], 10, 16)
+			entry.DestinationPort, err = parseUintPointer[uint16](fields[21])
 			if err != nil {
 				s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.DestinationPort = new(uint16(dp))
 			entry.DataLength = fields[22]
 			entry.TCPFlags = fields[23]
 			entry.TCPSequence = fields[24]
@@ -296,18 +306,16 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		entry.Flow = fields[10]
 		entry.HopLimit = fields[11]
 		entry.ProtocolName = fields[12]
-		pn, err := strconv.ParseUint(fields[13], 10, 8)
+		entry.ProtocolNum, err = parseUint[uint8](fields[13])
 		if err != nil {
 			s.addError(fmt.Sprintf("%s: invalid protocol number in %#q: %v", path, line, err))
 			return nil
 		}
-		entry.ProtocolNum = uint8(pn)
-		l, err := strconv.ParseUint(fields[14], 10, 16)
+		entry.Length, err = parseUint[uint16](fields[14])
 		if err != nil {
 			s.addError(fmt.Sprintf("%s: invalid length in %#q: %v", path, line, err))
 			return nil
 		}
-		entry.Length = uint16(l)
 		entry.Source, err = netip.ParseAddr(fields[15])
 		if err != nil {
 			s.addError(fmt.Sprintf("%s: invalid source ip in %#q: %v", path, line, err))
@@ -327,18 +335,16 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				getErrMsg = true
 				break
 			}
-			sp, err := strconv.ParseUint(fields[17], 10, 16)
+			entry.SourcePort, err = parseUintPointer[uint16](fields[17])
 			if err != nil {
 				s.addError(fmt.Sprintf("%s: invalid source port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.SourcePort = new(uint16(sp))
-			dp, err := strconv.ParseUint(fields[18], 10, 16)
+			entry.DestinationPort, err = parseUintPointer[uint16](fields[18])
 			if err != nil {
 				s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.DestinationPort = new(uint16(dp))
 			entry.DataLength = fields[19]
 
 		// tcp6
@@ -348,18 +354,16 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 				getErrMsg = true
 				break
 			}
-			sp, err := strconv.ParseUint(fields[17], 10, 16)
+			entry.SourcePort, err = parseUintPointer[uint16](fields[17])
 			if err != nil {
 				s.addError(fmt.Sprintf("%s: invalid source port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.SourcePort = new(uint16(sp))
-			dp, err := strconv.ParseUint(fields[18], 10, 16)
+			entry.DestinationPort, err = parseUintPointer[uint16](fields[18])
 			if err != nil {
 				s.addError(fmt.Sprintf("%s: invalid destination port in %#q: %v", path, line, err))
 				return nil
 			}
-			entry.DestinationPort = new(uint16(dp))
 			entry.DataLength = fields[19]
 			entry.TCPFlags = fields[20]
 			entry.TCPSequence = fields[21]
