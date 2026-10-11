@@ -24,6 +24,7 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json/v2"
 	"fmt"
 	"os"
@@ -34,9 +35,9 @@ import (
 
 type jsonObjMeta struct {
 	Entries int      `json:"entries"`         // count of entries in entries array
-	Errors  int      `json:"errors,omitzero"` // number of parse errors
+	Errors  int      `json:"errors,omitzero"` // number of parse errors (at most stream.MaxErrorsInMemory)
 	Filter  string   `json:"filter,omitzero"` // filter expression
-	Sources []string `json:"sources"`         // file path(s) (absolute if possible)
+	Sources []string `json:"sources"`         // file path(s)
 }
 
 // jsonObj represents the complete JSON output structure (used only for tests and docs).
@@ -48,18 +49,14 @@ type jsonObj struct {
 // displayJSON writes the jsonObj to stdout.
 func displayJSON(s *stream.Stream, filterValue string) error {
 	// compile filter expression (if any)
-	var compiled filter.FilterNode
-	if filterValue != "" {
-		var err error
-		compiled, err = filter.Compile(filterValue)
-		if err != nil {
-			return err
-		}
+	compiled, err := filter.Compile(filterValue)
+	if err != nil {
+		return err
 	}
+	w := bufio.NewWriter(os.Stdout)
+	defer func() { _ = w.Flush() }()
 	// open object and entries array
-	if _, err := fmt.Fprint(os.Stdout, `{"entries":[`); err != nil {
-		return fmt.Errorf("error(json): could not write output: %w", err)
-	}
+	_, _ = w.WriteString(`{"entries":[`)
 	// stream entries and count
 	entries := 0
 	for {
@@ -79,40 +76,34 @@ func displayJSON(s *stream.Stream, filterValue string) error {
 			return fmt.Errorf("error(json): could not encode entry: %w", err)
 		}
 		if entries > 0 {
-			if _, err := fmt.Fprint(os.Stdout, ","); err != nil {
-				return fmt.Errorf("error(json): could not write output: %w", err)
-			}
+			_ = w.WriteByte(',')
 		}
-		if _, err := fmt.Fprint(os.Stdout, string(jsonEntry)); err != nil {
-			return fmt.Errorf("error(json): could not write output: %w", err)
-		}
+		_, _ = w.Write(jsonEntry)
 		entries++
 	}
-	// close entries and open meta
-	if _, err := fmt.Fprint(os.Stdout, `],"meta":`); err != nil {
-		return fmt.Errorf("error(json): could not write output: %w", err)
-	}
-	// build and write meta object
-	errors := s.GetErrors()
-	meta := jsonObjMeta{
+	// close entries and write meta object
+	parseErrors := s.GetErrors()
+	jsonMeta, err := json.Marshal(jsonObjMeta{
 		Entries: entries,
-		Errors:  len(errors),
+		Errors:  len(parseErrors),
 		Filter:  filterValue,
 		Sources: s.GetPaths(),
-	}
-	jsonMeta, err := json.Marshal(meta)
+	})
 	if err != nil {
 		return fmt.Errorf("error(json): could not encode meta: %w", err)
 	}
-	if _, err := fmt.Fprintln(os.Stdout, string(jsonMeta)+"}"); err != nil {
+	_, _ = w.WriteString(`],"meta":`)
+	_, _ = w.Write(jsonMeta)
+	_, _ = w.WriteString("}\n")
+	if err := w.Flush(); err != nil {
 		return fmt.Errorf("error(json): could not write output: %w", err)
 	}
-	// print errors to stderr (if any)
-	if len(errors) > 0 {
-		for _, err := range errors {
-			fmt.Fprintln(os.Stderr, err)
+	// print parse errors to stderr (if any)
+	if len(parseErrors) > 0 {
+		for _, msg := range parseErrors {
+			fmt.Fprintln(os.Stderr, msg)
 		}
-		return fmt.Errorf("error(json): could not process all entries: %d parse errors", len(errors))
+		return fmt.Errorf("error(json): could not process all entries: %d parse errors", len(parseErrors))
 	}
 	return nil
 }
