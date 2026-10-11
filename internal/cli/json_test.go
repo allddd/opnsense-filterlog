@@ -25,13 +25,10 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"flag"
 	"os"
 	"os/exec"
 	"testing"
-
-	"gitlab.com/allddd/opnsense-filterlog/internal/meta"
 )
 
 var update = flag.Bool("update", false, "update .golden files")
@@ -46,56 +43,59 @@ func TestJSON(t *testing.T) {
 		{
 			name:           "empty",
 			args:           []string{"-j", "/dev/null"},
-			expectError:    false,
 			expectedOutput: "testdata/empty.golden",
 		},
 		{
 			name:           "full",
-			args:           []string{"-j", "testdata/filter_20260728.log"},
-			expectError:    false,
+			args:           []string{"-j", files[2].path},
 			expectedOutput: "testdata/full.golden",
 		},
 		{
 			name:           "filter",
-			args:           []string{"-j", "-f", "proto gre", "testdata/filter_20260727.log", "testdata/filter_20260728.log"},
-			expectError:    false,
+			args:           []string{"-j", "-f", "proto gre", files[1].path, files[2].path},
 			expectedOutput: "testdata/filter.golden",
 		},
 		{
 			name:        "filter invalid",
-			args:        []string{"-j", "-f", "proto udp and", "testdata/filter_20260726.log"},
+			args:        []string{"-j", "-f", "proto udp and", files[0].path},
 			expectError: true,
+		},
+		{
+			name:           "parse errors",
+			args:           []string{"-j", "-f", "proto gre", files[0].path},
+			expectError:    true,
+			expectedOutput: "testdata/errors.golden",
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.CommandContext(context.Background(), "../../"+meta.Name, tc.args...)
-			got, err := cmd.Output()
-			if *update && tc.expectedOutput != "" {
-				if err != nil {
-					t.Fatalf("could not update .golden files: %v", err)
-				}
-				if err := os.WriteFile(tc.expectedOutput, got, 0644); err != nil {
-					t.Fatalf("could not update .golden files: %v", err)
-				}
-				return
+			cmd := exec.CommandContext(t.Context(), binary, tc.args...)
+			got, err := cmd.CombinedOutput()
+			if tc.expectError && err == nil {
+				t.Fatal("expected error, got nil")
 			}
-			if tc.expectError {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
+			if !tc.expectError && err != nil {
+				t.Fatalf("unexpected error: %v", err)
 			}
 			if tc.expectedOutput != "" {
+				if *update {
+					if err := os.WriteFile(tc.expectedOutput, got, 0644); err != nil {
+						t.Fatalf("could not update .golden files: %v", err)
+					}
+					return
+				}
 				expected, err := os.ReadFile(tc.expectedOutput)
 				if err != nil {
 					t.Fatal(err)
 				}
 				if !bytes.Equal(expected, got) {
-					t.Fatal("output mismatch")
+					i := 0
+					for i < len(expected) && i < len(got) && expected[i] == got[i] {
+						i++
+					}
+					start := max(0, i-50) // 50 bytes before and after the first difference
+					t.Fatalf("output mismatch at byte %d: expected %q, got %q",
+						i, expected[start:min(i+50, len(expected))], got[start:min(i+50, len(got))])
 				}
 			}
 		})
