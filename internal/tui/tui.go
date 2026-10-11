@@ -78,10 +78,10 @@ type model struct {
 	errorsView bool     // whether showing errors
 
 	// filter
-	filterApplied  bool              // whether filter is currently applied
-	filterCompiled filter.FilterNode // compiled filter expression
-	filterInput    textinput.Model   // filter input field
-	filterView     bool              // whether the user is currently typing filter expression
+	filterApplied  bool            // whether filter is currently applied
+	filterCompiled filter.Node     // compiled filter expression
+	filterInput    textinput.Model // filter input field
+	filterView     bool            // whether the user is currently typing filter expression
 
 	// ui
 	uiHeight         int           // terminal height (in lines)

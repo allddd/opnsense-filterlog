@@ -27,13 +27,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"math/bits"
 	"net/netip"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
+
+	"gitlab.com/allddd/opnsense-filterlog/internal/parse"
 )
 
 const (
@@ -119,21 +119,6 @@ func (s *Stream) addError(line string, path string, what string, err error) {
 	}
 }
 
-// parseUint parses s as a base 10 unsigned integer of type T.
-func parseUint[T uint8 | uint16 | uint32](s string) (T, error) {
-	v, err := strconv.ParseUint(s, 10, bits.Len64(uint64(^T(0))))
-	return T(v), err
-}
-
-// parseUintPointer parses s as a base 10 unsigned integer of type T and returns a pointer to it.
-func parseUintPointer[T uint8 | uint16 | uint32](s string) (*T, error) {
-	v, err := parseUint[T](s)
-	if err != nil {
-		return nil, err
-	}
-	return &v, nil
-}
-
 // splitCSV splits a csv string into fields
 // This is similar to strings.Split but optimized for this use case (almost 2x faster).
 func splitCSV(csv string) []string {
@@ -210,23 +195,23 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 
 		entry.DSCP = fields[9]
 		entry.ECN = fields[10]
-		entry.TTL, err = parseUintPointer[uint8](fields[11])
+		entry.TTL, err = parse.UintPointer[uint8](fields[11])
 		if err != nil {
 			s.addError(line, path, "ttl", err)
 			return nil
 		}
-		entry.ID, err = parseUintPointer[uint16](fields[12])
+		entry.ID, err = parse.UintPointer[uint16](fields[12])
 		if err != nil {
 			s.addError(line, path, "id", err)
 			return nil
 		}
-		entry.Offset, err = parseUintPointer[uint16](fields[13])
+		entry.Offset, err = parse.UintPointer[uint16](fields[13])
 		if err != nil {
 			s.addError(line, path, "offset", err)
 			return nil
 		}
 		entry.Flags = fields[14]
-		entry.ProtocolNum, err = parseUint[uint8](fields[15])
+		entry.ProtocolNum, err = parse.Uint[uint8](fields[15])
 		if err != nil {
 			s.addError(line, path, "protocol number", err)
 			return nil
@@ -245,13 +230,13 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 
 		entry.Class = fields[9]
 		entry.Flow = fields[10]
-		entry.HopLimit, err = parseUintPointer[uint8](fields[11])
+		entry.HopLimit, err = parse.UintPointer[uint8](fields[11])
 		if err != nil {
 			s.addError(line, path, "hop limit", err)
 			return nil
 		}
 		entry.ProtocolName = fields[12]
-		entry.ProtocolNum, err = parseUint[uint8](fields[13])
+		entry.ProtocolNum, err = parse.Uint[uint8](fields[13])
 		if err != nil {
 			s.addError(line, path, "protocol number", err)
 			return nil
@@ -261,7 +246,7 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 	}
 
 	// 0: length, 1: src, 2: dst
-	entry.Length, err = parseUint[uint16](remainingFields[0])
+	entry.Length, err = parse.Uint[uint16](remainingFields[0])
 	if err != nil {
 		s.addError(line, path, "length", err)
 		return nil
@@ -286,17 +271,17 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 			getErrMsg = true
 			break
 		}
-		entry.SourcePort, err = parseUintPointer[uint16](remainingFields[0])
+		entry.SourcePort, err = parse.UintPointer[uint16](remainingFields[0])
 		if err != nil {
 			s.addError(line, path, "source port", err)
 			return nil
 		}
-		entry.DestinationPort, err = parseUintPointer[uint16](remainingFields[1])
+		entry.DestinationPort, err = parse.UintPointer[uint16](remainingFields[1])
 		if err != nil {
 			s.addError(line, path, "destination port", err)
 			return nil
 		}
-		entry.DataLength, err = parseUintPointer[uint16](remainingFields[2])
+		entry.DataLength, err = parse.UintPointer[uint16](remainingFields[2])
 		if err != nil {
 			s.addError(line, path, "data length", err)
 			return nil
@@ -309,17 +294,17 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 			getErrMsg = true
 			break
 		}
-		entry.SourcePort, err = parseUintPointer[uint16](remainingFields[0])
+		entry.SourcePort, err = parse.UintPointer[uint16](remainingFields[0])
 		if err != nil {
 			s.addError(line, path, "source port", err)
 			return nil
 		}
-		entry.DestinationPort, err = parseUintPointer[uint16](remainingFields[1])
+		entry.DestinationPort, err = parse.UintPointer[uint16](remainingFields[1])
 		if err != nil {
 			s.addError(line, path, "destination port", err)
 			return nil
 		}
-		entry.DataLength, err = parseUintPointer[uint16](remainingFields[2])
+		entry.DataLength, err = parse.UintPointer[uint16](remainingFields[2])
 		if err != nil {
 			s.addError(line, path, "data length", err)
 			return nil
@@ -329,7 +314,7 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		if remainingFields[4] != "" {
 			// only start is kept since end is always start + datalen
 			start, _, _ := strings.Cut(remainingFields[4], ":")
-			entry.TCPSequence, err = parseUintPointer[uint32](start)
+			entry.TCPSequence, err = parse.UintPointer[uint32](start)
 			if err != nil {
 				s.addError(line, path, "tcp sequence", err)
 				return nil
@@ -337,20 +322,20 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 		}
 		// empty if ack flag is not set
 		if remainingFields[5] != "" {
-			entry.TCPAcknowledgment, err = parseUintPointer[uint32](remainingFields[5])
+			entry.TCPAcknowledgment, err = parse.UintPointer[uint32](remainingFields[5])
 			if err != nil {
 				s.addError(line, path, "tcp acknowledgment", err)
 				return nil
 			}
 		}
-		entry.TCPWindow, err = parseUintPointer[uint16](remainingFields[6])
+		entry.TCPWindow, err = parse.UintPointer[uint16](remainingFields[6])
 		if err != nil {
 			s.addError(line, path, "tcp window", err)
 			return nil
 		}
 		// empty if urg flag is not set
 		if remainingFields[7] != "" {
-			entry.TCPUrgentPointer, err = parseUintPointer[uint16](remainingFields[7])
+			entry.TCPUrgentPointer, err = parse.UintPointer[uint16](remainingFields[7])
 			if err != nil {
 				s.addError(line, path, "tcp urgent pointer", err)
 				return nil
@@ -366,27 +351,27 @@ func (s *Stream) parse(line string, path string) *LogEntry {
 			break
 		}
 		entry.CARPType = remainingFields[0]
-		entry.CARPTTL, err = parseUintPointer[uint8](remainingFields[1])
+		entry.CARPTTL, err = parse.UintPointer[uint8](remainingFields[1])
 		if err != nil {
 			s.addError(line, path, "carp ttl", err)
 			return nil
 		}
-		entry.CARPVHID, err = parseUintPointer[uint8](remainingFields[2])
+		entry.CARPVHID, err = parse.UintPointer[uint8](remainingFields[2])
 		if err != nil {
 			s.addError(line, path, "carp vhid", err)
 			return nil
 		}
-		entry.CARPVersion, err = parseUintPointer[uint8](remainingFields[3])
+		entry.CARPVersion, err = parse.UintPointer[uint8](remainingFields[3])
 		if err != nil {
 			s.addError(line, path, "carp version", err)
 			return nil
 		}
-		entry.CARPAdvSkew, err = parseUintPointer[uint8](remainingFields[4])
+		entry.CARPAdvSkew, err = parse.UintPointer[uint8](remainingFields[4])
 		if err != nil {
 			s.addError(line, path, "carp advskew", err)
 			return nil
 		}
-		entry.CARPAdvBase, err = parseUintPointer[uint8](remainingFields[5])
+		entry.CARPAdvBase, err = parse.UintPointer[uint8](remainingFields[5])
 		if err != nil {
 			s.addError(line, path, "carp advbase", err)
 			return nil

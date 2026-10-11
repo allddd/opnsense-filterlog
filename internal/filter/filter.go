@@ -26,16 +26,16 @@ package filter
 import (
 	"fmt"
 	"net/netip"
-	"strconv"
 	"strings"
 	"time"
 
 	stime "gitlab.com/allddd/go-systemd-time"
+	"gitlab.com/allddd/opnsense-filterlog/internal/parse"
 	"gitlab.com/allddd/opnsense-filterlog/internal/stream"
 )
 
 const (
-	tokenAnd tokenTyp = iota
+	tokenAnd tokenType = iota
 	tokenEOF
 	tokenField
 	tokenNot
@@ -48,7 +48,7 @@ const (
 )
 
 const (
-	fieldAction fieldTyp = iota
+	fieldAction fieldType = iota
 	fieldDestination
 	fieldDestinationPort
 	fieldDirection
@@ -66,7 +66,7 @@ const (
 
 var (
 	// tokens maps string representations of tokens to token types.
-	tokens = map[string]tokenTyp{ //nolint:gochecknoglobals
+	tokens = map[string]tokenType{ //nolint:gochecknoglobals
 		// and
 		"and": tokenAnd,
 		"&&":  tokenAnd,
@@ -82,12 +82,9 @@ var (
 	}
 
 	// fields maps field names (and their aliases) to field types.
-	fields = map[string]fieldTyp{ //nolint:gochecknoglobals
+	fields = map[string]fieldType{ //nolint:gochecknoglobals
 		// action
 		"action": fieldAction,
-		// direction
-		"direction": fieldDirection,
-		"dir":       fieldDirection,
 		// destination
 		"destination": fieldDestination,
 		"dest":        fieldDestination,
@@ -95,6 +92,9 @@ var (
 		// destination port
 		"dstport": fieldDestinationPort,
 		"dport":   fieldDestinationPort,
+		// direction
+		"direction": fieldDirection,
+		"dir":       fieldDirection,
 		// host
 		"host": fieldHost,
 		// ip version
@@ -125,12 +125,12 @@ var (
 	}
 )
 
-type tokenTyp int
+type tokenType int
 
 // token represents a single token from the filter expression.
 type token struct {
-	typ   tokenTyp // type of token
-	value string   // value of the token
+	typ   tokenType // type of token
+	value string    // value of the token
 }
 
 // lexer tokenizes filter expression input into a stream of tokens.
@@ -145,10 +145,10 @@ type parser struct {
 	current token  // current token being parsed
 }
 
-type fieldTyp int
+type fieldType int
 
-// FilterNode is the interface that all filter nodes use to match log entries.
-type FilterNode interface {
+// Node is the interface that all filter nodes use to match log entries.
+type Node interface {
 	Matches(entry *stream.LogEntry) bool
 }
 
@@ -161,26 +161,26 @@ type fieldValueParsed struct {
 
 // fieldFilter matches a specific field against a value.
 type fieldFilter struct {
-	field  fieldTyp         // type of field
+	field  fieldType        // type of field
 	value  string           // field value
 	parsed fieldValueParsed // parsed (non-string) field values
 }
 
 // andFilter matches only if both child filters match.
 type andFilter struct {
-	left  FilterNode // left side of the and expression
-	right FilterNode // right side of the and expression
+	left  Node // left side of the and expression
+	right Node // right side of the and expression
 }
 
 // orFilter matches if either child filter matches.
 type orFilter struct {
-	left  FilterNode // left side of the or expression
-	right FilterNode // right side of the or expression
+	left  Node // left side of the or expression
+	right Node // right side of the or expression
 }
 
 // notFilter inverts the result of its child filter.
 type notFilter struct {
-	child FilterNode // filter expression to invert
+	child Node // filter expression to invert
 }
 
 // sinceFilter matches entries after or at a specific time.
@@ -268,8 +268,8 @@ func (p *parser) advance() {
 	p.current = p.lex.nextToken()
 }
 
-// parse parses the entire filter expression and returns the root FilterNode or nil if empty.
-func (p *parser) parse() (FilterNode, error) {
+// parse parses the entire filter expression and returns the root Node or nil if empty.
+func (p *parser) parse() (Node, error) {
 	if p.current.typ == tokenEOF {
 		return nil, nil
 	}
@@ -277,7 +277,7 @@ func (p *parser) parse() (FilterNode, error) {
 }
 
 // parseOr handles or expressions (lowest precedence).
-func (p *parser) parseOr() (FilterNode, error) {
+func (p *parser) parseOr() (Node, error) {
 	left, err := p.parseAnd()
 	if err != nil {
 		return nil, err
@@ -294,7 +294,7 @@ func (p *parser) parseOr() (FilterNode, error) {
 }
 
 // parseAnd handles and expressions (medium precedence).
-func (p *parser) parseAnd() (FilterNode, error) {
+func (p *parser) parseAnd() (Node, error) {
 	left, err := p.parseNot()
 	if err != nil {
 		return nil, err
@@ -311,7 +311,7 @@ func (p *parser) parseAnd() (FilterNode, error) {
 }
 
 // parseNot handles not expressions (highest precedence).
-func (p *parser) parseNot() (FilterNode, error) {
+func (p *parser) parseNot() (Node, error) {
 	if p.current.typ == tokenNot {
 		p.advance()
 		child, err := p.parsePrimary()
@@ -323,8 +323,8 @@ func (p *parser) parseNot() (FilterNode, error) {
 	return p.parsePrimary()
 }
 
-// parsePrimary handles parentheses, field filters and bare values.
-func (p *parser) parsePrimary() (FilterNode, error) {
+// parsePrimary handles parentheses, time filters and field filters.
+func (p *parser) parsePrimary() (Node, error) {
 	// handle parentheses for grouping
 	if p.current.typ == tokenParenL {
 		p.advance()
@@ -333,25 +333,24 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 			return nil, err
 		}
 		if p.current.typ != tokenParenR {
-			return nil, fmt.Errorf("error(filter): expected \")\" but got %q", p.current.value)
+			return nil, fmt.Errorf("expected \")\" but got %q", p.current.value)
 		}
 		p.advance()
 		return node, nil
 	}
 	// handle time
 	if p.current.typ == tokenSince || p.current.typ == tokenUntil {
-		isSince := p.current.typ == tokenSince
-		token := p.current.value
+		keyword := p.current
 		p.advance()
 		if p.current.typ != tokenValue {
-			return nil, fmt.Errorf("error(filter): expected time value after %q but got %q", token, p.current.value)
+			return nil, fmt.Errorf("expected time value after %q but got %q", keyword.value, p.current.value)
 		}
 		timeParsed, err := stime.ParseTimestamp(p.current.value)
 		if err != nil {
-			return nil, fmt.Errorf("error(filter): invalid time: %w", err)
+			return nil, fmt.Errorf("invalid time: %w", err)
 		}
 		p.advance()
-		if isSince {
+		if keyword.typ == tokenSince {
 			return &sinceFilter{time: timeParsed}, nil
 		}
 		return &untilFilter{time: timeParsed}, nil
@@ -362,58 +361,33 @@ func (p *parser) parsePrimary() (FilterNode, error) {
 		p.advance()
 
 		if p.current.typ != tokenValue {
-			return nil, fmt.Errorf("error(filter): expected value after field %q but got %q", field, p.current.value)
+			return nil, fmt.Errorf("expected value after field %q but got %q", field, p.current.value)
 		}
 		value := p.current.value
 		p.advance()
 
-		switch fields[field] { //nolint:exhaustive
+		f := &fieldFilter{field: fields[field], value: value}
+		var err error
+		switch f.field { //nolint:exhaustive
 		case fieldDestination, fieldHost, fieldSource:
-			var err error
-			var parsed netip.Prefix
 			if strings.Contains(value, "/") {
-				parsed, err = netip.ParsePrefix(value)
-				if err != nil {
-					return nil, fmt.Errorf("error(filter): invalid %s: %w", field, err)
-				}
+				f.parsed.prefix, err = netip.ParsePrefix(value)
 			} else {
-				addr, err := netip.ParseAddr(value)
-				if err != nil {
-					return nil, fmt.Errorf("error(filter): invalid %s: %w", field, err)
-				}
-				parsed = netip.PrefixFrom(addr, addr.BitLen())
+				var addr netip.Addr
+				addr, err = netip.ParseAddr(value)
+				f.parsed.prefix = netip.PrefixFrom(addr, addr.BitLen())
 			}
-			return &fieldFilter{
-				field:  fields[field],
-				value:  value,
-				parsed: fieldValueParsed{prefix: parsed},
-			}, nil
 		case fieldDestinationPort, fieldPort, fieldSourcePort:
-			parsed, err := strconv.ParseUint(value, 10, 16)
-			if err != nil {
-				return nil, fmt.Errorf("error(filter): invalid %s: %w", field, err)
-			}
-			return &fieldFilter{
-				field:  fields[field],
-				value:  value,
-				parsed: fieldValueParsed{u16: uint16(parsed)},
-			}, nil
+			f.parsed.u16, err = parse.Uint[uint16](value)
 		case fieldIPVersion, fieldProtocolNum:
-			parsed, err := strconv.ParseUint(value, 10, 8)
-			if err != nil {
-				return nil, fmt.Errorf("error(filter): invalid %s: %w", field, err)
-			}
-			return &fieldFilter{
-				field:  fields[field],
-				value:  value,
-				parsed: fieldValueParsed{u8: uint8(parsed)},
-			}, nil
+			f.parsed.u8, err = parse.Uint[uint8](value)
 		}
-
-		return &fieldFilter{field: fields[field], value: value}, nil
-
+		if err != nil {
+			return nil, fmt.Errorf("invalid %s: %w", field, err)
+		}
+		return f, nil
 	}
-	return nil, fmt.Errorf("error(filter): unexpected token %q", p.current.value)
+	return nil, fmt.Errorf("unexpected token %q", p.current.value)
 }
 
 // filter nodes
@@ -436,10 +410,10 @@ func (f *fieldFilter) Matches(entry *stream.LogEntry) bool {
 		return entry.Direction == f.value
 	case fieldHost:
 		return f.parsed.prefix.Contains(entry.Destination) || f.parsed.prefix.Contains(entry.Source)
-	case fieldInterface:
-		return entry.Interface == f.value
 	case fieldIPVersion:
 		return entry.IPVersion == f.parsed.u8
+	case fieldInterface:
+		return entry.Interface == f.value
 	case fieldLabel:
 		return entry.Label == f.value
 	case fieldPort:
@@ -475,21 +449,21 @@ func (f *notFilter) Matches(entry *stream.LogEntry) bool {
 
 // Matches (sinceFilter) returns true if the log entry time is after or equal to the filter time.
 func (f *sinceFilter) Matches(entry *stream.LogEntry) bool {
-	return entry.Time.After(f.time) || entry.Time.Equal(f.time)
+	return entry.Time.Compare(f.time) >= 0
 }
 
 // Matches (untilFilter) returns true if the log entry time is before or equal to the filter time.
 func (f *untilFilter) Matches(entry *stream.LogEntry) bool {
-	return entry.Time.Before(f.time) || entry.Time.Equal(f.time)
+	return entry.Time.Compare(f.time) <= 0
 }
 
 // public
 
-// Compile compiles a filter expression string into a FilterNode tree.
-func Compile(expression string) (FilterNode, error) {
-	if expression == "" {
-		return nil, nil
+// Compile compiles a filter expression string into a Node tree.
+func Compile(expression string) (Node, error) {
+	node, err := newParser(expression).parse()
+	if err != nil {
+		return nil, fmt.Errorf("error(filter): %w", err)
 	}
-	parser := newParser(expression)
-	return parser.parse()
+	return node, nil
 }
