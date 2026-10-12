@@ -302,7 +302,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.filterInput.Blur()
 				m.filterInput.SetValue("")
 				m.filterView = false
-				m.uiStatusMsg = ""
 				return m, nil
 
 			default:
