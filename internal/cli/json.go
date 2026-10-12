@@ -86,12 +86,12 @@ func displayJSON(s *stream.Stream, filterValue string) error {
 		entries++
 	}
 	// close entries and write meta object
-	parseErrors := s.GetErrors()
+	parseErrors := s.Errors()
 	jsonMeta, err := json.Marshal(jsonObjMeta{
 		Entries: entries,
 		Errors:  len(parseErrors),
 		Filter:  filterValue,
-		Sources: s.GetPaths(),
+		Sources: s.Paths(),
 	})
 	if err != nil {
 		return fmt.Errorf("error(json): could not encode meta: %w", err)

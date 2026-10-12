@@ -476,7 +476,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case indexMsg:
 		m.entriesTotal = msg.entriesTotal
-		m.errors = m.stream.GetErrors()
+		m.errors = m.stream.Errors()
 		m.indexed = true
 		m.uiLoading = false
 		if m.entriesTotal <= 0 {
