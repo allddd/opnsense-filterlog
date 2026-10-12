@@ -1,0 +1,24 @@
+Details
+Time:             Sun, 26 Jul 2026 01:00:17 +0000
+Label:            6125cb207f65033775d1069fdf6d0ccf
+Action:           pass
+Reason:           match
+Direction:        out
+Interface:        eth0
+IPVersion:        6
+ProtocolName:     tcp
+ProtocolNum:      6
+Source:           fd26:693:e7:4a::ea77
+SourcePort:       27802
+Destination:      fdf2:4d71:725a:752b::5e4b:5dd8
+DestinationPort:  53
+Length:           40
+Class:            0x00
+Flow:             0x7d97c
+HopLimit:         64
+DataLength:       0
+TCPFlags:         S
+TCPOptions:       mss;nop;wscale;sackOK;TS
+TCPSequence:      833568372
+position: 1/22 | filter: "ipver 6 and proto tcp"
+q: quit | hjkl: move | ud: page | gG: jump | esc: back

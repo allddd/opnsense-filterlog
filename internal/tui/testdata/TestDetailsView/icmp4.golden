@@ -1,0 +1,24 @@
+Details
+Time:          Sun, 26 Jul 2026 00:02:27 +0000
+Label:         02f4bab031b57d1e30553ce08e0ec131
+Action:        block
+Reason:        match
+Direction:     in
+Interface:     eth0
+IPVersion:     4
+ProtocolName:  icmp
+ProtocolNum:   1
+Source:        10.217.250.56
+Destination:   10.43.222.20
+Length:        36
+DSCP:          0x78
+Flags:         DF
+ID:            5632
+Offset:        0
+TTL:           46
+
+
+
+
+position: 1/17 | filter: "proto icmp"
+q: quit | hjkl: move | ud: page | gG: jump | esc: back

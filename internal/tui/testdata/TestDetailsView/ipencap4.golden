@@ -1,0 +1,24 @@
+Details
+Time:          Sun, 26 Jul 2026 07:19:46 +0000
+Label:         02f4bab031b57d1e30553ce08e0ec131
+Action:        block
+Reason:        match
+Direction:     in
+Interface:     eth0
+IPVersion:     4
+ProtocolName:  ipencap
+ProtocolNum:   4
+Source:        10.0.168.219
+Destination:   10.43.222.20
+Length:        68
+DSCP:          0x0
+Flags:         none
+ID:            54321
+Offset:        0
+TTL:           241
+
+
+
+
+position: 1/17 | filter: "proto ipencap"
+q: quit | hjkl: move | ud: page | gG: jump | esc: back

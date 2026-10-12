@@ -1,0 +1,24 @@
+Time             Action  Protocol  Interface  Source > Destination
+Jul 26 23:59:41  pass    udp       O eth0     10.43.222.20 123 > 10.223.154.92 123
+Jul 26 23:59:42  pass    udp       O eth0     10.43.222.20 123 > 10.204.53.68 123
+Jul 26 23:59:43  block   tcp       I eth0     10.50.188.205 43134 > 10.43.222.20 9090
+Jul 26 23:59:45  pass    udp       O eth0     fd26:693:e7:4a::ea77 123 > fddd:b703:d33f:e393:6622::>
+Jul 26 23:59:46  pass    udp       O eth0     10.43.222.20 123 > 10.197.155.107 123
+Jul 26 23:59:48  block   tcp       I eth0     10.57.87.242 50000 > 10.43.222.20 6705
+Jul 26 23:59:48  block   tcp       I eth0     10.154.98.37 54056 > 10.43.222.20 22
+Jul 26 23:59:50  pass    udp       O eth0     10.43.222.20 123 > 10.82.145.176 123
+Jul 27 00:00:00  block   tcp       I eth0     10.141.123.207 444 > 10.247.95.6 65285
+Jul 27 00:00:01  block   tcp       I eth0     10.174.12.141 55666 > 10.247.95.6 12186
+Jul 27 00:00:07  block   tcp       I eth0     10.251.63.210 50149 > 10.247.95.6 8862
+
+
+
+
+
+
+
+
+
+
+position: 1/11 | filter: "since 2026-07-26T23:59:40Z and until 2026-07-27T00:00:09Z"
+q: quit | hjkl: move | ud: page | gG: jump | enter: details | /: filter | esc: clear | e: show 7 err

@@ -1,0 +1,24 @@
+Details
+Time:          Sun, 26 Jul 2026 00:05:38 +0000
+Label:         02f4bab031b57d1e30553ce08e0ec131
+Action:        block
+Reason:        match
+Direction:     in
+Interface:     eth0
+IPVersion:     4
+ProtocolName:  gre
+ProtocolNum:   47
+Source:        10.224.49.251
+Destination:   10.43.222.20
+Length:        564
+DSCP:          0x0
+Flags:         DF
+ID:            1128
+Offset:        0
+TTL:           48
+
+
+
+
+position: 1/17 | filter: "proto gre"
+q: quit | hjkl: move | ud: page | gG: jump | esc: back

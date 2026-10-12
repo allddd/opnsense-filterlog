@@ -1,0 +1,24 @@
+Details
+Time:          Sun, 26 Jul 2026 00:00:20 +0000
+Label:         80f90f0d4c5aba0c28d1c539e1e35766
+Action:        pass
+Reason:        match
+Direction:     out
+Interface:     eth0
+IPVersion:     6
+ProtocolName:  ipv6-icmp
+ProtocolNum:   58
+Source:        fe80::e6d8:32d0:6601:d0e8
+Destination:   fe80::e797
+Length:        32
+Class:         0x00
+Flow:          0x00000
+HopLimit:      255
+
+
+
+
+
+
+position: 1/15 | filter: "proto ipv6-icmp"
+q: quit | hjkl: move | ud: page | gG: jump | esc: back

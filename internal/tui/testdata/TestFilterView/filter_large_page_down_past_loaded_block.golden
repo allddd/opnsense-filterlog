@@ -1,0 +1,24 @@
+Time             Action  Protocol  Interface  Source > Destination
+Jul 26 00:25:09  pass    udp       O eth0     10.43.222.20 123 > 10.55.20.169 123
+Jul 26 00:25:10  pass    udp       O eth0     10.43.222.20 123 > 10.180.224.77 123
+Jul 26 00:25:10  pass    udp       O eth0     10.43.222.20 123 > 10.205.164.252 123
+Jul 26 00:25:11  pass    udp       O eth0     10.43.222.20 123 > 10.75.173.19 123
+Jul 26 00:25:12  pass    udp       O eth0     fd26:693:e7:4a::ea77 123 > fd92:631c:9170:973b::32c5 >
+Jul 26 00:25:13  pass    udp       O eth0     10.43.222.20 123 > 10.69.84.199 123
+Jul 26 00:25:14  pass    udp       O eth0     fd26:693:e7:4a::ea77 123 > fd08:158d:8a58:4143::264e >
+Jul 26 00:25:14  pass    udp       O eth0     10.43.222.20 123 > 10.128.152.64 123
+Jul 26 00:25:15  pass    udp       O eth0     10.43.222.20 123 > 10.96.164.102 123
+Jul 26 00:25:20  pass    udp       O eth0     10.43.222.20 123 > 10.155.133.247 123
+Jul 26 00:25:20  pass    udp       O eth0     10.43.222.20 123 > 10.66.114.201 123
+Jul 26 00:25:21  pass    udp       O eth0     10.43.222.20 123 > 10.189.118.48 123
+Jul 26 00:25:22  pass    udp       O eth0     10.43.222.20 123 > 10.135.248.229 123
+Jul 26 00:25:22  pass    udp       O eth0     10.43.222.20 123 > 10.69.91.210 123
+Jul 26 00:25:22  pass    udp       O eth0     10.43.222.20 123 > 10.54.142.181 123
+Jul 26 00:25:25  pass    udp       O eth0     10.43.222.20 123 > 10.248.213.140 123
+Jul 26 00:25:25  pass    udp       O eth0     fd26:693:e7:4a::ea77 123 > fdb3:626c:c009:ebba:d4f5:6>
+Jul 26 00:26:07  pass    udp       O eth0     10.43.222.20 123 > 10.168.108.126 123
+Jul 26 00:26:15  pass    udp       O eth0     fd26:693:e7:4a::ea77 123 > fd18:847a:bf17:54a0::d3cc >
+Jul 26 00:26:15  pass    udp       O eth0     10.43.222.20 123 > 10.55.20.169 123
+Jul 26 00:26:16  pass    udp       O eth0     10.43.222.20 123 > 10.180.224.77 123
+position: 481/81894 | filter: "proto udp"
+q: quit | hjkl: move | ud: page | gG: jump | enter: details | /: filter | esc: clear | e: show 7 err

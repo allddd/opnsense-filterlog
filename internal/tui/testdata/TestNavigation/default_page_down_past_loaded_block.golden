@@ -1,0 +1,24 @@
+Time             Action  Protocol  Interface  Source > Destination
+Jul 26 00:14:50  block   tcp       I eth0     10.237.39.96 55415 > 10.43.222.20 10029
+Jul 26 00:14:50  pass    udp       O eth0     10.43.222.20 123 > 10.84.200.105 123
+Jul 26 00:15:00  block   tcp       I eth0     10.121.68.109 40324 > 10.43.222.20 27480
+Jul 26 00:15:06  block   tcp       I eth0     10.235.186.120 49804 > 10.43.222.20 3390
+Jul 26 00:15:08  block   udp       I eth0     10.250.90.201 51531 > 10.43.222.20 1900
+Jul 26 00:15:14  block   tcp       I eth0     10.21.179.191 42980 > 10.43.222.20 7001
+Jul 26 00:15:14  pass    udp       O eth0     10.43.222.20 11621 > 10.207.173.69 53
+Jul 26 00:15:14  pass    udp       O eth0     10.43.222.20 27250 > 10.58.210.40 53
+Jul 26 00:15:14  pass    udp       O eth0     10.43.222.20 17535 > 10.45.225.12 53
+Jul 26 00:15:14  pass    udp       O eth0     fd26:693:e7:4a::ea77 63678 > fd46:2d94:0:7394::aabd:e>
+Jul 26 00:15:14  pass    udp       O eth0     10.43.222.20 39642 > 10.162.29.121 53
+Jul 26 00:15:14  pass    udp       O eth0     10.43.222.20 38590 > 10.42.133.2 53
+Jul 26 00:15:14  pass    udp       O eth0     10.43.222.20 46111 > 10.54.77.207 53
+Jul 26 00:15:14  pass    udp       O eth0     fd26:693:e7:4a::ea77 16965 > fd61:d5a0:175b::21e4 53
+Jul 26 00:15:14  pass    udp       O eth0     fd26:693:e7:4a::ea77 63306 > fd46:2d94:0:7394::aabd:e>
+Jul 26 00:15:15  pass    udp       O eth0     fd26:693:e7:4a::ea77 37052 > fdcd:216f:2761:4ad4:58b3>
+Jul 26 00:15:15  pass    udp       O eth0     10.43.222.20 42184 > 10.165.46.233 53
+Jul 26 00:15:15  pass    udp       O eth0     10.43.222.20 123 > 10.205.164.252 123
+Jul 26 00:15:15  pass    udp       O eth0     10.43.222.20 123 > 10.168.108.126 123
+Jul 26 00:15:15  pass    udp       O eth0     fd26:693:e7:4a::ea77 27385 > fd4d:60ce:f97f:4c22:: 53
+Jul 26 00:15:15  pass    udp       O eth0     10.43.222.20 41637 > 10.239.167.28 53
+position: 481/144675
+q: quit | hjkl: move | ud: page | gG: jump | enter: details | /: filter | e: show 7 errors

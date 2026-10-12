@@ -1,0 +1,24 @@
+Details
+Time:             Sun, 26 Jul 2026 00:26:16 +0000
+Label:            d732bf074e5af1431615bc5c20ab4d3c
+Action:           pass
+Reason:           match
+Direction:        out
+Interface:        eth0
+IPVersion:        4
+ProtocolName:     udp
+ProtocolNum:      17
+Source:           10.43.222.20
+SourcePort:       123
+Destination:      10.180.224.77
+DestinationPort:  123
+Length:           76
+DSCP:             0xb8
+Flags:            none
+ID:               5994
+Offset:           0
+TTL:              64
+DataLength:       56
+
+position: 1/20 | filter: "proto udp"
+q: quit | hjkl: move | ud: page | gG: jump | esc: back

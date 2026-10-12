@@ -1,0 +1,24 @@
+Details
+Time:          Mon, 27 Jul 2026 17:49:01 +0000
+Label:         02f4bab031b57d1e30553ce08e0ec131
+Action:        block
+Reason:        match
+Direction:     in
+Interface:     eth0
+IPVersion:     4
+ProtocolName:  tcp
+ProtocolNum:   6
+Source:        10.161.149.187
+Destination:   10.247.95.6
+Length:        40
+DSCP:          0x0
+Flags:         none
+ID:            63581
+Offset:        0
+TTL:           117
+ErrMsg:        [bad hdr length 28 - too long, > 20]
+
+
+
+position: 1/18 | filter: "src 10.161.149.187"
+q: quit | hjkl: move | ud: page | gG: jump | esc: back
