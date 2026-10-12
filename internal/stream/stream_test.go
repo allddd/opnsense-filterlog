@@ -24,8 +24,8 @@
 package stream
 
 import (
-	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -60,14 +60,8 @@ func TestSplitCSV(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			expected := strings.Split(tc.csv, ",")
-			got := splitCSV(tc.csv)
-			if len(expected) != len(got) {
-				t.Fatalf("expected %d fields, got %d", len(expected), len(got))
-			}
-			for i := range expected {
-				if expected[i] != got[i] {
-					t.Fatalf("expected field %d to be %q, got %q", i, expected[i], got[i])
-				}
+			if got := splitCSV(tc.csv); !slices.Equal(expected, got) {
+				t.Fatalf("expected %q, got %q", expected, got)
 			}
 		})
 	}
@@ -75,11 +69,12 @@ func TestSplitCSV(t *testing.T) {
 
 func TestIndexSeekParse(t *testing.T) {
 	tests := []struct {
+		name     string
 		lineNum  int
 		expected LogEntry
 	}{
 		{
-			// gre4
+			name:    "gre4",
 			lineNum: 26454,
 			expected: LogEntry{
 				Time:         time.Date(2026, 7, 27, 13, 29, 6, 0, time.UTC),
@@ -102,7 +97,7 @@ func TestIndexSeekParse(t *testing.T) {
 			},
 		},
 		{
-			// icmp4
+			name:    "icmp4",
 			lineNum: 43965,
 			expected: LogEntry{
 				Time:         time.Date(2026, 7, 27, 22, 40, 19, 0, time.UTC),
@@ -125,7 +120,30 @@ func TestIndexSeekParse(t *testing.T) {
 			},
 		},
 		{
-			// tcp4
+			name:    "ipv6 encapsulation",
+			lineNum: 8367,
+			expected: LogEntry{
+				Time:         time.Date(2026, 7, 27, 4, 5, 36, 0, time.UTC),
+				Label:        "02f4bab031b57d1e30553ce08e0ec131",
+				Action:       "block",
+				Reason:       "match",
+				Direction:    "in",
+				Interface:    "eth0",
+				IPVersion:    4,
+				ProtocolName: "ipv6",
+				ProtocolNum:  41,
+				Source:       netip.MustParseAddr("10.119.149.16"),
+				Destination:  netip.MustParseAddr("10.247.95.6"),
+				Length:       68,
+				DSCP:         "0x0",
+				Flags:        "none",
+				ID:           new(uint16(54321)),
+				Offset:       new(uint16(0)),
+				TTL:          new(uint8(241)),
+			},
+		},
+		{
+			name:    "tcp4",
 			lineNum: 61,
 			expected: LogEntry{
 				Time:            time.Date(2026, 7, 27, 0, 0, 40, 0, time.UTC),
@@ -154,7 +172,7 @@ func TestIndexSeekParse(t *testing.T) {
 			},
 		},
 		{
-			// tcp4 with data
+			name:    "tcp4 with data",
 			lineNum: 7592,
 			expected: LogEntry{
 				Time:              time.Date(2026, 7, 27, 3, 40, 41, 0, time.UTC),
@@ -184,7 +202,31 @@ func TestIndexSeekParse(t *testing.T) {
 			},
 		},
 		{
-			// tcp4 without seq
+			name:    "tcp4 with error message",
+			lineNum: 34819,
+			expected: LogEntry{
+				Time:         time.Date(2026, 7, 27, 17, 49, 1, 0, time.UTC),
+				Label:        "02f4bab031b57d1e30553ce08e0ec131",
+				Action:       "block",
+				Reason:       "match",
+				Direction:    "in",
+				Interface:    "eth0",
+				IPVersion:    4,
+				ProtocolName: "tcp",
+				ProtocolNum:  6,
+				Source:       netip.MustParseAddr("10.161.149.187"),
+				Destination:  netip.MustParseAddr("10.247.95.6"),
+				Length:       40,
+				DSCP:         "0x0",
+				Flags:        "none",
+				ID:           new(uint16(63581)),
+				Offset:       new(uint16(0)),
+				TTL:          new(uint8(117)),
+				ErrMsg:       "[bad hdr length 28 - too long, > 20]",
+			},
+		},
+		{
+			name:    "tcp4 without seq",
 			lineNum: 25059,
 			expected: LogEntry{
 				Time:              time.Date(2026, 7, 27, 12, 45, 10, 0, time.UTC),
@@ -213,7 +255,7 @@ func TestIndexSeekParse(t *testing.T) {
 			},
 		},
 		{
-			// udp4
+			name:    "udp4",
 			lineNum: 57,
 			expected: LogEntry{
 				Time:            time.Date(2026, 7, 27, 0, 0, 29, 0, time.UTC),
@@ -239,7 +281,7 @@ func TestIndexSeekParse(t *testing.T) {
 			},
 		},
 		{
-			// icmp6
+			name:    "icmp6",
 			lineNum: 44067,
 			expected: LogEntry{
 				Time:         time.Date(2026, 7, 27, 22, 43, 34, 0, time.UTC),
@@ -260,7 +302,7 @@ func TestIndexSeekParse(t *testing.T) {
 			},
 		},
 		{
-			// tcp6
+			name:    "tcp6",
 			lineNum: 15727,
 			expected: LogEntry{
 				Time:            time.Date(2026, 7, 27, 7, 48, 1, 0, time.UTC),
@@ -288,7 +330,7 @@ func TestIndexSeekParse(t *testing.T) {
 			},
 		},
 		{
-			// udp6
+			name:    "udp6",
 			lineNum: 45808,
 			expected: LogEntry{
 				Time:            time.Date(2026, 7, 27, 23, 38, 2, 0, time.UTC),
@@ -311,29 +353,6 @@ func TestIndexSeekParse(t *testing.T) {
 				DataLength:      new(uint16(56)),
 			},
 		},
-		{
-			// ipv6 encapsulation
-			lineNum: 8367,
-			expected: LogEntry{
-				Time:         time.Date(2026, 7, 27, 4, 5, 36, 0, time.UTC),
-				Label:        "02f4bab031b57d1e30553ce08e0ec131",
-				Action:       "block",
-				Reason:       "match",
-				Direction:    "in",
-				Interface:    "eth0",
-				IPVersion:    4,
-				ProtocolName: "ipv6",
-				ProtocolNum:  41,
-				Source:       netip.MustParseAddr("10.119.149.16"),
-				Destination:  netip.MustParseAddr("10.247.95.6"),
-				Length:       68,
-				DSCP:         "0x0",
-				Flags:        "none",
-				ID:           new(uint16(54321)),
-				Offset:       new(uint16(0)),
-				TTL:          new(uint8(241)),
-			},
-		},
 	}
 	s, err := NewStream([]string{files[0].path})
 	if err != nil {
@@ -347,16 +366,16 @@ func TestIndexSeekParse(t *testing.T) {
 		t.Fatalf("expected %d indexed lines, got %d", files[0].size, got)
 	}
 	for _, tc := range tests {
-		t.Run(fmt.Sprintf("line_%d", tc.lineNum), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			if err := s.SeekToLine(tc.lineNum - 1); err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 			got, err := s.Next()
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 			if got == nil {
-				t.Error("expected entry, got nil")
+				t.Fatal("expected entry, got nil")
 			}
 			if diff := cmp.Diff(tc.expected, *got, cmpopts.EquateComparable(netip.Addr{})); diff != "" {
 				t.Error(diff)
@@ -377,32 +396,24 @@ func TestMultiFileSort(t *testing.T) {
 	if got := s.TotalLines(); files[0].size+files[1].size != got {
 		t.Fatalf("expected %d indexed lines, got %d", files[0].size+files[1].size, got)
 	}
-	if err := s.SeekToLine(0); err != nil {
-		t.Fatal(err)
-	}
-	for range files[0].size {
-		got, err := s.Next()
-		if err != nil {
+	start := 0
+	for i, expected := range []int{27, 28} {
+		if err := s.SeekToLine(start); err != nil {
 			t.Fatal(err)
 		}
-		if got == nil {
-			t.Fatal("expected entry, got nil")
+		for range files[i].size {
+			got, err := s.Next()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got == nil {
+				t.Fatal("expected entry, got nil")
+			}
+			if expected != got.Time.Day() {
+				t.Fatalf("expected day to be %d, got %d", expected, got.Time.Day())
+			}
 		}
-		if expected := 27; expected != got.Time.Day() {
-			t.Fatalf("expected day to be %d, got %d", expected, got.Time.Day())
-		}
-	}
-	for range files[1].size {
-		got, err := s.Next()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if got == nil {
-			t.Fatal("expected entry, got nil")
-		}
-		if expected := 28; expected != got.Time.Day() {
-			t.Fatalf("expected day to be %d, got %d", expected, got.Time.Day())
-		}
+		start += files[i].size
 	}
 }
 
