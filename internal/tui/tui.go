@@ -262,6 +262,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case tea.KeyPressMsg:
+		if msg.String() == "ctrl+c" || (msg.String() == "q" && !m.filterView) {
+			return m, tea.Quit
+		}
 		if !m.indexed {
 			return m, nil
 		}
@@ -311,9 +314,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-
 		case "e":
 			if !m.detailsView && !m.errorsView && len(m.errors) > 0 {
 				m.uiOffsetVPrev = m.uiOffsetV
