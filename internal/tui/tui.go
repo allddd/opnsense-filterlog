@@ -265,7 +265,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "ctrl+c" || (msg.String() == "q" && !m.filterView) {
 			return m, tea.Quit
 		}
-		if !m.indexed {
+		if !m.indexed || m.uiLoading {
 			return m, nil
 		}
 
